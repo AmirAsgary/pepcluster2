@@ -1,0 +1,16 @@
+>p1_reference
+ALVQRVKRF
+>p2_front_shift
+GALVQRVKRF
+>p3_end_shift
+ALVQRVKRFT
+>p4_both_shifts
+GALVQRVKRFT
+>p5_core_changed
+ALVSSSKRF
+>p6_front_reordered
+VALQRVKRF
+>p7_front_mutation
+GLVQRVKRF
+>p8_both_reordered
+VALQRVFKR

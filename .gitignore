@@ -1,0 +1,15 @@
+/target/
+**/target/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+/dist/
+/wheelhouse/
+
+# Generated validation runs are reproducible from the tracked scripts and data.
+/validation/**/runs/
+/validation/**/feasibility/
+/validation/**/benchmark/runs/
+/validation/**/benchmark/figures/
+/validation/2026-07-29_0.4.2-dev_lazy_exact_sample000/

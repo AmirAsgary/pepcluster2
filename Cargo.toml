@@ -1,0 +1,27 @@
+[package]
+name = "pepcluster2"
+version = "0.4.3"
+edition = "2021"
+publish = false
+description = "Experimental shift-aware clustering for MHC-I peptides"
+authors = ["Amir <amir.asgary@mpinat.mpg.de>"]
+readme = "README.md"
+repository = "https://github.com/AmirAsgary/pepcluster2"
+keywords = ["peptide", "clustering", "mhc", "bioinformatics"]
+categories = ["command-line-utilities", "science"]
+include = [
+    "src/**",
+    "Cargo.toml",
+    "Cargo.lock",
+    "README.md",
+    "ALGORITHM.md",
+    "pyproject.toml",
+]
+
+[dependencies]
+rayon = "1"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+panic = "abort"

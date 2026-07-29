@@ -1,0 +1,33 @@
+[build-system]
+requires = ["maturin>=1.8,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "pepcluster2"
+dynamic = ["version"]
+description = "Fast, deterministic, shift-aware clustering for MHC-I peptides"
+readme = "README.md"
+requires-python = ">=3.8"
+authors = [
+    {name = "Amir", email = "amir.asgary@mpinat.mpg.de"},
+]
+keywords = ["peptide", "clustering", "MHC", "bioinformatics"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Science/Research",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Rust",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+]
+
+[project.urls]
+Repository = "https://github.com/AmirAsgary/pepcluster2"
+Documentation = "https://github.com/AmirAsgary/pepcluster2/blob/main/README.md"
+Algorithm = "https://github.com/AmirAsgary/pepcluster2/blob/main/ALGORITHM.md"
+
+[tool.maturin]
+bindings = "bin"
+strip = true
+locked = true
+

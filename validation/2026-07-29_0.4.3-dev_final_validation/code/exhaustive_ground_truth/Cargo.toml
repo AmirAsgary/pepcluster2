@@ -1,0 +1,13 @@
+[package]
+name = "pepcluster2-exhaustive-ground-truth"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+rayon = "1"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+
