@@ -1,0 +1,48 @@
+name: Publish to PyPI
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build distributions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build manylinux2014 wheel
+        uses: PyO3/maturin-action@v1
+        with:
+          target: x86_64
+          args: --release --locked --out dist
+          manylinux: "2014"
+
+      - name: Build source distribution
+        uses: PyO3/maturin-action@v1
+        with:
+          command: sdist
+          args: --out dist
+
+      - name: Upload distributions
+        uses: actions/upload-artifact@v4
+        with:
+          name: pepcluster2-distributions
+          path: dist/
+          if-no-files-found: error
+
+  publish:
+    name: Publish distributions
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - name: Download distributions
+        uses: actions/download-artifact@v4
+        with:
+          name: pepcluster2-distributions
+          path: dist/
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
