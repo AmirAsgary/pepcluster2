@@ -1,5 +1,5 @@
-use crate::graph::{canonicalize, Clustering, IterationStats};
-use crate::index::{build_exact_index_subset, retrieve_candidates};
+use crate::graph::{canonicalize, intrinsic_order, Clustering, IterationStats, RepresentativeOrder};
+use crate::index::{build_exact_index_subset, retrieve_candidates, TerminalSeed};
 use crate::kmer::KmerSimilarityTable;
 use crate::model::Node;
 use crate::scoring::{Scorer, SimilarityScores};
@@ -11,10 +11,34 @@ use std::hash::{Hash, Hasher};
 #[derive(Clone, Copy, Debug, Default)]
 pub struct GreedyRunStats {
     pub candidate_queries: u64,
+    pub index_candidate_occurrences: u64,
+    pub anchor_bound_rejected: u64,
     pub candidate_pairs_scored: u64,
     pub eligible_pairs: u64,
     pub representative_pair_scores: u64,
     pub merge_pair_scores: u64,
+}
+
+/// Index retrieval followed by the sound anchor upper bound. Both greedy
+/// selections and the reassignment pass share this so their candidate lists are
+/// pruned exactly like the graph path's.
+fn bounded_candidates(
+    query: u32,
+    nodes: &[Node],
+    buckets: &[Vec<u32>],
+    table: &KmerSimilarityTable,
+    scorer: &Scorer,
+    seed: TerminalSeed,
+) -> (Vec<u32>, u64) {
+    let retrieved = retrieve_candidates(Some(query), &nodes[query as usize], buckets, table, seed);
+    let total = retrieved.len() as u64;
+    let kept: Vec<u32> = retrieved
+        .into_iter()
+        .filter(|candidate| {
+            scorer.anchor_bound_passes(&nodes[query as usize], &nodes[*candidate as usize])
+        })
+        .collect();
+    (kept, total)
 }
 
 #[inline]
@@ -71,33 +95,56 @@ fn state_hash(clustering: &Clustering) -> u64 {
     hasher.finish()
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn initial_clustering(
     nodes: &[Node],
     buckets: &[Vec<u32>],
     table: &KmerSimilarityTable,
     scorer: &Scorer,
+    seed: TerminalSeed,
+    representative_order: RepresentativeOrder,
 ) -> (Clustering, GreedyRunStats) {
-    let candidate_counts: Vec<usize> = nodes
-        .par_iter()
-        .enumerate()
-        .map(|(node_id, node)| {
-            retrieve_candidates(Some(node_id as u32), node, buckets, table).len()
-        })
-        .collect();
-    let mut order: Vec<usize> = (0..nodes.len()).collect();
-    order.sort_unstable_by(|&a, &b| {
-        candidate_counts[b]
-            .cmp(&candidate_counts[a])
-            .then(nodes[a].sequence.cmp(&nodes[b].sequence))
-    });
-
-    let mut assigned = vec![false; nodes.len()];
-    let mut cluster_of = vec![u32::MAX; nodes.len()];
-    let mut representatives = Vec::<u32>::new();
     let mut stats = GreedyRunStats {
         candidate_queries: nodes.len() as u64,
         ..GreedyRunStats::default()
     };
+    let order: Vec<usize> = match representative_order {
+        RepresentativeOrder::Intrinsic => intrinsic_order(nodes)
+            .into_iter()
+            .map(|id| id as usize)
+            .collect(),
+        RepresentativeOrder::Coverage => {
+            // Degree proxy: count only candidates that survive the sound anchor
+            // bound, so the ordering tracks the eligible-neighbour count instead
+            // of raw index traffic.
+            let counts: Vec<(usize, u64)> = nodes
+                .par_iter()
+                .enumerate()
+                .map(|(node_id, _)| {
+                    let (kept, retrieved) =
+                        bounded_candidates(node_id as u32, nodes, buckets, table, scorer, seed);
+                    (kept.len(), retrieved)
+                })
+                .collect();
+            stats.index_candidate_occurrences += counts.iter().map(|item| item.1).sum::<u64>();
+            stats.anchor_bound_rejected += counts
+                .iter()
+                .map(|item| item.1 - item.0 as u64)
+                .sum::<u64>();
+            let candidate_counts: Vec<usize> = counts.iter().map(|item| item.0).collect();
+            let mut order: Vec<usize> = (0..nodes.len()).collect();
+            order.sort_unstable_by(|&a, &b| {
+                candidate_counts[b]
+                    .cmp(&candidate_counts[a])
+                    .then(nodes[a].sequence.cmp(&nodes[b].sequence))
+            });
+            order
+        }
+    };
+
+    let mut assigned = vec![false; nodes.len()];
+    let mut cluster_of = vec![u32::MAX; nodes.len()];
+    let mut representatives = Vec::<u32>::new();
 
     for rep in order {
         if assigned[rep] {
@@ -107,8 +154,11 @@ pub fn initial_clustering(
         representatives.push(rep as u32);
         assigned[rep] = true;
         cluster_of[rep] = cluster;
-        let candidates = retrieve_candidates(Some(rep as u32), &nodes[rep], buckets, table);
+        let (candidates, retrieved) =
+            bounded_candidates(rep as u32, nodes, buckets, table, scorer, seed);
         stats.candidate_queries += 1;
+        stats.index_candidate_occurrences += retrieved;
+        stats.anchor_bound_rejected += retrieved - candidates.len() as u64;
         let unassigned: Vec<u32> = candidates
             .into_iter()
             .filter(|candidate| !assigned[*candidate as usize])
@@ -153,16 +203,28 @@ pub fn initial_clustering_lazy_exact(
     buckets: &[Vec<u32>],
     table: &KmerSimilarityTable,
     scorer: &Scorer,
+    seed: TerminalSeed,
 ) -> (Clustering, GreedyRunStats) {
-    let candidate_counts: Vec<usize> = nodes
+    let mut stats = GreedyRunStats {
+        candidate_queries: nodes.len() as u64,
+        ..GreedyRunStats::default()
+    };
+    let bounds: Vec<(usize, u64)> = nodes
         .par_iter()
         .enumerate()
-        .map(|(node_id, node)| {
-            retrieve_candidates(Some(node_id as u32), node, buckets, table).len()
+        .map(|(node_id, _)| {
+            let (kept, retrieved) =
+                bounded_candidates(node_id as u32, nodes, buckets, table, scorer, seed);
+            (kept.len(), retrieved)
         })
         .collect();
+    stats.index_candidate_occurrences += bounds.iter().map(|item| item.1).sum::<u64>();
+    stats.anchor_bound_rejected += bounds
+        .iter()
+        .map(|item| item.1 - item.0 as u64)
+        .sum::<u64>();
     let mut heap = BinaryHeap::with_capacity(nodes.len());
-    for (node, &candidate_count) in candidate_counts.iter().enumerate() {
+    for (node, &(candidate_count, _)) in bounds.iter().enumerate() {
         heap.push(LazyEntry {
             coverage_upper_bound: 1 + candidate_count as u32,
             // Every mode-specific edge ranking weight is at most 1000.
@@ -175,18 +237,17 @@ pub fn initial_clustering_lazy_exact(
     let mut assigned = vec![false; nodes.len()];
     let mut cluster_of = vec![u32::MAX; nodes.len()];
     let mut representatives = Vec::<u32>::new();
-    let mut stats = GreedyRunStats {
-        candidate_queries: nodes.len() as u64,
-        ..GreedyRunStats::default()
-    };
 
     while let Some(entry) = heap.pop() {
         let rep = entry.node as usize;
         if assigned[rep] {
             continue;
         }
-        let candidates = retrieve_candidates(Some(entry.node), &nodes[rep], buckets, table);
+        let (candidates, retrieved) =
+            bounded_candidates(entry.node, nodes, buckets, table, scorer, seed);
         stats.candidate_queries += 1;
+        stats.index_candidate_occurrences += retrieved;
+        stats.anchor_bound_rejected += retrieved - candidates.len() as u64;
         let unassigned: Vec<u32> = candidates
             .into_iter()
             .filter(|candidate| !assigned[*candidate as usize])
@@ -302,15 +363,22 @@ fn update_representatives(
     )
 }
 
+/// Synchronous reassignment against the representative index. The
+/// `minimum_improvement` hysteresis matches `graph::refine`: a peptide leaves
+/// its current representative only when another beats it by more than that
+/// margin.
 fn reassign(
     nodes: &[Node],
     table: &KmerSimilarityTable,
     scorer: &Scorer,
     clustering: &Clustering,
+    seed: TerminalSeed,
+    minimum_improvement: u16,
 ) -> (Vec<u32>, u64, u64) {
     let rep_buckets = build_exact_index_subset(
         nodes,
         clustering.representatives.iter().map(|rep| *rep as usize),
+        seed,
     );
     let mut rep_cluster = vec![u32::MAX; nodes.len()];
     for (cluster, &rep) in clustering.representatives.iter().enumerate() {
@@ -323,7 +391,10 @@ fn reassign(
             let current_cluster = clustering.cluster_of[node_id];
             let current_rep = clustering.representatives[current_cluster as usize];
             let mut candidates =
-                retrieve_candidates(Some(node_id as u32), node, &rep_buckets, table);
+                retrieve_candidates(Some(node_id as u32), node, &rep_buckets, table, seed);
+            candidates.retain(|rep| {
+                scorer.anchor_bound_passes(node, &nodes[*rep as usize])
+            });
             candidates.push(current_rep);
             if rep_cluster[node_id] != u32::MAX {
                 candidates.push(node_id as u32);
@@ -332,8 +403,9 @@ fn reassign(
             candidates.dedup();
             let mut best_rep = current_rep;
             let mut best_cluster = current_cluster;
-            let mut best_scores = pair_scores(nodes, scorer, node_id as u32, current_rep)
+            let current_scores = pair_scores(nodes, scorer, node_id as u32, current_rep)
                 .expect("current representative must remain eligible");
+            let mut best_scores = current_scores;
             let mut scored = 0u64;
             let mut eligible = 0u64;
             for rep in candidates {
@@ -353,6 +425,16 @@ fn reassign(
                     best_cluster = cluster;
                     best_scores = scores;
                 }
+            }
+            // Hysteresis: keep the current representative unless the winner
+            // beats it by more than the margin. Applied only to the decision to
+            // leave, so ties among the alternatives still resolve
+            // deterministically above.
+            if best_rep != current_rep
+                && best_scores.ranking_weight as u32
+                    <= current_scores.ranking_weight as u32 + minimum_improvement as u32
+            {
+                best_cluster = current_cluster;
             }
             (best_cluster, scored, eligible)
         })
@@ -390,12 +472,14 @@ fn strict_merge(
     scorer: &Scorer,
     mut clustering: Clustering,
     merge_cap: Option<usize>,
+    seed: TerminalSeed,
 ) -> (Clustering, usize, u64) {
     let mut members = cluster_members(&clustering);
     let mut active = vec![true; members.len()];
     let rep_buckets = build_exact_index_subset(
         nodes,
         clustering.representatives.iter().map(|rep| *rep as usize),
+        seed,
     );
     let mut rep_cluster = vec![u32::MAX; nodes.len()];
     for (cluster, &rep) in clustering.representatives.iter().enumerate() {
@@ -420,6 +504,7 @@ fn strict_merge(
             &nodes[target_rep as usize],
             &rep_buckets,
             table,
+            seed,
         );
         let mut sources: Vec<usize> = candidates
             .into_iter()
@@ -493,6 +578,7 @@ fn strict_merge(
     (compact_empty_clusters(clustering), merges, comparisons)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn iterate_to_convergence(
     nodes: &[Node],
     table: &KmerSimilarityTable,
@@ -501,6 +587,8 @@ pub fn iterate_to_convergence(
     iteration_cap: Option<usize>,
     merge: bool,
     merge_cap: Option<usize>,
+    seed: TerminalSeed,
+    minimum_improvement: u16,
     stats: &mut GreedyRunStats,
 ) -> (Clustering, IterationStats) {
     let mut iteration = IterationStats::default();
@@ -514,7 +602,8 @@ pub fn iterate_to_convergence(
         iteration.iterations += 1;
         let old_assignments = clustering.cluster_of.clone();
         let old_representatives = clustering.representatives.clone();
-        let (assignments, scored, eligible) = reassign(nodes, table, scorer, &clustering);
+        let (assignments, scored, eligible) =
+            reassign(nodes, table, scorer, &clustering, seed, minimum_improvement);
         stats.candidate_pairs_scored += scored;
         stats.eligible_pairs += eligible;
         iteration.reassignment_moves += assignments
@@ -535,7 +624,7 @@ pub fn iterate_to_convergence(
 
         let mut merges = 0usize;
         if merge {
-            let result = strict_merge(nodes, table, scorer, clustering, merge_cap);
+            let result = strict_merge(nodes, table, scorer, clustering, merge_cap, seed);
             clustering = result.0;
             merges = result.1;
             stats.merge_pair_scores += result.2;

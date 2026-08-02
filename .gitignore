@@ -13,3 +13,11 @@
 /validation/**/benchmark/runs/
 /validation/**/benchmark/figures/
 /validation/2026-07-29_0.4.2-dev_lazy_exact_sample000/
+
+# SLURM job logs: run artefacts, not source.
+/validation/**/logs/
+/validation/**/*.out
+
+# Third-party benchmark inputs (ImmuneApp supplementary tables). Not ours to
+# redistribute; see validation/*/mhc_bench_data/SOURCES.md for how to obtain them.
+/validation/**/mhc_bench_data/*.xlsx

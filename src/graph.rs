@@ -108,11 +108,68 @@ pub struct Clustering {
     pub representatives: Vec<u32>,
 }
 
-pub fn greedy_set_cover(nodes: &[Node], graph: &Graph) -> Clustering {
-    greedy_set_cover_subset(nodes, graph, &vec![true; nodes.len()])
+/// How the order of representative selection is decided.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum RepresentativeOrder {
+    /// Dynamic greedy set cover: repeatedly take the peptide covering the most
+    /// still-unassigned peptides. Minimises the cluster count, but the key is a
+    /// property of the whole dataset, so subsampling changes the selection.
+    Coverage,
+    /// Visit peptides in an order that depends only on the peptide itself. The
+    /// order of any subset is the restriction of the full-dataset order, so
+    /// selection no longer churns when the dataset composition changes; the
+    /// residual difference comes only from representatives absent in the subset.
+    Intrinsic,
 }
 
-pub fn greedy_set_cover_subset(nodes: &[Node], graph: &Graph, eligible: &[bool]) -> Clustering {
+impl RepresentativeOrder {
+    pub fn parse(value: &str) -> Result<Self, String> {
+        match value {
+            "coverage" => Ok(Self::Coverage),
+            "intrinsic" => Ok(Self::Intrinsic),
+            _ => Err(format!("invalid --representative-order: {value}")),
+        }
+    }
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Coverage => "coverage",
+            Self::Intrinsic => "intrinsic",
+        }
+    }
+}
+
+/// Deterministic visiting order built only from per-peptide properties: longer
+/// peptides first, then canonical sequence order. Input frequency is
+/// deliberately excluded because it depends on which duplicates a sample
+/// retained, which would reintroduce composition dependence.
+pub fn intrinsic_order(nodes: &[Node]) -> Vec<u32> {
+    let mut order: Vec<u32> = (0..nodes.len() as u32).collect();
+    order.sort_unstable_by(|&a, &b| {
+        let left = &nodes[a as usize];
+        let right = &nodes[b as usize];
+        right
+            .sequence
+            .len()
+            .cmp(&left.sequence.len())
+            .then_with(|| left.sequence.cmp(&right.sequence))
+    });
+    order
+}
+
+pub fn greedy_set_cover(nodes: &[Node], graph: &Graph, order: RepresentativeOrder) -> Clustering {
+    greedy_set_cover_subset(nodes, graph, &vec![true; nodes.len()], order)
+}
+
+pub fn greedy_set_cover_subset(
+    nodes: &[Node],
+    graph: &Graph,
+    eligible: &[bool],
+    order: RepresentativeOrder,
+) -> Clustering {
+    if order == RepresentativeOrder::Intrinsic {
+        return intrinsic_set_cover_subset(nodes, graph, eligible);
+    }
     let n = nodes.len();
     assert_eq!(eligible.len(), n);
     let mut assigned: Vec<bool> = eligible.iter().map(|x| !*x).collect();
@@ -203,6 +260,40 @@ pub fn greedy_set_cover_subset(nodes: &[Node], graph: &Graph, eligible: &[bool])
     }
 }
 
+/// Fixed-order greedy cover. Each peptide is visited once in `intrinsic_order`;
+/// an unassigned peptide becomes a representative and absorbs every still
+/// unassigned neighbour.
+fn intrinsic_set_cover_subset(nodes: &[Node], graph: &Graph, eligible: &[bool]) -> Clustering {
+    let n = nodes.len();
+    assert_eq!(eligible.len(), n);
+    let mut assigned: Vec<bool> = eligible.iter().map(|x| !*x).collect();
+    let mut cluster_of = vec![u32::MAX; n];
+    let mut representatives = Vec::new();
+    for candidate in intrinsic_order(nodes) {
+        if assigned[candidate as usize] {
+            continue;
+        }
+        let cluster_id = representatives.len() as u32;
+        representatives.push(candidate);
+        assigned[candidate as usize] = true;
+        cluster_of[candidate as usize] = cluster_id;
+        for neighbor in graph.neighbors(candidate) {
+            if !assigned[neighbor.node as usize] {
+                assigned[neighbor.node as usize] = true;
+                cluster_of[neighbor.node as usize] = cluster_id;
+            }
+        }
+    }
+    debug_assert!(cluster_of
+        .iter()
+        .enumerate()
+        .all(|(i, cluster)| !eligible[i] || *cluster != u32::MAX));
+    Clustering {
+        cluster_of,
+        representatives,
+    }
+}
+
 /// Preserve non-singleton prefilter clusters and complete the remaining nodes
 /// by set cover on the sensitive graph.
 pub fn prefilter_masks(node_count: usize, prefilter: &Clustering) -> (Vec<bool>, Vec<bool>) {
@@ -273,6 +364,16 @@ fn update_representatives(
         .collect()
 }
 
+/// Synchronous reassignment.
+///
+/// `minimum_improvement` is hysteresis on the move decision: a peptide leaves
+/// its current representative only when another beats it by more than this
+/// margin, in the same thousandths as the ranking weight. Zero reproduces the
+/// pre-0.5.0 behaviour, where any improvement at all — including an exact tie
+/// broken by identifier — caused a move. Near-ties are the unstable case: which
+/// representative wins a tie depends on which peptides happen to be in the
+/// dataset, so with zero margin a small change in composition reshuffles a large
+/// number of assignments.
 pub fn refine(
     nodes: &[Node],
     scorer: &Scorer,
@@ -484,6 +585,7 @@ fn state_hash(clustering: &Clustering) -> u64 {
     hasher.finish()
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn iterate_to_convergence(
     nodes: &[Node],
     scorer: &Scorer,
@@ -492,6 +594,7 @@ pub fn iterate_to_convergence(
     iteration_cap: Option<usize>,
     merge: bool,
     merge_cap: Option<usize>,
+    minimum_improvement: u16,
 ) -> (Clustering, IterationStats) {
     let mut stats = IterationStats::default();
     let mut seen = HashSet::new();
@@ -504,7 +607,14 @@ pub fn iterate_to_convergence(
         }
         stats.iterations += 1;
         let before_reps = clustering.representatives.clone();
-        let (refined, moves, _) = refine(nodes, scorer, graph, clustering, 1, 0);
+        let (refined, moves, _) = refine(
+            nodes,
+            scorer,
+            graph,
+            clustering,
+            1,
+            minimum_improvement,
+        );
         clustering = refined;
         let rep_changes = before_reps
             .iter()
@@ -619,8 +729,38 @@ mod tests {
             ],
             edge_count: 2,
         };
-        let clustering = greedy_set_cover(&nodes, &graph);
+        let clustering = greedy_set_cover(&nodes, &graph, RepresentativeOrder::Coverage);
         assert_eq!(clustering.representatives.len(), 2);
         assert_eq!(representative_coverage(&graph, &clustering), (4, 4));
+        let fixed = greedy_set_cover(&nodes, &graph, RepresentativeOrder::Intrinsic);
+        assert_eq!(fixed.representatives.len(), 2);
+        assert_eq!(representative_coverage(&graph, &fixed), (4, 4));
+    }
+
+    /// The intrinsic order is a function of the peptide alone, so removing
+    /// peptides never reorders the survivors. This is the property that makes
+    /// subset selection stop churning.
+    #[test]
+    fn intrinsic_order_is_stable_under_subsetting() {
+        let all = vec![
+            node(b"AAAAAA"),
+            node(b"CCCCCC"),
+            node(b"AAAAAR"),
+            node(b"AAAAAN"),
+        ];
+        let full: Vec<Vec<u8>> = intrinsic_order(&all)
+            .into_iter()
+            .map(|id| all[id as usize].sequence.clone())
+            .collect();
+        let kept: Vec<Node> = vec![all[1].clone(), all[3].clone()];
+        let subset: Vec<Vec<u8>> = intrinsic_order(&kept)
+            .into_iter()
+            .map(|id| kept[id as usize].sequence.clone())
+            .collect();
+        let restricted: Vec<Vec<u8>> = full
+            .into_iter()
+            .filter(|sequence| subset.contains(sequence))
+            .collect();
+        assert_eq!(restricted, subset);
     }
 }

@@ -1,5 +1,5 @@
 use crate::fasta::DynError;
-use crate::index::KeyRelation;
+use crate::index::{terminal_dimers, KeyRelation, TerminalSeed};
 use crate::kmer::{KmerSimilarityTable, N_DIMERS};
 use crate::model::{Edge, Node};
 use crate::scoring::Scorer;
@@ -18,14 +18,20 @@ const SCORE_BATCH_PAIRS: usize = 1_048_576;
 #[derive(Default)]
 struct CandidateTaskResult {
     seed_candidate_occurrences: u64,
+    anchor_bound_rejected: u64,
     candidate_occurrences: u64,
     chunk_paths: Vec<PathBuf>,
 }
 
 #[derive(Clone, Debug)]
 pub struct EdgeBuildStats {
+    /// Index hits before any rejection, counted with multiplicity.
     pub seed_candidate_occurrences: u64,
+    /// Index hits discarded by the sound anchor upper bound.
+    pub anchor_bound_rejected: u64,
+    /// Index hits retained for spilling, counted with multiplicity.
     pub candidate_occurrences: u64,
+    /// Distinct candidate pairs written to the candidate file and exactly scored.
     pub unique_candidate_pairs: u64,
     pub unique_valid_edges: u64,
     pub candidate_chunk_count: usize,
@@ -74,23 +80,42 @@ fn write_pair(writer: &mut impl Write, pair: (u32, u32)) -> io::Result<()> {
     writer.write_all(&pair.1.to_le_bytes())
 }
 
+/// Fill `buffer` completely, or report a clean end of stream.
+///
+/// `Read::read` may return fewer bytes than requested even when the stream has
+/// more, and `BufReader` does exactly that whenever a record straddles its
+/// internal buffer boundary. Records must therefore be assembled in a loop; a
+/// single `read` is only correct for streams that never return a short read,
+/// which files on a networked filesystem are not.
+fn fill_record(reader: &mut impl Read, buffer: &mut [u8]) -> io::Result<bool> {
+    let mut filled = 0usize;
+    while filled < buffer.len() {
+        match reader.read(&mut buffer[filled..]) {
+            Ok(0) => {
+                if filled == 0 {
+                    return Ok(false);
+                }
+                return Err(io::Error::new(
+                    io::ErrorKind::UnexpectedEof,
+                    "truncated record",
+                ));
+            }
+            Ok(read) => filled += read,
+            Err(error) if error.kind() == io::ErrorKind::Interrupted => {}
+            Err(error) => return Err(error),
+        }
+    }
+    Ok(true)
+}
+
 fn read_pair(reader: &mut impl Read) -> io::Result<Option<(u32, u32)>> {
-    let mut first = [0u8; 4];
-    let n = reader.read(&mut first)?;
-    if n == 0 {
+    let mut record = [0u8; PAIR_DISK_BYTES];
+    if !fill_record(reader, &mut record)? {
         return Ok(None);
     }
-    if n != 4 {
-        return Err(io::Error::new(
-            io::ErrorKind::UnexpectedEof,
-            "truncated pair record",
-        ));
-    }
-    let mut second = [0u8; 4];
-    reader.read_exact(&mut second)?;
     Ok(Some((
-        u32::from_le_bytes(first),
-        u32::from_le_bytes(second),
+        u32::from_le_bytes(record[..4].try_into().expect("four bytes")),
+        u32::from_le_bytes(record[4..8].try_into().expect("four bytes")),
     )))
 }
 
@@ -101,15 +126,14 @@ fn write_edge(writer: &mut impl Write, edge: Edge) -> io::Result<()> {
 }
 
 pub fn read_edge(reader: &mut impl Read) -> io::Result<Option<Edge>> {
-    let Some((u, v)) = read_pair(reader)? else {
+    let mut record = [0u8; PAIR_DISK_BYTES + 2];
+    if !fill_record(reader, &mut record)? {
         return Ok(None);
-    };
-    let mut weight = [0u8; 2];
-    reader.read_exact(&mut weight)?;
+    }
     Ok(Some(Edge {
-        u,
-        v,
-        weight: u16::from_le_bytes(weight),
+        u: u32::from_le_bytes(record[..4].try_into().expect("four bytes")),
+        v: u32::from_le_bytes(record[4..8].try_into().expect("four bytes")),
+        weight: u16::from_le_bytes(record[8..10].try_into().expect("two bytes")),
     }))
 }
 
@@ -135,6 +159,7 @@ fn spill_pairs(
     Ok(Some(path))
 }
 
+#[allow(clippy::too_many_arguments)]
 fn generate_candidate_task(
     relations: &[KeyRelation],
     buckets: &[Vec<u32>],
@@ -142,6 +167,7 @@ fn generate_candidate_task(
     file_counter: &AtomicUsize,
     pair_buffer_limit: usize,
     nodes: &[Node],
+    scorer: &Scorer,
     mode: EdgeMode,
     scope: CandidateScope<'_>,
     label: &str,
@@ -151,54 +177,41 @@ fn generate_candidate_task(
     for relation in relations {
         let first = &buckets[relation.first as usize];
         let second = &buckets[relation.second as usize];
-        if relation.first == relation.second {
-            for i in 0..first.len() {
-                for j in (i + 1)..first.len() {
-                    let pair = (first[i], first[j]);
-                    result.seed_candidate_occurrences += 1;
-                    if !scope.permits(pair.0, pair.1)
-                        || (mode == EdgeMode::Prefilter
-                            && Scorer::distinct_shared_anchor_types(
-                                &nodes[pair.0 as usize],
-                                &nodes[pair.1 as usize],
-                            ) < 2)
-                    {
-                        continue;
-                    }
-                    pairs.push(pair);
-                    result.candidate_occurrences += 1;
-                    if pairs.len() >= pair_buffer_limit {
-                        if let Some(path) = spill_pairs(&mut pairs, work_dir, file_counter, label)?
-                        {
-                            result.chunk_paths.push(path);
-                        }
-                    }
+        let same_key = relation.first == relation.second;
+        for (position, &a) in first.iter().enumerate() {
+            let partners = if same_key {
+                &second[position + 1..]
+            } else {
+                &second[..]
+            };
+            for &b in partners {
+                if a == b {
+                    continue;
                 }
-            }
-        } else {
-            for &a in first {
-                for &b in second {
-                    if a == b {
-                        continue;
-                    }
-                    let pair = (a.min(b), a.max(b));
-                    result.seed_candidate_occurrences += 1;
-                    if !scope.permits(pair.0, pair.1)
-                        || (mode == EdgeMode::Prefilter
-                            && Scorer::distinct_shared_anchor_types(
-                                &nodes[pair.0 as usize],
-                                &nodes[pair.1 as usize],
-                            ) < 2)
-                    {
-                        continue;
-                    }
-                    pairs.push(pair);
-                    result.candidate_occurrences += 1;
-                    if pairs.len() >= pair_buffer_limit {
-                        if let Some(path) = spill_pairs(&mut pairs, work_dir, file_counter, label)?
-                        {
-                            result.chunk_paths.push(path);
-                        }
+                let pair = (a.min(b), a.max(b));
+                result.seed_candidate_occurrences += 1;
+                if !scope.permits(pair.0, pair.1) {
+                    continue;
+                }
+                let left = &nodes[pair.0 as usize];
+                let right = &nodes[pair.1 as usize];
+                if mode == EdgeMode::Prefilter
+                    && Scorer::distinct_shared_anchor_types(left, right) < 2
+                {
+                    continue;
+                }
+                // Lossless rejection: the relaxed anchor assignment is an upper
+                // bound on the exact anchor-combination similarity, so a pair
+                // failing it cannot be accepted and never reaches disk.
+                if !scorer.anchor_bound_passes(left, right) {
+                    result.anchor_bound_rejected += 1;
+                    continue;
+                }
+                pairs.push(pair);
+                result.candidate_occurrences += 1;
+                if pairs.len() >= pair_buffer_limit {
+                    if let Some(path) = spill_pairs(&mut pairs, work_dir, file_counter, label)? {
+                        result.chunk_paths.push(path);
                     }
                 }
             }
@@ -293,35 +306,37 @@ fn score_unique_candidates(
     Ok(valid)
 }
 
+/// Direct form of the index rule: at least one neighbouring front column pair
+/// and at least one neighbouring end column pair.
 #[inline]
-fn terminal_seed_hit(a: &Node, b: &Node, table: &KmerSimilarityTable) -> bool {
-    let af = [
-        a.codes[0] as usize * 20 + a.codes[1] as usize,
-        a.codes[1] as usize * 20 + a.codes[2] as usize,
-    ];
-    let bf = [
-        b.codes[0] as usize * 20 + b.codes[1] as usize,
-        b.codes[1] as usize * 20 + b.codes[2] as usize,
-    ];
-    let ae = [
-        a.codes[3] as usize * 20 + a.codes[4] as usize,
-        a.codes[4] as usize * 20 + a.codes[5] as usize,
-    ];
-    let be = [
-        b.codes[3] as usize * 20 + b.codes[4] as usize,
-        b.codes[4] as usize * 20 + b.codes[5] as usize,
-    ];
-    af.iter()
-        .any(|x| bf.iter().any(|y| table.are_neighbours(*x, *y)))
-        && ae
-            .iter()
-            .any(|x| be.iter().any(|y| table.are_neighbours(*x, *y)))
+fn terminal_seed_hit(
+    a: &Node,
+    b: &Node,
+    table: &KmerSimilarityTable,
+    seed: TerminalSeed,
+) -> bool {
+    let mut matched = [false; 2];
+    for (slot, offset) in [0usize, 3usize].into_iter().enumerate() {
+        let (left, n_left) = terminal_dimers(a, offset, seed);
+        let (right, n_right) = terminal_dimers(b, offset, seed);
+        matched[slot] = left[..n_left].iter().any(|x| {
+            right[..n_right]
+                .iter()
+                .any(|y| table.are_neighbours(*x as usize, *y as usize))
+        });
+        if !matched[slot] {
+            return false;
+        }
+    }
+    matched[0] && matched[1]
 }
 
+#[allow(clippy::too_many_arguments)]
 fn generate_anchor_bucket_task(
     anchor_buckets: &[Vec<u32>],
     nodes: &[Node],
     table: &KmerSimilarityTable,
+    seed: TerminalSeed,
     work_dir: &Path,
     file_counter: &AtomicUsize,
     pair_buffer_limit: usize,
@@ -334,7 +349,12 @@ fn generate_anchor_bucket_task(
             for j in (i + 1)..bucket.len() {
                 result.seed_candidate_occurrences += 1;
                 let pair = (bucket[i].min(bucket[j]), bucket[i].max(bucket[j]));
-                if !terminal_seed_hit(&nodes[pair.0 as usize], &nodes[pair.1 as usize], table) {
+                if !terminal_seed_hit(
+                    &nodes[pair.0 as usize],
+                    &nodes[pair.1 as usize],
+                    table,
+                    seed,
+                ) {
                     continue;
                 }
                 result.candidate_occurrences += 1;
@@ -356,10 +376,12 @@ fn generate_anchor_bucket_task(
 /// High-confidence prefilter candidate generation starts from pairs of two
 /// distinct exact anchor values. This avoids expanding every permissive k-mer
 /// seed occurrence before applying the exact-anchor requirement.
+#[allow(clippy::too_many_arguments)]
 pub fn generate_prefilter_edges(
     nodes: &[Node],
     table: &KmerSimilarityTable,
     scorer: &Scorer,
+    seed: TerminalSeed,
     work_dir: &Path,
     total_pair_buffer_bytes: usize,
     keep_tmp: bool,
@@ -386,6 +408,7 @@ pub fn generate_prefilter_edges(
                 chunk,
                 nodes,
                 table,
+                seed,
                 work_dir,
                 &file_counter,
                 pair_buffer_limit,
@@ -394,11 +417,13 @@ pub fn generate_prefilter_edges(
         })
         .collect();
     let mut seed_candidate_occurrences = 0u64;
+    let mut anchor_bound_rejected = 0u64;
     let mut candidate_occurrences = 0u64;
     let mut chunk_paths = Vec::new();
     for task in task_results {
         let task = task?;
         seed_candidate_occurrences += task.seed_candidate_occurrences;
+        anchor_bound_rejected += task.anchor_bound_rejected;
         candidate_occurrences += task.candidate_occurrences;
         chunk_paths.extend(task.chunk_paths);
     }
@@ -418,6 +443,7 @@ pub fn generate_prefilter_edges(
     }
     Ok(EdgeBuildStats {
         seed_candidate_occurrences,
+        anchor_bound_rejected,
         candidate_occurrences,
         unique_candidate_pairs,
         unique_valid_edges,
@@ -453,6 +479,7 @@ pub fn generate_edges(
                 &file_counter,
                 pair_buffer_limit,
                 nodes,
+                scorer,
                 mode,
                 scope,
                 label,
@@ -460,11 +487,13 @@ pub fn generate_edges(
         })
         .collect();
     let mut seed_candidate_occurrences = 0u64;
+    let mut anchor_bound_rejected = 0u64;
     let mut candidate_occurrences = 0u64;
     let mut chunk_paths = Vec::new();
     for task in task_results {
         let task = task?;
         seed_candidate_occurrences += task.seed_candidate_occurrences;
+        anchor_bound_rejected += task.anchor_bound_rejected;
         candidate_occurrences += task.candidate_occurrences;
         chunk_paths.extend(task.chunk_paths);
     }
@@ -479,6 +508,7 @@ pub fn generate_edges(
     }
     Ok(EdgeBuildStats {
         seed_candidate_occurrences,
+        anchor_bound_rejected,
         candidate_occurrences,
         unique_candidate_pairs,
         unique_valid_edges,
@@ -525,4 +555,87 @@ pub fn merge_edge_files(inputs: &[&Path], output: &Path) -> Result<u64, DynError
     }
     writer.flush()?;
     Ok(count)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A reader that never returns more than `chunk` bytes per call, which is
+    /// what `BufReader` does when a record straddles its buffer boundary and
+    /// what a networked filesystem does on large files.
+    struct ShortReader<'a> {
+        data: &'a [u8],
+        chunk: usize,
+    }
+
+    impl Read for ShortReader<'_> {
+        fn read(&mut self, out: &mut [u8]) -> io::Result<usize> {
+            let take = self.data.len().min(out.len()).min(self.chunk);
+            out[..take].copy_from_slice(&self.data[..take]);
+            self.data = &self.data[take..];
+            Ok(take)
+        }
+    }
+
+    #[test]
+    fn records_survive_short_reads() {
+        let pairs = [(1u32, 2u32), (3, 4), (5, 6), (7, 8)];
+        let mut bytes = Vec::new();
+        for pair in pairs {
+            write_pair(&mut bytes, pair).unwrap();
+        }
+        for chunk in 1..=PAIR_DISK_BYTES + 1 {
+            let mut reader = ShortReader {
+                data: &bytes,
+                chunk,
+            };
+            let mut seen = Vec::new();
+            while let Some(pair) = read_pair(&mut reader).unwrap() {
+                seen.push(pair);
+            }
+            assert_eq!(seen, pairs, "pair stream corrupted at chunk size {chunk}");
+        }
+
+        let edges = [
+            Edge {
+                u: 1,
+                v: 2,
+                weight: 900,
+            },
+            Edge {
+                u: 3,
+                v: 4,
+                weight: 10,
+            },
+        ];
+        let mut bytes = Vec::new();
+        for edge in edges {
+            write_edge(&mut bytes, edge).unwrap();
+        }
+        for chunk in 1..=PAIR_DISK_BYTES + 3 {
+            let mut reader = ShortReader {
+                data: &bytes,
+                chunk,
+            };
+            let mut seen = Vec::new();
+            while let Some(edge) = read_edge(&mut reader).unwrap() {
+                seen.push(edge);
+            }
+            assert_eq!(seen, edges, "edge stream corrupted at chunk size {chunk}");
+        }
+    }
+
+    #[test]
+    fn a_partial_trailing_record_is_an_error() {
+        let mut bytes = Vec::new();
+        write_pair(&mut bytes, (1, 2)).unwrap();
+        bytes.push(0);
+        let mut reader = ShortReader {
+            data: &bytes,
+            chunk: 3,
+        };
+        assert_eq!(read_pair(&mut reader).unwrap(), Some((1, 2)));
+        assert!(read_pair(&mut reader).is_err());
+    }
 }

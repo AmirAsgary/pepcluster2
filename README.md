@@ -23,8 +23,29 @@ weight 1. The exact alignment is global and affine-gap, requires at least two
 matched residue columns within each pair of terminal 3-mers, and gives terminal
 overhangs lower penalties than internal gaps.
 
-The k-mer seed threshold defaults to 0.50. It retrieves candidate pairs only;
+The k-mer seed threshold defaults to 0.40. It retrieves candidate pairs only;
 it never accepts a clustering relationship.
+
+## Candidate retrieval
+
+The seed indexes all three ordered residue-column pairs of each terminal 3-mer,
+`(1,2)`, `(1,3)` and `(2,3)`, because the accepted alignment is required to
+contain at least two matched columns drawn from the first three residues of both
+peptides, and those columns may be shifted when the peptides differ in length.
+Retrieval requires at least one neighbouring front column pair and at least one
+neighbouring end column pair.
+
+`--terminal-seed contiguous` indexes only the contiguous dimers. Both contiguous
+dimers of a terminus contain the middle residue, so one substitution there
+destroys both: on 20 datasets of 10,000 peptides that geometry retrieves 64% of
+the pairs passing both exact thresholds, against 97% for the default.
+
+Candidate generation additionally discards pairs whose relaxed
+anchor-combination bound cannot reach the threshold. The relaxation drops the
+one-to-one constraint of the anchor assignment, so it is an upper bound on the
+exact score and the rejection cannot lose an eligible pair. It is applied before
+pairs reach temporary storage, so the more sensitive geometry costs little: the
+default scores 0.97% of all possible pairs.
 
 `--threshold X` explicitly sets both component thresholds to `X` in separate
 mode. Component flags take precedence:
@@ -46,8 +67,21 @@ Two compatibility scoring modes remain available:
 ### Graph
 
 `--clustering-method graph` materializes accepted edges, selects initial
-representatives by dynamic greedy set cover, and reuses the graph during
-reassignment, representative updates, validated merging, and final validation.
+representatives, and reuses the graph during reassignment, representative
+updates, validated merging, and final validation.
+
+`--reassignment-margin` (default 0.01) adds hysteresis to reassignment: a peptide
+leaves its representative only when another beats it by more than that margin.
+Zero moves a peptide on any improvement at all, including an exact tie broken by
+identifier, which makes assignments flip whenever the dataset composition
+changes. Reassignment, not merging, is the stage that costs subset stability.
+
+`--representative-order` selects how representatives are chosen.
+`coverage` (default) is dynamic greedy set cover and gives the fewest clusters.
+`intrinsic` visits peptides in an order derived only from the peptide itself, so
+the order of a subset is the restriction of the full-dataset order; it produces
+more clusters but is markedly less sensitive to dataset composition and to small
+changes in the edge set.
 
 Graph prefiltering is optional. Automatic selection uses the estimated
 temporary-disk requirement; it can be controlled with `--force-prefilter` or
@@ -135,6 +169,9 @@ target/release/pepcluster2 \
 --mode combined_kmer_anchor|combined_full_anchor|separate_aln_anchor
 --clustering-method graph|greedy
 --greedy-selection kmer-degree|lazy-exact
+--representative-order coverage|intrinsic
+--reassignment-margin FLOAT
+--terminal-seed all-column-pairs|contiguous
 --threshold FLOAT
 --alignment-similarity-threshold FLOAT
 --anchor-combination-similarity-threshold FLOAT
@@ -211,11 +248,17 @@ rescore candidate lists and therefore be slower.
 
 ## Validation status
 
-The 0.4.3 validation configuration uses 20 independently sampled datasets of
-10,000 peptides, alignment threshold 0.50, anchor threshold 0.60, terminal/core
-weights 4:1, and compares graph, forced-prefilter graph, static greedy, and
-lazy-exact greedy. Validation code, exact settings, logs, CSV tables, figures,
-and reports are stored together under `validation/` for reproducibility.
+The validation configuration uses 20 independently sampled datasets of 10,000
+peptides, alignment threshold 0.50, anchor threshold 0.60, terminal/core weights
+4:1, and compares graph, forced-prefilter graph, static greedy, and lazy-exact
+greedy against two exhaustive references. Validation code, exact settings, logs,
+CSV tables, figures, and reports are stored together under `validation/` for
+reproducibility. See [VALIDATION.md](VALIDATION.md) for the current results.
+
+Reference choice matters when reading agreement numbers. The reference scores
+every pair exactly and then applies the identical clustering procedure, so a run
+differs from it only through candidate search. A reference that stopped earlier
+in the procedure could not be reached by a run that completes it.
 
 All thresholds and gap parameters remain subject to biological calibration on
 labelled peptide–MHC data. High computational agreement does not by itself

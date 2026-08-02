@@ -1,8 +1,10 @@
+use crate::graph::RepresentativeOrder;
+use crate::index::TerminalSeed;
 use crate::scoring::{ScoringMode, SimdMode};
 use std::env;
 use std::path::PathBuf;
 
-pub const VERSION: &str = "0.4.3";
+pub const VERSION: &str = "0.5.0";
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PrefilterChoice {
@@ -53,14 +55,21 @@ pub struct Config {
     pub threshold_explicit: bool,
     pub alignment_threshold: f64,
     pub anchor_threshold: f64,
+    /// Terminal k-mer similarity threshold, used by `separate_kmer_anchor`.
+    pub kmer_threshold: f64,
     pub alignment_threshold_overridden: bool,
     pub anchor_threshold_overridden: bool,
+    pub kmer_threshold_overridden: bool,
     pub gap_open: f64,
     pub gap_extension: f64,
     pub terminal_gap_open: f64,
     pub terminal_gap_extension: f64,
     pub minimum_terminal_match_length: usize,
     pub kmer_seed_threshold: f64,
+    pub terminal_seed: TerminalSeed,
+    pub representative_order: RepresentativeOrder,
+    /// Hysteresis on synchronous reassignment, in similarity units.
+    pub reassignment_margin: f64,
     pub kmer_table: PathBuf,
     pub threads: usize,
     pub iteration_cap: Option<usize>,
@@ -82,7 +91,7 @@ pub struct Config {
 }
 
 fn help() -> &'static str {
-    "pepcluster2 0.4.3
+    "pepcluster2 0.5.0
 Experimental shift-aware clustering for MHC-I peptides.
 
 USAGE:
@@ -93,7 +102,8 @@ REQUIRED:
   -o, --output-dir PATH         Output directory
 
 SCORING:
-      --mode NAME               combined_kmer_anchor|combined_full_anchor|separate_aln_anchor
+      --mode NAME               combined_kmer_anchor|combined_full_anchor|
+                                separate_aln_anchor|separate_kmer_anchor
                                 [default: separate_aln_anchor]
   -t, --threshold FLOAT         Combined-mode threshold; when explicitly supplied in
                                 separate mode, sets both component thresholds
@@ -102,9 +112,23 @@ SCORING:
                                 Override the alignment threshold in separate mode
                                 [default: 0.50]
       --anchor-combination-similarity-threshold FLOAT
-                                Override the anchor threshold in separate mode
+                                Override the anchor threshold in either separate mode
                                 [default: 0.60]
-      --kmer-seed-threshold F   Similar 2-mer retrieval threshold [default: 0.50]
+      --kmer-similarity-threshold FLOAT
+                                Terminal k-mer similarity threshold, used by
+                                separate_kmer_anchor. This is the similarity of the
+                                first three and last three residues, compared
+                                position by position with no alignment; the core
+                                contributes nothing. Distinct from
+                                --kmer-seed-threshold, which only retrieves
+                                candidates and never accepts a relationship
+                                [default: 0.60]
+      --kmer-seed-threshold F   Similar 2-mer retrieval threshold [default: 0.40]
+      --terminal-seed NAME      Indexed terminal column pairs:
+                                all-column-pairs indexes (1,2), (1,3) and (2,3);
+                                contiguous reproduces 0.4.3 and is insensitive to
+                                shifted terminal columns
+                                [default: all-column-pairs]
 
 ALIGNMENT:
       --gap-open FLOAT          Internal affine gap-open penalty [default: -4]
@@ -119,6 +143,16 @@ ALIGNMENT:
 CLUSTERING:
       --clustering-method NAME  graph|greedy [default: graph]
       --greedy-selection NAME   kmer-degree|lazy-exact [default: kmer-degree]
+      --representative-order NAME
+                                coverage selects representatives by dynamic set
+                                cover; intrinsic visits peptides in an order that
+                                depends only on the peptide itself, which makes
+                                subset partitions nested [default: coverage]
+      --reassignment-margin F   A peptide leaves its representative only when
+                                another beats it by more than this margin. Zero
+                                reproduces 0.4.3, where exact ties moved and made
+                                clusters sensitive to dataset composition
+                                [default: 0.01]
       --iteration-cap INT       Maximum iterative passes [default: unset]
       --merge-cap INT           Early merge-rejection sample size [default: all]
       --min-cluster-size INT    Minimum size for per-cluster FASTA [default: 2]
@@ -151,6 +185,14 @@ VALIDATION:
 "
 }
 
+impl Config {
+    /// Reassignment margin quantized to the same thousandths as the ranking
+    /// weight the refinement compares.
+    pub fn reassignment_margin_q(&self) -> u16 {
+        (self.reassignment_margin * 1000.0).round().clamp(0.0, 1000.0) as u16
+    }
+}
+
 fn next_value(args: &[String], i: &mut usize, flag: &str) -> Result<String, String> {
     *i += 1;
     args.get(*i)
@@ -180,12 +222,16 @@ pub fn parse() -> Result<Option<Config>, String> {
     let mut threshold_explicit = false;
     let mut alignment_threshold = None;
     let mut anchor_threshold = None;
+    let mut kmer_threshold = None;
     let mut gap_open: f64 = -4.0;
     let mut gap_extension: f64 = -1.0;
     let mut terminal_gap_open: f64 = -2.0;
     let mut terminal_gap_extension: f64 = -1.0;
     let mut minimum_terminal_match_length = 2usize;
-    let mut kmer_seed_threshold = 0.50;
+    let mut kmer_seed_threshold = 0.40;
+    let mut terminal_seed = TerminalSeed::AllColumnPairs;
+    let mut representative_order = RepresentativeOrder::Coverage;
+    let mut reassignment_margin = 0.01;
     let mut kmer_table = None;
     let mut threads = 0usize;
     let mut iteration_cap = None;
@@ -282,10 +328,32 @@ pub fn parse() -> Result<Option<Config>, String> {
                     "--minimum-terminal-match-length",
                 )?
             }
+            "--kmer-similarity-threshold" | "--kmer_similarity_threshold" => {
+                kmer_threshold = Some(parse_number(
+                    next_value(&args, &mut i, "--kmer-similarity-threshold")?,
+                    "--kmer-similarity-threshold",
+                )?)
+            }
             "--kmer-seed-threshold" => {
                 kmer_seed_threshold = parse_number(
                     next_value(&args, &mut i, "--kmer-seed-threshold")?,
                     "--kmer-seed-threshold",
+                )?
+            }
+            "--terminal-seed" => {
+                terminal_seed = TerminalSeed::parse(&next_value(&args, &mut i, "--terminal-seed")?)?
+            }
+            "--representative-order" => {
+                representative_order = RepresentativeOrder::parse(&next_value(
+                    &args,
+                    &mut i,
+                    "--representative-order",
+                )?)?
+            }
+            "--reassignment-margin" => {
+                reassignment_margin = parse_number(
+                    next_value(&args, &mut i, "--reassignment-margin")?,
+                    "--reassignment-margin",
                 )?
             }
             "--kmer-table" => {
@@ -364,6 +432,7 @@ pub fn parse() -> Result<Option<Config>, String> {
     let kmer_table = kmer_table.unwrap_or_else(|| tmp_dir.join("kmer2_similarity_q.bin"));
     let alignment_threshold_overridden = alignment_threshold.is_some();
     let anchor_threshold_overridden = anchor_threshold.is_some();
+    let kmer_threshold_overridden = kmer_threshold.is_some();
     let alignment_threshold = alignment_threshold.unwrap_or_else(|| {
         if mode == ScoringMode::SeparateAlnAnchor && !threshold_explicit {
             0.50
@@ -372,6 +441,8 @@ pub fn parse() -> Result<Option<Config>, String> {
         }
     });
     let anchor_threshold = anchor_threshold.unwrap_or(threshold);
+    // With neither component threshold supplied, --threshold governs both.
+    let kmer_threshold = kmer_threshold.unwrap_or(threshold);
 
     for (flag, value) in [
         ("--threshold", threshold),
@@ -381,6 +452,8 @@ pub fn parse() -> Result<Option<Config>, String> {
             anchor_threshold,
         ),
         ("--kmer-seed-threshold", kmer_seed_threshold),
+        ("--kmer-similarity-threshold", kmer_threshold),
+        ("--reassignment-margin", reassignment_margin),
     ] {
         if !(0.0..=1.0).contains(&value) {
             return Err(format!("{flag} must be between 0 and 1"));
@@ -432,6 +505,15 @@ pub fn parse() -> Result<Option<Config>, String> {
     } else if greedy_selection != GreedySelection::KmerDegree {
         return Err("--greedy-selection is available only with --clustering-method greedy".into());
     }
+    if representative_order == RepresentativeOrder::Intrinsic
+        && clustering_method == ClusteringMethod::Greedy
+        && greedy_selection == GreedySelection::LazyExact
+    {
+        return Err(
+            "--greedy-selection lazy-exact is a dynamic set-cover rule and cannot be combined with --representative-order intrinsic; use --greedy-selection kmer-degree"
+                .into(),
+        );
+    }
 
     Ok(Some(Config {
         input,
@@ -444,14 +526,19 @@ pub fn parse() -> Result<Option<Config>, String> {
         threshold_explicit,
         alignment_threshold,
         anchor_threshold,
+        kmer_threshold,
         alignment_threshold_overridden,
         anchor_threshold_overridden,
+        kmer_threshold_overridden,
         gap_open,
         gap_extension,
         terminal_gap_open,
         terminal_gap_extension,
         minimum_terminal_match_length,
         kmer_seed_threshold,
+        terminal_seed,
+        representative_order,
+        reassignment_margin,
         kmer_table,
         threads,
         iteration_cap,

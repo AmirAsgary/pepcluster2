@@ -21,12 +21,15 @@ use graph::{
     representative_coverage, Clustering, IterationStats,
 };
 use greedy::GreedyRunStats;
-use index::{build_exact_index, build_similar_key_relations, IndexStats};
+use index::{
+    build_exact_index, build_similar_key_relations, retrieve_candidates, IndexStats, TerminalSeed,
+};
 use kmer::KmerSimilarityTable;
 use model::Node;
 use output::{
     write_cluster_outputs, write_compact_outputs, write_edges, write_provisional_clusters,
 };
+use rayon::prelude::*;
 use rayon::ThreadPool;
 use scoring::Scorer;
 use std::env;
@@ -73,12 +76,55 @@ fn available_disk_bytes(path: &Path) -> Option<u128> {
     fields.get(3)?.parse::<u128>().ok().map(|kb| kb * 1024)
 }
 
-fn estimated_non_prefilter_disk_bytes(index: IndexStats) -> u128 {
-    index.candidate_occurrence_upper_bound.saturating_mul(16)
+/// Sampled fraction of index hits that survive the sound anchor upper bound.
+/// The non-prefilter path spills only bound-passing pairs, so the raw
+/// occurrence upper bound overestimates temporary disk by roughly this factor.
+fn sampled_bound_retention(
+    nodes: &[Node],
+    buckets: &[Vec<u32>],
+    table: &KmerSimilarityTable,
+    scorer: &Scorer,
+    seed: TerminalSeed,
+) -> f64 {
+    const SAMPLE: usize = 2048;
+    if nodes.len() < 2 {
+        return 1.0;
+    }
+    let step = (nodes.len() / SAMPLE).max(1);
+    let (retrieved, kept) = (0..nodes.len())
+        .step_by(step)
+        .collect::<Vec<usize>>()
+        .par_iter()
+        .map(|&id| {
+            let candidates =
+                retrieve_candidates(Some(id as u32), &nodes[id], buckets, table, seed);
+            let passed = candidates
+                .iter()
+                .filter(|other| {
+                    scorer.anchor_bound_passes(&nodes[id], &nodes[**other as usize])
+                })
+                .count() as u64;
+            (candidates.len() as u64, passed)
+        })
+        .reduce(|| (0u64, 0u64), |a, b| (a.0 + b.0, a.1 + b.1));
+    if retrieved == 0 {
+        1.0
+    } else {
+        kept as f64 / retrieved as f64
+    }
 }
 
-fn choose_prefilter(config: &Config, index: IndexStats) -> (bool, u128, Option<u128>, String) {
-    let estimated = estimated_non_prefilter_disk_bytes(index);
+fn estimated_non_prefilter_disk_bytes(index: IndexStats, bound_retention: f64) -> u128 {
+    let raw = index.candidate_occurrence_upper_bound.saturating_mul(16);
+    ((raw as f64) * bound_retention.clamp(0.0, 1.0)) as u128
+}
+
+fn choose_prefilter(
+    config: &Config,
+    index: IndexStats,
+    bound_retention: f64,
+) -> (bool, u128, Option<u128>, String) {
+    let estimated = estimated_non_prefilter_disk_bytes(index, bound_retention);
     let available = available_disk_bytes(&config.tmp_dir);
     if config.clustering_method == ClusteringMethod::Greedy {
         return (
@@ -95,7 +141,7 @@ fn choose_prefilter(config: &Config, index: IndexStats) -> (bool, u128, Option<u
             let active = available.is_some_and(|free| estimated > free.saturating_mul(80) / 100);
             let reason = available.map_or_else(
                 || "automatic: available disk could not be measured; prefilter disabled".into(),
-                |free| format!("automatic: estimated {estimated} bytes; available {free} bytes; 80% safety limit"),
+                |free| format!("automatic: estimated {estimated} bytes (sampled anchor-bound retention {bound_retention:.4}); available {free} bytes; 80% safety limit"),
             );
             (active, estimated, available, reason)
         }
@@ -132,6 +178,12 @@ fn write_config(
         "anchor_combination_similarity_threshold={}",
         config.anchor_threshold
     )?;
+    writeln!(w, "kmer_similarity_threshold={}", config.kmer_threshold)?;
+    writeln!(
+        w,
+        "kmer_threshold_overridden={}",
+        config.kmer_threshold_overridden
+    )?;
     writeln!(
         w,
         "alignment_threshold_overridden={}",
@@ -156,6 +208,13 @@ fn write_config(
         config.minimum_terminal_match_length
     )?;
     writeln!(w, "kmer_seed_threshold={}", config.kmer_seed_threshold)?;
+    writeln!(w, "terminal_seed={}", config.terminal_seed.name())?;
+    writeln!(w, "reassignment_margin={}", config.reassignment_margin)?;
+    writeln!(
+        w,
+        "representative_order={}",
+        config.representative_order.name()
+    )?;
     writeln!(w, "prefilter_choice={:?}", config.prefilter)?;
     writeln!(w, "prefilter_active={prefilter_active}")?;
     writeln!(
@@ -269,14 +328,34 @@ fn write_run_reports(
     } else {
         computed as f64 / possible as f64
     };
+    // Cost decomposition. Candidate volume, cheap-bound rejections and
+    // constrained-alignment evaluations are different costs and a single
+    // "candidate pairs scored" figure hides which one dominates.
+    let index_hits = if config.clustering_method == ClusteringMethod::Graph {
+        sensitive.map(|x| x.seed_candidate_occurrences).unwrap_or(0)
+            + pre.map(|x| x.seed_candidate_occurrences).unwrap_or(0)
+    } else {
+        greedy_stats.index_candidate_occurrences
+    };
+    let bound_rejected = if config.clustering_method == ClusteringMethod::Graph {
+        sensitive.map(|x| x.anchor_bound_rejected).unwrap_or(0)
+            + pre.map(|x| x.anchor_bound_rejected).unwrap_or(0)
+    } else {
+        greedy_stats.anchor_bound_rejected
+    };
+    // Counted globally, so it covers candidate scoring, representative updates,
+    // merge validation and reassignment on every clustering path.
+    let alignment_evaluations = scoring::alignment_evaluations();
 
     let mut summary = String::new();
     summary.push_str("PEPCLUSTER2 RUN SUMMARY\n=======================\n");
     summary.push_str(&format!(
-        "Version: {VERSION}\nScoring mode: {}\nClustering method: {}\nGreedy selection: {}\n",
+        "Version: {VERSION}\nScoring mode: {}\nClustering method: {}\nGreedy selection: {}\nTerminal seed: {}\nRepresentative order: {}\n",
         config.mode.name(),
         config.clustering_method.name(),
-        config.greedy_selection.name()
+        config.greedy_selection.name(),
+        config.terminal_seed.name(),
+        config.representative_order.name()
     ));
     summary.push_str(&format!("Input records: {}\nAccepted peptides: {}\nExcluded peptides: {}\nUnique peptide sequences: {}\n", fasta.records, fasta.accepted, fasta.skipped, nodes.len()));
     summary.push_str(&format!(
@@ -289,7 +368,8 @@ fn write_run_reports(
     if prefilter_active && !config.full_sensitive_after_prefilter {
         summary.push_str("WARNING: scoped graph completion is approximate and may differ from the non-prefilter graph.\n");
     }
-    summary.push_str(&format!("Candidate pairs scored: {computed}\nFraction of all unique-sequence pairs scored: {fraction:.8}\n"));
+    summary.push_str(&format!("Index candidate hits: {index_hits}\nRejected by anchor upper bound: {bound_rejected}\n"));
+    summary.push_str(&format!("Candidate pairs scored: {computed}\nFraction of all unique-sequence pairs scored: {fraction:.8}\nConstrained-alignment evaluations: {alignment_evaluations}\n"));
     summary.push_str(&format!("Eligible graph edges: {}\nGreedy eligible assignments/retrievals: {}\nRepresentative-update pair scores: {}\nMerge pair scores: {}\n", edges.final_edges, greedy_stats.eligible_pairs, greedy_stats.representative_pair_scores, greedy_stats.merge_pair_scores));
     summary.push_str(&format!("Iterations: {}\nConverged: {}\nReassignment moves: {}\nRepresentative changes: {}\nValidated merges: {}\nValidation failures: {}\n", iteration.iterations, iteration.converged, iteration.reassignment_moves, iteration.representative_changes, iteration.merges, iteration.validation_failures));
     summary.push_str(&format!("Clusters: {}\nSingleton clusters: {}\nMean peptide cluster size: {:.3}\nMedian peptide cluster size: {:.3}\nLargest peptide cluster: {}\nLargest unique-sequence cluster: {}\nElapsed seconds: {:.6}\n", clustering.representatives.len(), singleton, fasta.accepted as f64 / clustering.representatives.len().max(1) as f64, median, peptide_sizes.iter().max().unwrap_or(&0), unique_sizes.iter().max().unwrap_or(&0), elapsed));
@@ -306,15 +386,19 @@ fn write_run_reports(
         .join(",\n");
     let json = format!(concat!(
         "{{\n  \"run_type\": \"cluster\",\n  \"pepcluster2_version\": {},\n  \"scoring_mode\": {},\n  \"clustering_method\": {},\n",
-        "  \"greedy_selection\": {},\n  \"input_records\": {},\n  \"accepted_records\": {},\n  \"skipped_records\": {},\n  \"unique_sequences\": {},\n",
+        "  \"greedy_selection\": {},\n  \"terminal_seed\": {},\n  \"representative_order\": {},\n  \"kmer_seed_threshold\": {},\n  \"reassignment_margin\": {},\n",
+        "  \"input_records\": {},\n  \"accepted_records\": {},\n  \"skipped_records\": {},\n  \"unique_sequences\": {},\n",
         "  \"prefilter_active\": {},\n  \"prefilter_candidate_pairs\": {},\n  \"valid_prefilter_edges\": {},\n  \"sensitive_candidate_pairs\": {},\n",
+        "  \"index_candidate_hits\": {},\n  \"anchor_bound_rejected\": {},\n  \"alignment_evaluations\": {},\n",
         "  \"candidate_pairs_computed\": {},\n  \"fraction_all_pairs_computed\": {:.12},\n  \"graph_edge_count\": {},\n",
         "  \"greedy_eligible_pairs\": {},\n  \"representative_pair_scores\": {},\n  \"merge_pair_scores\": {},\n",
         "  \"final_clusters\": {},\n  \"singleton_clusters\": {},\n  \"iterations\": {},\n  \"converged\": {},\n  \"reassignment_moves\": {},\n  \"representative_changes\": {},\n  \"strict_merges\": {},\n  \"validation_failures\": {},\n",
         "  \"largest_cluster_peptides\": {},\n  \"elapsed_seconds\": {:.6},\n  \"stage_seconds\": {{\n{}\n  }}\n}}\n"),
         json_escape(VERSION), json_escape(config.mode.name()), json_escape(config.clustering_method.name()), json_escape(config.greedy_selection.name()),
+        json_escape(config.terminal_seed.name()), json_escape(config.representative_order.name()), config.kmer_seed_threshold, config.reassignment_margin,
         fasta.records, fasta.accepted, fasta.skipped, nodes.len(), prefilter_active,
         pre.map(|x| x.unique_candidate_pairs).unwrap_or(0), pre.map(|x| x.unique_valid_edges).unwrap_or(0), sensitive.map(|x| x.unique_candidate_pairs).unwrap_or(0),
+        index_hits, bound_rejected, alignment_evaluations,
         computed, fraction, edges.final_edges, greedy_stats.eligible_pairs, greedy_stats.representative_pair_scores, greedy_stats.merge_pair_scores,
         clustering.representatives.len(), singleton, iteration.iterations, iteration.converged, iteration.reassignment_moves, iteration.representative_changes, iteration.merges, iteration.validation_failures,
         peptide_sizes.iter().max().unwrap_or(&0), elapsed, stage_json);
@@ -328,6 +412,7 @@ fn make_scorer(config: &Config) -> Result<Scorer, DynError> {
         config.threshold,
         config.alignment_threshold,
         config.anchor_threshold,
+        config.kmer_threshold,
         config.gap_open,
         config.gap_extension,
         config.terminal_gap_open,
@@ -370,13 +455,17 @@ fn run(config: Config) -> Result<(), DynError> {
     let started = Instant::now();
     let table =
         KmerSimilarityTable::open_or_create(&config.kmer_table, config.kmer_seed_threshold)?;
-    let buckets = build_exact_index(&nodes);
+    let buckets = build_exact_index(&nodes, config.terminal_seed);
     let (relations, index_stats) = build_similar_key_relations(&buckets, &table);
     stages.push(("build_kmer_index", started.elapsed().as_secs_f64()));
+    let scorer = make_scorer(&config)?;
+    let bound_retention = pool.install(|| {
+        sampled_bound_retention(&nodes, &buckets, &table, &scorer, config.terminal_seed)
+    });
     let (prefilter_active, estimated_disk, available_disk, decision) =
-        choose_prefilter(&config, index_stats);
+        choose_prefilter(&config, index_stats, bound_retention);
     eprintln!(
-        "[2/6] {} occupied keys; prefilter={} ({})",
+        "[2/6] {} occupied keys; anchor-bound retention {bound_retention:.4}; prefilter={} ({})",
         index_stats.occupied_keys, prefilter_active, decision
     );
 
@@ -390,12 +479,11 @@ fn run(config: Config) -> Result<(), DynError> {
             available_disk,
             &decision,
         )?;
-        let json = format!("{{\n  \"run_type\": \"index_only\",\n  \"pepcluster2_version\": {},\n  \"unique_sequences\": {},\n  \"occupied_composite_keys\": {},\n  \"candidate_occurrence_upper_bound\": {},\n  \"estimated_non_prefilter_disk_bytes\": {},\n  \"prefilter_active\": {}\n}}\n", json_escape(VERSION), nodes.len(), index_stats.occupied_keys, index_stats.candidate_occurrence_upper_bound, estimated_disk, prefilter_active);
+        let json = format!("{{\n  \"run_type\": \"index_only\",\n  \"pepcluster2_version\": {},\n  \"unique_sequences\": {},\n  \"occupied_composite_keys\": {},\n  \"candidate_occurrence_upper_bound\": {},\n  \"sampled_anchor_bound_retention\": {:.6},\n  \"estimated_non_prefilter_disk_bytes\": {},\n  \"prefilter_active\": {}\n}}\n", json_escape(VERSION), nodes.len(), index_stats.occupied_keys, index_stats.candidate_occurrence_upper_bound, bound_retention, estimated_disk, prefilter_active);
         fs::write(config.output_dir.join("run_stats.json"), json)?;
         return Ok(());
     }
 
-    let scorer = make_scorer(&config)?;
     write_config(
         &config,
         Some(&scorer),
@@ -421,6 +509,7 @@ fn run(config: Config) -> Result<(), DynError> {
                         &nodes,
                         &table,
                         &scorer,
+                        config.terminal_seed,
                         &work_dir,
                         buffer_bytes,
                         config.keep_tmp,
@@ -433,7 +522,8 @@ fn run(config: Config) -> Result<(), DynError> {
                     pre.unique_valid_edges,
                     memory_limit,
                 )?;
-                let provisional = greedy_set_cover(&nodes, &pre_graph);
+                let provisional =
+                    greedy_set_cover(&nodes, &pre_graph, config.representative_order);
                 if config.write_edges {
                     write_provisional_clusters(
                         &config.output_dir.join("prefilter_provisional_clusters.tsv"),
@@ -469,7 +559,7 @@ fn run(config: Config) -> Result<(), DynError> {
                 let merged = work_dir.join("final_edges.bin");
                 let count = merge_edge_files(&[&pre.edge_file, &sensitive.edge_file], &merged)?;
                 let graph = load_graph(&merged, nodes.len(), count, memory_limit)?;
-                let initial = greedy_set_cover(&nodes, &graph);
+                let initial = greedy_set_cover(&nodes, &graph, config.representative_order);
                 edge_reports.prefilter = Some(pre);
                 edge_reports.sensitive = Some(sensitive);
                 (merged, count, initial)
@@ -495,7 +585,7 @@ fn run(config: Config) -> Result<(), DynError> {
                     sensitive.unique_valid_edges,
                     memory_limit,
                 )?;
-                let initial = greedy_set_cover(&nodes, &graph);
+                let initial = greedy_set_cover(&nodes, &graph, config.representative_order);
                 let file = sensitive.edge_file.clone();
                 let count = sensitive.unique_valid_edges;
                 edge_reports.sensitive = Some(sensitive);
@@ -512,6 +602,7 @@ fn run(config: Config) -> Result<(), DynError> {
                     config.iteration_cap,
                     config.merge,
                     config.merge_cap,
+                    config.reassignment_margin_q(),
                 )
             });
             let clustering = canonicalize(result.0);
@@ -539,12 +630,21 @@ fn run(config: Config) -> Result<(), DynError> {
         }
         ClusteringMethod::Greedy => {
             let (initial, initial_stats) = pool.install(|| match config.greedy_selection {
-                GreedySelection::KmerDegree => {
-                    greedy::initial_clustering(&nodes, &buckets, &table, &scorer)
-                }
-                GreedySelection::LazyExact => {
-                    greedy::initial_clustering_lazy_exact(&nodes, &buckets, &table, &scorer)
-                }
+                GreedySelection::KmerDegree => greedy::initial_clustering(
+                    &nodes,
+                    &buckets,
+                    &table,
+                    &scorer,
+                    config.terminal_seed,
+                    config.representative_order,
+                ),
+                GreedySelection::LazyExact => greedy::initial_clustering_lazy_exact(
+                    &nodes,
+                    &buckets,
+                    &table,
+                    &scorer,
+                    config.terminal_seed,
+                ),
             });
             greedy_stats = initial_stats;
             let result = pool.install(|| {
@@ -556,6 +656,8 @@ fn run(config: Config) -> Result<(), DynError> {
                     config.iteration_cap,
                     config.merge,
                     config.merge_cap,
+                    config.terminal_seed,
+                    config.reassignment_margin_q(),
                     &mut greedy_stats,
                 )
             });

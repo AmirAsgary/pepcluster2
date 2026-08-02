@@ -1,6 +1,7 @@
 use crate::model::{Edge, Node};
 use std::cell::RefCell;
 use std::cmp::Ordering;
+use std::sync::atomic::{AtomicU64, Ordering as AtomicOrdering};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SimdMode {
@@ -14,6 +15,10 @@ pub enum ScoringMode {
     CombinedKmerAnchor,
     CombinedFullAnchor,
     SeparateAlnAnchor,
+    /// Terminal k-mer similarity and anchor-combination similarity, each
+    /// against its own threshold. Reads only the six terminal residues, so no
+    /// alignment is computed and the core never contributes.
+    SeparateKmerAnchor,
 }
 
 impl ScoringMode {
@@ -22,6 +27,7 @@ impl ScoringMode {
             "combined_kmer_anchor" => Ok(Self::CombinedKmerAnchor),
             "combined_full_anchor" => Ok(Self::CombinedFullAnchor),
             "separate_aln_anchor" => Ok(Self::SeparateAlnAnchor),
+            "separate_kmer_anchor" => Ok(Self::SeparateKmerAnchor),
             _ => Err(format!("invalid --mode: {value}")),
         }
     }
@@ -31,11 +37,19 @@ impl ScoringMode {
             Self::CombinedKmerAnchor => "combined_kmer_anchor",
             Self::CombinedFullAnchor => "combined_full_anchor",
             Self::SeparateAlnAnchor => "separate_aln_anchor",
+            Self::SeparateKmerAnchor => "separate_kmer_anchor",
         }
     }
 
+    /// Whether the mode needs the constrained full-peptide alignment. The two
+    /// k-mer modes read only the terminal residues.
     pub fn uses_alignment(self) -> bool {
-        self != Self::CombinedKmerAnchor
+        !matches!(self, Self::CombinedKmerAnchor | Self::SeparateKmerAnchor)
+    }
+
+    /// Whether the mode thresholds its two components independently.
+    pub fn is_separate(self) -> bool {
+        matches!(self, Self::SeparateAlnAnchor | Self::SeparateKmerAnchor)
     }
 }
 
@@ -71,6 +85,15 @@ thread_local! {
     static ALIGNMENT_WORKSPACE: RefCell<Vec<i32>> = const { RefCell::new(Vec::new()) };
 }
 
+/// Number of constrained-alignment dynamic programs run in this process. The
+/// alignment dominates scoring cost, so it is reported separately from candidate
+/// volume; a relaxed counter is far cheaper than the program it counts.
+static ALIGNMENT_EVALUATIONS: AtomicU64 = AtomicU64::new(0);
+
+pub fn alignment_evaluations() -> u64 {
+    ALIGNMENT_EVALUATIONS.load(AtomicOrdering::Relaxed)
+}
+
 pub fn normalized_residue_scores() -> [i32; 400] {
     let mut result = [0i32; 400];
     for a in 0..20 {
@@ -91,9 +114,11 @@ pub struct Scorer {
     threshold_q: i32,
     alignment_threshold_q: i32,
     anchor_threshold_q: i32,
+    kmer_threshold_q: i32,
     prefilter_threshold_q: i32,
     prefilter_alignment_threshold_q: i32,
     prefilter_anchor_threshold_q: i32,
+    prefilter_kmer_threshold_q: i32,
     gap_open_q: i32,
     gap_extension_q: i32,
     terminal_gap_open_q: i32,
@@ -117,6 +142,7 @@ impl Scorer {
         threshold: f64,
         alignment_threshold: f64,
         anchor_threshold: f64,
+        kmer_threshold: f64,
         gap_open: f64,
         gap_extension: f64,
         terminal_gap_open: f64,
@@ -124,7 +150,7 @@ impl Scorer {
         minimum_terminal_match_length: usize,
         _simd_mode: SimdMode,
     ) -> Result<Self, String> {
-        for value in [threshold, alignment_threshold, anchor_threshold] {
+        for value in [threshold, alignment_threshold, anchor_threshold, kmer_threshold] {
             if !(0.0..=1.0).contains(&value) {
                 return Err("similarity thresholds must be between 0 and 1".into());
             }
@@ -154,9 +180,11 @@ impl Scorer {
             threshold_q: q(threshold),
             alignment_threshold_q: q(alignment_threshold),
             anchor_threshold_q: q(anchor_threshold),
+            kmer_threshold_q: q(kmer_threshold),
             prefilter_threshold_q: q(threshold.max(0.75)),
             prefilter_alignment_threshold_q: q(alignment_threshold.max(0.75)),
             prefilter_anchor_threshold_q: q(anchor_threshold.max(0.75)),
+            prefilter_kmer_threshold_q: q(kmer_threshold.max(0.75)),
             gap_open_q: gap_q(gap_open),
             gap_extension_q: gap_q(gap_extension),
             terminal_gap_open_q: gap_q(terminal_gap_open),
@@ -228,6 +256,53 @@ impl Scorer {
         (best.max(0) / (2 * n_left as i32)).clamp(0, 1000) as u16
     }
 
+    /// Upper bound on `anchor_combination_similarity` obtained by dropping the
+    /// one-to-one constraint: every hypothesis of the smaller set takes its best
+    /// partner independently. Any assignment the exact bit-mask program can
+    /// choose is also feasible here, so this value is never smaller than the
+    /// exact score. It costs at most 36 table lookups and no dynamic program.
+    fn anchor_upper_bound_q(&self, a: &Node, b: &Node) -> u16 {
+        let (mut left, mut n_left) = Self::active_pairs(a);
+        let (mut right, mut n_right) = Self::active_pairs(b);
+        if n_left == 0 || n_right == 0 {
+            return 0;
+        }
+        if n_left > n_right {
+            std::mem::swap(&mut left, &mut right);
+            std::mem::swap(&mut n_left, &mut n_right);
+        }
+        let mut total = 0i32;
+        for row in 0..n_left {
+            let mut best = i32::MIN;
+            for column in 0..n_right {
+                let score =
+                    self.pair_similarity[left[row] as usize * 400 + right[column] as usize] as i32;
+                best = best.max(score);
+            }
+            total += best;
+        }
+        (total.max(0) / (2 * n_left as i32)).clamp(0, 1000) as u16
+    }
+
+    /// Sound rejection test for candidate generation. A pair failing this test
+    /// cannot satisfy the mode's acceptance rule, so discarding it loses no
+    /// eligible relationship.
+    ///
+    /// In `separate_aln_anchor` the anchor threshold must be met on its own. In
+    /// the combined modes the other component is at most 1000, so the combined
+    /// score is at most `(anchor_upper_bound + 1000) / 2`.
+    pub fn anchor_bound_passes(&self, a: &Node, b: &Node) -> bool {
+        let bound = self.anchor_upper_bound_q(a, b) as i32;
+        match self.mode {
+            ScoringMode::SeparateAlnAnchor | ScoringMode::SeparateKmerAnchor => {
+                bound >= self.anchor_threshold_q
+            }
+            ScoringMode::CombinedKmerAnchor | ScoringMode::CombinedFullAnchor => {
+                (bound + 1000 + 1) / 2 >= self.threshold_q
+            }
+        }
+    }
+
     fn aligned_three_mer_mean(&self, a: &Node, b: &Node, offset: usize) -> u16 {
         let mut sum = 0i32;
         for position in offset..offset + 3 {
@@ -267,6 +342,7 @@ impl Scorer {
     }
 
     fn constrained_alignment_q(&self, a: &Node, b: &Node) -> u16 {
+        ALIGNMENT_EVALUATIONS.fetch_add(1, AtomicOrdering::Relaxed);
         let aa = &a.sequence;
         let bb = &b.sequence;
         let m = aa.len();
@@ -423,15 +499,18 @@ impl Scorer {
         } else {
             0
         };
-        let component = if self.mode == ScoringMode::CombinedKmerAnchor {
-            terminal_kmer
-        } else {
+        let component = if self.mode.uses_alignment() {
             alignment
+        } else {
+            terminal_kmer
         };
         let combined = ((component as u32 + anchor_combination as u32 + 1) / 2) as u16;
         let ranking_weight = match self.mode {
             ScoringMode::CombinedKmerAnchor | ScoringMode::CombinedFullAnchor => combined,
             ScoringMode::SeparateAlnAnchor => (alignment as i32 - self.alignment_threshold_q)
+                .min(anchor_combination as i32 - self.anchor_threshold_q)
+                .max(0) as u16,
+            ScoringMode::SeparateKmerAnchor => (terminal_kmer as i32 - self.kmer_threshold_q)
                 .min(anchor_combination as i32 - self.anchor_threshold_q)
                 .max(0) as u16,
         };
@@ -453,6 +532,20 @@ impl Scorer {
                     } else {
                         self.threshold_q
                     }
+            }
+            ScoringMode::SeparateKmerAnchor => {
+                scores.terminal_kmer as i32
+                    >= if prefilter {
+                        self.prefilter_kmer_threshold_q
+                    } else {
+                        self.kmer_threshold_q
+                    }
+                    && scores.anchor_combination as i32
+                        >= if prefilter {
+                            self.prefilter_anchor_threshold_q
+                        } else {
+                            self.anchor_threshold_q
+                        }
             }
             ScoringMode::SeparateAlnAnchor => {
                 scores.alignment as i32
@@ -516,6 +609,11 @@ impl Scorer {
                 .ranking_weight
                 .cmp(&right.ranking_weight)
                 .then(left.alignment.cmp(&right.alignment))
+                .then(left.anchor_combination.cmp(&right.anchor_combination)),
+            ScoringMode::SeparateKmerAnchor => left
+                .ranking_weight
+                .cmp(&right.ranking_weight)
+                .then(left.terminal_kmer.cmp(&right.terminal_kmer))
                 .then(left.anchor_combination.cmp(&right.anchor_combination)),
         }
     }
@@ -592,10 +690,12 @@ impl Scorer {
     ) {
         crate::pair_trace::record_many(pairs);
         for &(u, v) in pairs {
+            let a = &nodes[u as usize];
+            let b = &nodes[v as usize];
             let weight = if prefilter {
-                self.score_prefilter(&nodes[u as usize], &nodes[v as usize])
+                self.score_prefilter(a, b)
             } else {
-                self.score_scalar(&nodes[u as usize], &nodes[v as usize])
+                self.score_scalar(a, b)
             };
             if let Some(weight) = weight {
                 out.push(Edge { u, v, weight });
@@ -624,6 +724,7 @@ mod tests {
     fn scorer(mode: ScoringMode) -> Scorer {
         Scorer::new(
             mode,
+            0.6,
             0.6,
             0.6,
             0.6,
@@ -689,9 +790,178 @@ mod tests {
         );
     }
 
+    /// The k-mer similarity is a position-wise comparison of the two terminal
+    /// 3-mers only: position i against position i, no alignment, core excluded.
+    #[test]
+    fn kmer_similarity_is_positionwise_over_the_two_termini() {
+        let s = scorer(ScoringMode::SeparateKmerAnchor);
+        // Identical termini, completely different cores -> perfect k-mer score.
+        let a = node(b"AAACCCCCWWW");
+        let b = node(b"AAAKKKKKWWW");
+        assert_eq!(s.scores(&a, &b).terminal_kmer, 1000);
+        // The core is never read, so lengthening it changes nothing.
+        let c = node(b"AAAKKKKKKKKKKWWW");
+        assert_eq!(s.scores(&a, &c).terminal_kmer, 1000);
+        // No alignment is computed in this mode.
+        assert_eq!(s.scores(&a, &b).alignment, 0);
+        // Positions are not realigned: shifting the N-terminus by one breaks it.
+        let shifted = node(b"GAAACCCCCWWW");
+        assert!(s.scores(&a, &shifted).terminal_kmer < 1000);
+    }
+
+    /// Each terminus is the mean of three residue similarities, and the two
+    /// termini are averaged with equal weight.
+    #[test]
+    fn kmer_similarity_matches_the_documented_formula() {
+        let s = scorer(ScoringMode::SeparateKmerAnchor);
+        let residue = normalized_residue_scores();
+        let a = node(b"AWDKKKKLMN");
+        let b = node(b"APDKKKKLMN");
+        let code = |c: u8| aa_code(c) as usize;
+        let front: i32 = [(b'A', b'A'), (b'W', b'P'), (b'D', b'D')]
+            .iter()
+            .map(|(x, y)| residue[code(*x) * 20 + code(*y)])
+            .sum();
+        let end: i32 = [(b'L', b'L'), (b'M', b'M'), (b'N', b'N')]
+            .iter()
+            .map(|(x, y)| residue[code(*x) * 20 + code(*y)])
+            .sum();
+        let expected_front = front.max(0) / 3;
+        let expected_end = end.max(0) / 3;
+        let expected = (expected_front + expected_end + 1) / 2;
+        assert_eq!(s.scores(&a, &b).terminal_kmer as i32, expected);
+    }
+
+    /// Both components must pass independently, and neither can compensate for
+    /// the other; a zero threshold disables its component.
+    #[test]
+    fn separate_kmer_mode_thresholds_both_components() {
+        let nodes = sample_nodes(24);
+        let strict = Scorer::new(ScoringMode::SeparateKmerAnchor, 0.60, 0.50, 0.60, 0.60,
+                                 -4.0, -1.0, -2.0, -1.0, 2, SimdMode::Auto).unwrap();
+        let kmer_only = Scorer::new(ScoringMode::SeparateKmerAnchor, 0.60, 0.50, 0.0, 0.60,
+                                    -4.0, -1.0, -2.0, -1.0, 2, SimdMode::Auto).unwrap();
+        let mut both = 0usize;
+        let mut relaxed = 0usize;
+        for (index, a) in nodes.iter().enumerate() {
+            for b in &nodes[index + 1..] {
+                let scores = strict.scores(a, b);
+                let expected = scores.terminal_kmer >= 600 && scores.anchor_combination >= 600;
+                assert_eq!(strict.eligible_pair_scores(a, b).is_some(), expected);
+                both += usize::from(expected);
+                // Anchor threshold 0 leaves only the k-mer condition.
+                let only = kmer_only.eligible_pair_scores(a, b).is_some();
+                assert_eq!(only, scores.terminal_kmer >= 600);
+                relaxed += usize::from(only);
+            }
+        }
+        assert!(both > 0, "no eligible pair to test");
+        assert!(relaxed >= both, "dropping the anchor threshold must not remove edges");
+    }
+
+    /// With neither component threshold supplied, --threshold governs both.
+    #[test]
+    fn threshold_precedence_for_the_kmer_mode() {
+        let a = node(b"AWDKKKKLMN");
+        let b = node(b"APDKKKKLMN");
+        let shared = Scorer::new(ScoringMode::SeparateKmerAnchor, 0.30, 0.30, 0.30, 0.30,
+                                 -4.0, -1.0, -2.0, -1.0, 2, SimdMode::Auto).unwrap();
+        let split = Scorer::new(ScoringMode::SeparateKmerAnchor, 0.99, 0.50, 0.30, 0.30,
+                                -4.0, -1.0, -2.0, -1.0, 2, SimdMode::Auto).unwrap();
+        assert_eq!(shared.eligible_pair_scores(&a, &b).is_some(),
+                   split.eligible_pair_scores(&a, &b).is_some());
+    }
+
     #[test]
     fn repeated_anchor_values_count_once_for_prefilter() {
         let a = node(b"AAAAAALLL");
         assert_eq!(Scorer::distinct_shared_anchor_types(&a, &a), 1);
+    }
+
+    /// Deterministic peptide families: an unrelated base sequence plus close
+    /// relatives produced by point substitutions and one-residue terminal
+    /// shifts. Lengths span 8..=14 so both anchor-hypothesis counts (3 for
+    /// length 8, 6 otherwise) are covered, and related members guarantee that
+    /// eligible pairs actually occur at the default thresholds.
+    fn sample_nodes(families: usize) -> Vec<Node> {
+        const ALPHABET: &[u8] = b"ARNDCQEGHILKMFPSTWYV";
+        let mut state = 0x2545_f491_4f6c_dd1du64;
+        let mut next = move || {
+            state = state
+                .wrapping_mul(6_364_136_223_846_793_005)
+                .wrapping_add(1_442_695_040_888_963_407);
+            (state >> 33) as usize
+        };
+        let mut nodes = Vec::new();
+        for _ in 0..families {
+            let length = 9 + next() % 6;
+            let base: Vec<u8> = (0..length)
+                .map(|_| ALPHABET[next() % ALPHABET.len()])
+                .collect();
+            nodes.push(node(&base));
+            // Point substitutions, including inside a terminal 3-mer.
+            for _ in 0..3 {
+                let mut variant = base.clone();
+                let position = next() % variant.len();
+                variant[position] = ALPHABET[next() % ALPHABET.len()];
+                nodes.push(node(&variant));
+            }
+            // One-residue terminal extension and trim: the shifted-terminal case.
+            let mut extended = vec![ALPHABET[next() % ALPHABET.len()]];
+            extended.extend_from_slice(&base);
+            nodes.push(node(&extended));
+            if base.len() > 8 {
+                nodes.push(node(&base[1..]));
+            }
+        }
+        nodes
+    }
+
+    #[test]
+    fn anchor_upper_bound_never_underestimates_the_exact_assignment() {
+        let s = scorer(ScoringMode::SeparateAlnAnchor);
+        let nodes = sample_nodes(40);
+        for a in &nodes {
+            for b in &nodes {
+                let bound = s.anchor_upper_bound_q(a, b);
+                let exact = s.anchor_combination_q(a, b);
+                assert!(
+                    bound >= exact,
+                    "relaxed bound {bound} below exact anchor score {exact} for {} vs {}",
+                    String::from_utf8_lossy(&a.sequence),
+                    String::from_utf8_lossy(&b.sequence)
+                );
+            }
+        }
+    }
+
+    /// The candidate-generation gate must never discard a pair the mode would
+    /// accept; this is what makes the pruning lossless rather than heuristic.
+    #[test]
+    fn every_eligible_pair_passes_the_candidate_bound() {
+        let nodes = sample_nodes(24);
+        for mode in [
+            ScoringMode::SeparateAlnAnchor,
+            ScoringMode::CombinedFullAnchor,
+            ScoringMode::CombinedKmerAnchor,
+        ] {
+            let s = scorer(mode);
+            let mut eligible = 0usize;
+            for (index, a) in nodes.iter().enumerate() {
+                for b in &nodes[index + 1..] {
+                    if s.eligible_pair_scores(a, b).is_some() {
+                        eligible += 1;
+                        assert!(
+                            s.anchor_bound_passes(a, b),
+                            "mode {} discarded eligible pair {} vs {}",
+                            mode.name(),
+                            String::from_utf8_lossy(&a.sequence),
+                            String::from_utf8_lossy(&b.sequence)
+                        );
+                    }
+                }
+            }
+            assert!(eligible > 0, "mode {} produced no eligible pair", mode.name());
+        }
     }
 }

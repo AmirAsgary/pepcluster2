@@ -88,21 +88,85 @@ similarity or anchor-combination similarity is clamped to `[0,1]`.
 
 ## 5. K-mer candidate retrieval
 
-Two dimers are seed neighbours when
+### 5.1 Seed geometry
+
+The seed must enumerate the residue columns that the accepted alignment is
+required to contain. Section 8.1 requires at least
+`--minimum-terminal-match-length` residue-to-residue columns drawn from the
+first three residues of *both* peptides, and the same at the C terminus. For the
+default of two, those two columns may sit at any ordered position pair
+`(i1 < i2)` of one peptide against any ordered pair `(j1 < j2)` of the other.
+There are three such pairs inside a 3-mer, so each terminus of each peptide
+contributes three ordered 2-mer keys:
 
 ```text
-d(dimer1,dimer2) >= --kmer-seed-threshold
+front keys = (N1N2, N1N3, N2N3)
+end keys   = (C1C2, C1C3, C2C3)
 ```
 
-The proposed default k-mer seed threshold is 0.50. A peptide pair is retrieved
-as a sensitive candidate only if it has at least one neighbouring front-dimer
-pair and at least one neighbouring end-dimer pair. An inverted index and
-externally sorted pair records are used so the complete candidate set need not
-be held in memory.
+`--terminal-seed all-column-pairs` (default) indexes all three.
+`--terminal-seed contiguous` indexes only `(N1N2, N2N3)` and `(C1C2, C2C3)`.
+
+The contiguous geometry is not merely less sensitive; it is misaligned with the
+acceptance rule. Both contiguous dimers of a terminus contain the middle
+residue, so a single substitution at that position destroys both of them while
+leaving the spaced `(1,3)` pair untouched. Measured on 20 datasets of 10,000
+peptides, the contiguous geometry retrieved 64% of the pairs that pass both
+exact thresholds, and the failures split evenly and almost disjointly between
+the two termini, which is the signature of a conjunction of two independently
+insensitive tests rather than one broken terminus.
+
+### 5.2 Seed rule
+
+Two 2-mers are seed neighbours when
+
+```text
+d(kmer1,kmer2) >= --kmer-seed-threshold
+```
+
+The default k-mer seed threshold is 0.40. A peptide pair is retrieved as a
+sensitive candidate only if it has at least one neighbouring front key pair and
+at least one neighbouring end key pair. Keys of both termini are combined into
+composite `front * 400 + end` index keys, so a node occupies at most nine
+buckets and retrieval expands the neighbours of both components. An inverted
+index and externally sorted pair records are used so the complete candidate set
+need not be held in memory.
 
 The k-mer seed score controls candidate recall and computational cost only. A
 k-mer seed hit never creates a cluster edge by itself. This remains true for
 all three modes.
+
+### 5.3 Lossless anchor rejection during candidate generation
+
+Anchor-combination similarity (Section 7) is the *mean* of the selected
+one-to-one hypothesis pairs. Dropping the one-to-one constraint, so that every
+hypothesis of the smaller set independently takes its best partner, can only
+increase the optimum. That relaxed value is therefore an upper bound on the
+exact anchor-combination similarity, and it costs at most 36 table lookups with
+no dynamic program.
+
+Candidate generation discards any pair whose relaxed bound cannot reach the
+mode's acceptance rule:
+
+```text
+separate_aln_anchor:
+    anchor_upper_bound >= resolved_anchor_threshold
+
+combined_kmer_anchor, combined_full_anchor:
+    (anchor_upper_bound + 1000) / 2 >= --threshold
+```
+
+The combined form uses the fact that the other component is at most 1. Because
+the bound can never fall below the exact score, this rejection cannot discard an
+eligible pair: it removes work, not relationships. It is applied before pairs
+are written to temporary storage, so it reduces temporary disk as well as
+scoring time, and it is what allows the more sensitive geometry of Section 5.1
+to remain inexpensive.
+
+Validation must report candidate cost as a decomposition — index hits, pairs
+rejected by the bound, distinct pairs exactly scored, and constrained-alignment
+evaluations — because these are different costs and a single figure hides which
+one dominates.
 
 ## 6. Terminal k-mer similarity
 
@@ -296,11 +360,29 @@ initial representative-selection objectives differ.
 ### 10.1 Graph method
 
 The graph method materializes every accepted candidate pair as an undirected
-edge. Initial representatives are selected by dynamic greedy set cover: at each
-selection, the method prefers the node covering the greatest number of still
-unassigned nodes, then the greatest accepted-edge weight, then frequency, then
-canonical sequence order. The stored graph is reused for representative update,
-reassignment, merging, and validation.
+edge. The stored graph is reused for representative update, reassignment,
+merging, and validation. Initial representatives are selected in one of two
+orders, chosen by `--representative-order`.
+
+`coverage` (default) is dynamic greedy set cover: at each selection, the method
+prefers the node covering the greatest number of still unassigned nodes, then the
+greatest accepted-edge weight, then frequency, then canonical sequence order.
+This minimizes the cluster count.
+
+`intrinsic` visits peptides once, in an order computed only from the peptide
+itself — longer peptides first, then canonical sequence order — and lets each
+unassigned peptide become a representative and absorb its still unassigned
+neighbours. Input frequency is deliberately excluded from the key because it
+depends on which duplicates a sample retained.
+
+The distinction matters for dataset-size dependence. A coverage key is a
+property of the whole dataset, so subsampling reorders selection and the
+resulting partitions move; because the key is a degree, a small change in the
+edge set is amplified into a large change in the partition. The intrinsic order
+of a subset is exactly the restriction of the full-dataset order, so selection
+does not churn and the only remaining difference is representatives absent from
+the subset. The trade-off is compactness: the intrinsic order produces more
+clusters. Neither order is uniformly better and both must be reported.
 
 The graph method may use the optional high-confidence prefilter in Section 11.
 It is appropriate when complete accepted-edge topology or dynamic set-cover
@@ -525,6 +607,19 @@ scored exactly against its new representative. Reassignment freezes current
 representatives, examines every peptide, and applies all moves simultaneously.
 The process repeats until stable or until `--iteration-cap` is reached.
 
+Reassignment is hysteretic. A peptide leaves its current representative only when
+another exceeds it by more than `--reassignment-margin`, expressed in the same
+units as the representative-ranking margin; the proposed default is 0.01. Without
+hysteresis, any improvement moves a peptide, including an exact tie resolved by
+identifier. Near-ties are precisely the composition-sensitive case: which
+representative wins depends on which peptides the dataset happens to contain, so a
+small change in composition reshuffles many assignments. Measured stage by stage
+on a complete edge set, reassignment rather than merging is where subset stability
+is lost, so the margin applies where it matters. It is a stability parameter and
+must not be described as a similarity threshold: it cannot make an ineligible pair
+eligible, and the representative-to-member invariant of Section 13.4 holds
+regardless of its value.
+
 The final invariant is:
 
 > Every peptide passes the selected mode's acceptance rule against the reported
@@ -563,9 +658,27 @@ is a correctness diagnostic, but reconstructing the complete sensitive graph
 removes much of the disk-saving advantage. Any discrepancy must be measured and
 reported as prefilter loss.
 
-The terminal k-mer lookup can also miss a biologically valid pair before exact
-scoring if it has no qualifying front or end dimer seed. Candidate-retrieval
-recall must therefore be validated separately from the scoring thresholds.
+The terminal k-mer lookup remains a heuristic on the threshold, not on the
+geometry. Section 5.1 enumerates every column pair the alignment could use, so a
+pair is missed only when the residues in those columns score below
+`--kmer-seed-threshold` at one terminus while the rest of the alignment carries
+the score. The anchor rejection of Section 5.3 is lossless and cannot contribute.
+Candidate-retrieval recall must therefore still be validated separately from the
+scoring thresholds, and the validation must attribute every missed pair to the
+conjunct that rejected it.
+
+The greedy clustering methods never score all retrievable pairs: they only score
+representative-to-unassigned pairs. Their pair-level search recall is therefore
+not comparable with the graph method's, and a validation that compares the two
+numbers directly is measuring different things.
+
+Comparing a run against a reference that stops at greedy set cover confounds two
+different errors, because the run's own iterative section moves the partition
+away from set cover even when its candidate search is perfect. A validation must
+therefore also build a reference that applies the same iterative section to the
+complete edge set. Agreement with that reference is what isolates
+candidate-search loss; the difference between the two references is the size of
+the refinement effect.
 
 The algorithm guarantees representative-to-member consistency, not complete
 pairwise cluster consistency. All seed, alignment, anchor, gap, and prefilter
