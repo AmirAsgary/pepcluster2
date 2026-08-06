@@ -110,6 +110,64 @@ Every successful path guarantees:
 
 This does not imply that every pair of members within a cluster passes.
 
+## Motif layer (optional, off by default)
+
+`--merge-motifs` adds a second partition above the similarity clusters.
+
+A cluster produced by the sections above is a similarity ball: every member
+passes the scoring rule against its representative. A binding motif is a
+different object — a product of per-position residue preferences, narrow at the
+anchors and near-flat elsewhere. A ball cannot cover such a region, and lowering
+the threshold widens it along every axis rather than only the tolerant ones, so
+one motif fragments into many clusters. On the peptide-MHC benchmark the
+similarity clustering reaches BCubed recall 0.06 at ~175 clusters per pool: the
+clusters are enriched for their allele but far too small.
+
+The motif stage summarises each cluster as amino-acid counts on a nine-column
+frame, then merges greedily while a Dirichlet-multinomial marginal likelihood
+prefers one shared profile to two separate ones:
+
+```text
+log BF = log L(counts_A + counts_B) - log L(counts_A) - log L(counts_B)
+```
+
+EM refinement of a mixture of position weight matrices follows, seeded from the
+merged partition rather than at random. On the same benchmark this reaches
+recall ~0.66 at ~11 motifs.
+
+The frame is nine columns. For `L >= 9` it takes peptide positions 1–4 and
+`L-4..L`, so a 9-mer maps identically and the centre of a longer peptide is
+dropped — it bulges out of the binding groove and carries little allele-specific
+signal. An 8-mer fills columns 1–4 and 6–9 and leaves column 5 unobserved.
+
+```bash
+target/release/pepcluster2 \
+    --input peptides.fasta \
+    --output-dir results/motifs \
+    --merge-motifs \
+    --threads 0
+```
+
+Writes `motif_clusters.tsv` and `motif_profiles.tsv` alongside the usual output.
+
+Three things to know before relying on it:
+
+- **The motif partition does not satisfy the representative-to-member
+  invariant.** Two peptides in one motif need not pass the scoring rule against
+  any common representative. That is the point of the stage, and it is why the
+  motif layer is written to its own files and never replaces `clusters.tsv`.
+- **The defaults are provisional.** They come from a sweep scored on the
+  benchmark's own test split, so they are optimistic and not a calibrated
+  recommendation. Tune `--motif-prior-concentration` and
+  `--motif-em-prior-concentration` on your own data.
+- **Merging can only coarsen.** Contamination already inside a similarity cluster
+  survives it; only EM can move a peptide out.
+
+Cost scales with the number of clusters, not the number of peptides: the
+peptides are read once to build the profiles, after which the merge is `O(K^2)`
+marginal-likelihood evaluations. On an 11,656-peptide pool with 303 clusters the
+whole stage is a fraction of the clustering time it follows.
+
 ## Install
 
 From PyPI:
@@ -184,6 +242,13 @@ target/release/pepcluster2 \
 --iteration-cap INT
 --merge-cap INT
 --no-merge
+--merge-motifs
+--motif-prior-concentration FLOAT
+--motif-merge-threshold FLOAT
+--no-motif-em
+--motif-em-prior-concentration FLOAT
+--motif-em-max-iterations INT
+--motif-em-tolerance FLOAT
 --threads INT
 --tmp-dir PATH
 --compact-output
@@ -226,7 +291,10 @@ Normal runs write:
   diagnostics;
 - `run_config.txt`, `command.txt`, and `run_stats.json`: resolved settings and
   machine-readable reproducibility data;
-- optional `cluster_fastas/` and graph `edges.tsv`.
+- optional `cluster_fastas/` and graph `edges.tsv`;
+- with `--merge-motifs`, `motif_clusters.tsv` (motif and similarity cluster per
+  sequence, plus the framed peptide) and `motif_profiles.tsv` (fitted profile and
+  mixing weight per motif).
 
 `--compact-output` writes `node_clusters.tsv` instead of rescanning the input
 FASTA and is intended for high-replicate validation.

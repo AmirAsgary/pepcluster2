@@ -1,5 +1,80 @@
 # Changelog
 
+## 0.6.0
+
+Adds an optional motif layer above the similarity clustering. It is **off by
+default** and does not change any existing output.
+
+### Why
+
+A PepCluster2 cluster is a similarity ball around a representative. A binding
+motif is a product of per-position residue preferences: narrow at the anchors,
+near-flat elsewhere, and therefore strongly anisotropic in sequence space. A ball
+cannot cover such a region, and lowering the threshold widens it along every axis
+at once instead of only the tolerant ones. One motif consequently fragments into
+many clusters, and no single threshold repairs it.
+
+Measured against MHC allele labels on the 48 held-out benchmark pools, the
+similarity clustering alone reaches BCubed recall 0.06 at ~175 clusters: the
+clusters are enriched for their allele but far too small. Merging their profiles
+and refining with EM raises recall to ~0.66 at ~11 motifs, with purity roughly
+held.
+
+### Added
+
+- `--merge-motifs`, building a motif partition from the finished similarity
+  clusters. Clusters are summarised as amino-acid profiles on a nine-column frame
+  and merged greedily while a Dirichlet-multinomial marginal likelihood prefers
+  one shared profile to two separate ones. EM refinement of a mixture of position
+  weight matrices then follows, seeded from the merged partition.
+
+- `--motif-prior-concentration`, `--motif-merge-threshold`, `--no-motif-em`,
+  `--motif-em-prior-concentration`, `--motif-em-max-iterations`,
+  `--motif-em-tolerance`.
+
+- Outputs `motif_clusters.tsv` (motif and similarity cluster per sequence, with
+  the framed peptide) and `motif_profiles.tsv` (the fitted profile and mixing
+  weight per motif). `run_summary.txt`, `run_config.txt` and `run_stats.json`
+  gain the corresponding fields.
+
+### Frame
+
+Nine columns. For `L >= 9` they are peptide positions 1–4 and `L-4..L`, so a
+9-mer maps identically and the centre of a longer peptide — which bulges out of
+the binding groove and carries little allele-specific signal — is dropped. An
+8-mer fills columns 1–4 and 6–9 and leaves column 5 unobserved, rather than
+shifting its C-terminal residues into the wrong columns.
+
+### Limits, read these before using it
+
+- **The motif partition does not satisfy the representative-to-member
+  invariant.** Two peptides in one motif need not pass the scoring rule against
+  any common representative. That is the intent, not a defect, but it is why the
+  motif layer is written to separate files and never overwrites `clusters.tsv`.
+
+- **The default parameters are provisional.** They are the values a sweep
+  selected on the benchmark's own test split, so they are optimistic and are not
+  a calibrated recommendation. A clean nested cross-validated selection is
+  pending; until it lands, treat `--motif-prior-concentration` and
+  `--motif-em-prior-concentration` as parameters to tune on your own data.
+
+- **Positions are assumed independent** given the motif, so two clusters with
+  matching per-position marginals merge even if their joint residue
+  distributions are disjoint. This is the standard position weight matrix
+  assumption and the reason the stage recovers motifs rather than homologues.
+
+- **Merging can only coarsen.** Contamination already present in a similarity
+  cluster propagates; only the EM stage can move a peptide out of it.
+
+- There is no background or "trash" component, so contaminant peptides are forced
+  into a real motif.
+
+### Determinism
+
+Preserved. The agglomeration argmax breaks ties by cluster index, EM is seeded
+from the merge rather than at random, and parallel accumulation uses fixed chunk
+boundaries combined in index order. Output is bit-identical across thread counts.
+
 ## 0.5.0
 
 Candidate search redesigned. Recall against an exhaustive all-versus-all

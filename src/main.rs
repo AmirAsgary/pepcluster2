@@ -6,6 +6,7 @@ mod greedy;
 mod index;
 mod kmer;
 mod model;
+mod motif;
 mod output;
 mod pair_trace;
 mod scoring;
@@ -26,8 +27,10 @@ use index::{
 };
 use kmer::KmerSimilarityTable;
 use model::Node;
+use motif::MotifResult;
 use output::{
-    write_cluster_outputs, write_compact_outputs, write_edges, write_provisional_clusters,
+    write_cluster_outputs, write_compact_outputs, write_edges, write_motif_outputs,
+    write_provisional_clusters,
 };
 use rayon::prelude::*;
 use rayon::ThreadPool;
@@ -258,6 +261,25 @@ fn write_config(
     writeln!(w, "strict_input={}", config.strict)?;
     writeln!(w, "candidate_buffer_mb={}", config.candidate_buffer_mb)?;
     writeln!(w, "max_memory_gb={}", config.max_memory_gb)?;
+    writeln!(w, "merge_motifs={}", config.merge_motifs)?;
+    writeln!(
+        w,
+        "motif_prior_concentration={}",
+        config.motif.prior_concentration
+    )?;
+    writeln!(w, "motif_merge_threshold={}", config.motif.merge_threshold)?;
+    writeln!(w, "motif_em={}", config.motif.em)?;
+    writeln!(
+        w,
+        "motif_em_prior_concentration={}",
+        config.motif.em_prior_concentration
+    )?;
+    writeln!(
+        w,
+        "motif_em_max_iterations={}",
+        config.motif.em_max_iterations
+    )?;
+    writeln!(w, "motif_em_tolerance={}", config.motif.em_tolerance)?;
     writeln!(w, "compact_output={}", config.compact_output)?;
     writeln!(w, "write_cluster_fastas={}", config.write_cluster_fastas)?;
     writeln!(w, "write_scored_pairs={}", config.write_scored_pairs)?;
@@ -299,6 +321,7 @@ fn write_run_reports(
     greedy_stats: GreedyRunStats,
     clustering: &Clustering,
     iteration: IterationStats,
+    motifs: Option<&MotifResult>,
     elapsed: f64,
     stages: &[(&str, f64)],
 ) -> Result<(), DynError> {
@@ -373,6 +396,20 @@ fn write_run_reports(
     summary.push_str(&format!("Eligible graph edges: {}\nGreedy eligible assignments/retrievals: {}\nRepresentative-update pair scores: {}\nMerge pair scores: {}\n", edges.final_edges, greedy_stats.eligible_pairs, greedy_stats.representative_pair_scores, greedy_stats.merge_pair_scores));
     summary.push_str(&format!("Iterations: {}\nConverged: {}\nReassignment moves: {}\nRepresentative changes: {}\nValidated merges: {}\nValidation failures: {}\n", iteration.iterations, iteration.converged, iteration.reassignment_moves, iteration.representative_changes, iteration.merges, iteration.validation_failures));
     summary.push_str(&format!("Clusters: {}\nSingleton clusters: {}\nMean peptide cluster size: {:.3}\nMedian peptide cluster size: {:.3}\nLargest peptide cluster: {}\nLargest unique-sequence cluster: {}\nElapsed seconds: {:.6}\n", clustering.representatives.len(), singleton, fasta.accepted as f64 / clustering.representatives.len().max(1) as f64, median, peptide_sizes.iter().max().unwrap_or(&0), unique_sizes.iter().max().unwrap_or(&0), elapsed));
+    if let Some(m) = motifs {
+        summary.push_str(&format!(
+            "\nMOTIF LAYER\nMerged motif groups: {}\nOccupied motifs: {}\nAccepted merges: {}\nEM iterations: {}\nEM converged: {}\nMotif prior concentration: {}\nMotif merge threshold: {}\nEM prior concentration: {}\n",
+            m.merged_count,
+            m.motif_count,
+            m.merges,
+            m.em_iterations,
+            m.em_converged,
+            config.motif.prior_concentration,
+            config.motif.merge_threshold,
+            config.motif.em_prior_concentration
+        ));
+        summary.push_str("The motif partition does not satisfy the representative-to-member invariant and is reported separately from the similarity clusters.\n");
+    }
     summary.push_str("\nSTAGE TIMINGS\n");
     for (name, seconds) in stages {
         summary.push_str(&format!("{name}: {seconds:.6} s\n"));
@@ -384,6 +421,26 @@ fn write_run_reports(
         .map(|(n, s)| format!("    {}: {:.6}", json_escape(n), s))
         .collect::<Vec<_>>()
         .join(",\n");
+    let motif_json = motifs.map_or_else(
+        || "  \"motif_layer\": false,\n".to_string(),
+        |m| {
+            format!(
+                concat!(
+                    "  \"motif_layer\": true,\n  \"motif_merged_groups\": {},\n  \"motif_occupied\": {},\n",
+                    "  \"motif_merges\": {},\n  \"motif_em_iterations\": {},\n  \"motif_em_converged\": {},\n",
+                    "  \"motif_prior_concentration\": {},\n  \"motif_merge_threshold\": {},\n  \"motif_em_prior_concentration\": {},\n"
+                ),
+                m.merged_count,
+                m.motif_count,
+                m.merges,
+                m.em_iterations,
+                m.em_converged,
+                config.motif.prior_concentration,
+                config.motif.merge_threshold,
+                config.motif.em_prior_concentration
+            )
+        },
+    );
     let json = format!(concat!(
         "{{\n  \"run_type\": \"cluster\",\n  \"pepcluster2_version\": {},\n  \"scoring_mode\": {},\n  \"clustering_method\": {},\n",
         "  \"greedy_selection\": {},\n  \"terminal_seed\": {},\n  \"representative_order\": {},\n  \"kmer_seed_threshold\": {},\n  \"reassignment_margin\": {},\n",
@@ -393,7 +450,7 @@ fn write_run_reports(
         "  \"candidate_pairs_computed\": {},\n  \"fraction_all_pairs_computed\": {:.12},\n  \"graph_edge_count\": {},\n",
         "  \"greedy_eligible_pairs\": {},\n  \"representative_pair_scores\": {},\n  \"merge_pair_scores\": {},\n",
         "  \"final_clusters\": {},\n  \"singleton_clusters\": {},\n  \"iterations\": {},\n  \"converged\": {},\n  \"reassignment_moves\": {},\n  \"representative_changes\": {},\n  \"strict_merges\": {},\n  \"validation_failures\": {},\n",
-        "  \"largest_cluster_peptides\": {},\n  \"elapsed_seconds\": {:.6},\n  \"stage_seconds\": {{\n{}\n  }}\n}}\n"),
+        "  \"largest_cluster_peptides\": {},\n{}  \"elapsed_seconds\": {:.6},\n  \"stage_seconds\": {{\n{}\n  }}\n}}\n"),
         json_escape(VERSION), json_escape(config.mode.name()), json_escape(config.clustering_method.name()), json_escape(config.greedy_selection.name()),
         json_escape(config.terminal_seed.name()), json_escape(config.representative_order.name()), config.kmer_seed_threshold, config.reassignment_margin,
         fasta.records, fasta.accepted, fasta.skipped, nodes.len(), prefilter_active,
@@ -401,7 +458,7 @@ fn write_run_reports(
         index_hits, bound_rejected, alignment_evaluations,
         computed, fraction, edges.final_edges, greedy_stats.eligible_pairs, greedy_stats.representative_pair_scores, greedy_stats.merge_pair_scores,
         clustering.representatives.len(), singleton, iteration.iterations, iteration.converged, iteration.reassignment_moves, iteration.representative_changes, iteration.merges, iteration.validation_failures,
-        peptide_sizes.iter().max().unwrap_or(&0), elapsed, stage_json);
+        peptide_sizes.iter().max().unwrap_or(&0), motif_json, elapsed, stage_json);
     fs::write(config.output_dir.join("run_stats.json"), json)?;
     Ok(())
 }
@@ -687,7 +744,27 @@ fn run(config: Config) -> Result<(), DynError> {
         iteration_stats.converged
     );
 
+    let motifs = if config.merge_motifs {
+        let started = Instant::now();
+        let result = pool.install(|| motif::build_motifs(&nodes, &clustering, &config.motif));
+        stages.push(("motif_merge", started.elapsed().as_secs_f64()));
+        eprintln!(
+            "[4/6] motif layer: {} clusters -> {} merged -> {} motifs (EM {} iterations, converged={})",
+            clustering.representatives.len(),
+            result.merged_count,
+            result.motif_count,
+            result.em_iterations,
+            result.em_converged
+        );
+        Some(result)
+    } else {
+        None
+    };
+
     let started = Instant::now();
+    if let Some(result) = motifs.as_ref() {
+        write_motif_outputs(&config.output_dir, &nodes, &clustering, result)?;
+    }
     if config.compact_output {
         write_compact_outputs(&config.output_dir, &nodes, &scorer, &clustering)?;
     } else {
@@ -714,6 +791,7 @@ fn run(config: Config) -> Result<(), DynError> {
         greedy_stats,
         &clustering,
         iteration_stats,
+        motifs.as_ref(),
         total.elapsed().as_secs_f64(),
         &stages,
     )?;

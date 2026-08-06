@@ -1,10 +1,11 @@
 use crate::graph::RepresentativeOrder;
 use crate::index::TerminalSeed;
+use crate::motif::MotifParams;
 use crate::scoring::{ScoringMode, SimdMode};
 use std::env;
 use std::path::PathBuf;
 
-pub const VERSION: &str = "0.5.0";
+pub const VERSION: &str = "0.6.0";
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PrefilterChoice {
@@ -88,10 +89,13 @@ pub struct Config {
     pub compact_output: bool,
     pub write_cluster_fastas: bool,
     pub write_scored_pairs: bool,
+    /// Build the optional motif layer above the similarity clusters.
+    pub merge_motifs: bool,
+    pub motif: MotifParams,
 }
 
 fn help() -> &'static str {
-    "pepcluster2 0.5.0
+    "pepcluster2 0.6.0
 Experimental shift-aware clustering for MHC-I peptides.
 
 USAGE:
@@ -157,6 +161,41 @@ CLUSTERING:
       --merge-cap INT           Early merge-rejection sample size [default: all]
       --min-cluster-size INT    Minimum size for per-cluster FASTA [default: 2]
       --no-merge                Disable strict representative-covering merge
+
+MOTIF LAYER (optional, off by default):
+      --merge-motifs            Merge similarity clusters into motif-level groups
+                                and write them as a separate output layer. A
+                                similarity cluster is a ball around a
+                                representative; a binding motif is a product of
+                                per-position preferences, which one ball cannot
+                                cover, so one motif fragments into many clusters.
+                                This stage compares clusters as amino-acid
+                                profiles and merges those a Dirichlet-multinomial
+                                model says came from one profile. The motif
+                                partition does NOT satisfy the
+                                representative-to-member invariant and never
+                                replaces the similarity clusters
+      --motif-prior-concentration FLOAT
+                                Dirichlet pseudocounts per motif column, divided
+                                over the background residue frequencies. Larger
+                                values smooth harder and merge more readily
+                                [default: 1.0, PROVISIONAL - not yet calibrated]
+      --motif-merge-threshold FLOAT
+                                Merge while the best log Bayes factor exceeds
+                                this. Equivalent to a prior over partitions
+                                proportional to exp(-t * clusters), so larger
+                                values keep more motifs [default: 0]
+      --no-motif-em             Skip EM refinement and keep the merged partition.
+                                Merging can only combine clusters; only EM can
+                                move a peptide out of the wrong one
+      --motif-em-prior-concentration FLOAT
+                                Dirichlet pseudocounts smoothing the EM profiles
+                                [default: 1.0, PROVISIONAL]
+      --motif-em-max-iterations INT
+                                EM iteration cap [default: 200]
+      --motif-em-tolerance FLOAT
+                                Relative log-likelihood change at which EM stops
+                                [default: 1e-6]
 
 GRAPH PREFILTER:
       --force-prefilter         Always run graph high-confidence prefilter
@@ -250,6 +289,13 @@ pub fn parse() -> Result<Option<Config>, String> {
     let mut compact_output = false;
     let mut write_cluster_fastas = false;
     let mut write_scored_pairs = false;
+    let mut merge_motifs = false;
+    let mut motif_prior_concentration = 1.0f64;
+    let mut motif_merge_threshold = 0.0f64;
+    let mut motif_em = true;
+    let mut motif_em_prior_concentration = 1.0f64;
+    let mut motif_em_max_iterations = 200usize;
+    let mut motif_em_tolerance = 1e-6f64;
 
     let mut i = 0;
     while i < args.len() {
@@ -400,6 +446,38 @@ pub fn parse() -> Result<Option<Config>, String> {
                     value => return Err(format!("invalid --simd mode: {value}")),
                 }
             }
+            "--merge-motifs" => merge_motifs = true,
+            "--no-motif-em" => motif_em = false,
+            "--motif-prior-concentration" => {
+                motif_prior_concentration = parse_number(
+                    next_value(&args, &mut i, "--motif-prior-concentration")?,
+                    "--motif-prior-concentration",
+                )?
+            }
+            "--motif-merge-threshold" => {
+                motif_merge_threshold = parse_number(
+                    next_value(&args, &mut i, "--motif-merge-threshold")?,
+                    "--motif-merge-threshold",
+                )?
+            }
+            "--motif-em-prior-concentration" => {
+                motif_em_prior_concentration = parse_number(
+                    next_value(&args, &mut i, "--motif-em-prior-concentration")?,
+                    "--motif-em-prior-concentration",
+                )?
+            }
+            "--motif-em-max-iterations" => {
+                motif_em_max_iterations = parse_number(
+                    next_value(&args, &mut i, "--motif-em-max-iterations")?,
+                    "--motif-em-max-iterations",
+                )?
+            }
+            "--motif-em-tolerance" => {
+                motif_em_tolerance = parse_number(
+                    next_value(&args, &mut i, "--motif-em-tolerance")?,
+                    "--motif-em-tolerance",
+                )?
+            }
             "--no-merge" => merge = false,
             "--force-prefilter" => {
                 if prefilter == PrefilterChoice::Disable {
@@ -487,6 +565,43 @@ pub fn parse() -> Result<Option<Config>, String> {
     if max_memory_gb <= 0.0 {
         return Err("--max-memory-gb must be positive".into());
     }
+    for (flag, value) in [
+        ("--motif-prior-concentration", motif_prior_concentration),
+        (
+            "--motif-em-prior-concentration",
+            motif_em_prior_concentration,
+        ),
+    ] {
+        if !value.is_finite() || value <= 0.0 {
+            return Err(format!("{flag} must be a finite positive number"));
+        }
+    }
+    if !motif_merge_threshold.is_finite() {
+        return Err("--motif-merge-threshold must be finite".into());
+    }
+    if !motif_em_tolerance.is_finite() || motif_em_tolerance < 0.0 {
+        return Err("--motif-em-tolerance must be a finite non-negative number".into());
+    }
+    if motif_em_max_iterations == 0 {
+        return Err("--motif-em-max-iterations must be at least 1".into());
+    }
+    if !merge_motifs {
+        // Fail loudly rather than silently ignoring motif settings: a sweep that
+        // forgets --merge-motifs would otherwise report identical results for
+        // every configuration and look like the parameters do nothing.
+        for flag in [
+            "--motif-prior-concentration",
+            "--motif-merge-threshold",
+            "--motif-em-prior-concentration",
+            "--motif-em-max-iterations",
+            "--motif-em-tolerance",
+            "--no-motif-em",
+        ] {
+            if args.iter().any(|a| a == flag) {
+                return Err(format!("{flag} requires --merge-motifs"));
+            }
+        }
+    }
     if clustering_method == ClusteringMethod::Greedy {
         if prefilter == PrefilterChoice::Force {
             return Err(
@@ -557,5 +672,14 @@ pub fn parse() -> Result<Option<Config>, String> {
         compact_output,
         write_cluster_fastas,
         write_scored_pairs,
+        merge_motifs,
+        motif: MotifParams {
+            prior_concentration: motif_prior_concentration,
+            merge_threshold: motif_merge_threshold,
+            em: motif_em,
+            em_prior_concentration: motif_em_prior_concentration,
+            em_max_iterations: motif_em_max_iterations,
+            em_tolerance: motif_em_tolerance,
+        },
     }))
 }

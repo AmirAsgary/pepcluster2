@@ -21,3 +21,7 @@
 # Third-party benchmark inputs (ImmuneApp supplementary tables). Not ours to
 # redistribute; see validation/*/mhc_bench_data/SOURCES.md for how to obtain them.
 /validation/**/mhc_bench_data/*.xlsx
+
+# Third-party benchmark tools (MixMHCp clone, conda env). Installed locally by
+# benchmark/README.md; not ours to redistribute.
+/validation/**/benchmark/tools/

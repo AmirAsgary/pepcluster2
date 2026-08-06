@@ -649,7 +649,139 @@ full-alignment similarity, anchor-combination similarity, both resolved
 thresholds, and the representative-ranking margin. Per-cluster FASTA files are
 optional through `--write-cluster-fastas`.
 
-## 15. Interpretation and limitations
+## 15. Optional motif layer
+
+Sections 1 to 14 define a **similarity** partition: every peptide passes the
+selected mode's rule against the representative of its cluster. This section
+defines a second, optional partition over the same peptides, enabled by
+`--merge-motifs`. It is off by default and does not alter any quantity defined
+above.
+
+### 15.1 Why a second partition is needed
+
+A cluster of Section 13 is a ball of a fixed radius around a representative. A
+binding motif is a product of per-position residue preferences: narrow at the
+anchor positions, close to flat elsewhere. The region of sequence space it
+occupies is therefore strongly anisotropic, and a ball in an additive similarity
+cannot cover it. Lowering the acceptance threshold widens the ball along every
+axis simultaneously, crossing anchor boundaries before it spans the tolerant
+positions, so no single threshold recovers a motif. One motif fragments into many
+clusters as a matter of geometry, not of calibration.
+
+### 15.2 Frame
+
+A motif is a fixed object of nine columns, independent of peptide length. Length
+is absorbed by a projection from peptide positions onto columns:
+
+```text
+L >= 9   columns 1-4 <- positions 1..4     columns 5-9 <- positions L-4..L
+L == 8   columns 1-4 <- positions 1..4     column  5   <- unobserved
+                                           columns 6-9 <- positions 5..8
+```
+
+For a 9-mer the projection is the identity. For longer peptides the central
+residues are discarded: they bulge out of the binding groove, contact the MHC
+weakly, and carry correspondingly little allele-specific information. An 8-mer
+leaves the central column unobserved rather than shifting its C-terminal residues
+inward, which would place the dominant C-terminal anchor in the wrong column. A
+column with no residue contributes to no likelihood, so a peptide informs the
+columns it does occupy and no others.
+
+### 15.3 Profiles and marginal likelihood
+
+Each cluster is summarised by a nine-by-twenty matrix of frequency-weighted
+residue counts. Place an independent Dirichlet prior `Dir(alpha)` on each
+column's amino-acid distribution, with
+
+```text
+alpha_a = --motif-prior-concentration * 20 * background_a
+```
+
+where `background` is the frequency-weighted residue composition of the dataset.
+Spreading the prior over the background rather than uniformly stops a residue
+that is rare overall from being treated as equally expected at every column.
+
+With the column distribution integrated out rather than fitted, the log marginal
+likelihood of the labelled residues behind a count matrix `n` is
+
+```text
+log L(n) = sum_j [ log G(A0) - log G(A0 + N_j)
+                   + sum_a ( log G(n_ja + alpha_a) - log G(alpha_a) ) ]
+```
+
+with `A0 = sum_a alpha_a` and `N_j` the residues observed at column `j`. There is
+no multinomial coefficient: the data are the labelled observations, not the
+unordered counts. A coefficient would not cancel in Section 15.4 and would
+silently change the criterion.
+
+Positions are assumed independent given the motif. This is the standard position
+weight matrix assumption, and it is what makes the stage recover motifs rather
+than homologues; its cost is that two clusters with matching per-position
+marginals merge even when their joint residue distributions are disjoint.
+
+### 15.4 Merging
+
+For clusters `A` and `B`, compare one shared profile against two separate ones:
+
+```text
+log BF(A,B) = log L(n_A + n_B) - log L(n_A) - log L(n_B).
+```
+
+Merge greedily, always taking the pair of greatest `log BF`, while that value
+exceeds `--motif-merge-threshold`. Counts add exactly, so a merged profile is the
+elementwise sum and no re-reading of peptides is required.
+
+The threshold is a prior over partitions, not a similarity. Requiring
+`log BF > t` is equivalent to weighting a partition of `k` clusters by
+`exp(-t * k)`, a flat per-cluster penalty. Because the same constant applies to
+every candidate pair, it moves where agglomeration stops without changing the
+order in which pairs merge.
+
+A size-scaled partition prior of Chinese-restaurant form was evaluated and
+rejected. Its per-merge term grows like `n log 2` for two clusters of size `n`,
+while the evidence against merging grows like `n` times the per-peptide
+divergence between the two motifs; measured over nine columns that divergence is
+frequently below `log 2` for alleles of one supertype, so the prior outvoted the
+data and the agglomeration collapsed. The flat penalty above does not have this
+failure because it does not scale with cluster size.
+
+Ties in the argmax resolve to the smallest cluster index, so the merge sequence
+is reproducible.
+
+### 15.5 Refinement
+
+Unless `--no-motif-em` is given, a mixture of position weight matrices is fitted
+by expectation-maximization, seeded from the merged partition and the
+corresponding mixing weights. Peptides are assigned by maximum responsibility.
+
+Merging can only coarsen a partition: it cannot move a peptide out of a cluster
+it should not have joined, so contamination present in the input clusters
+propagates through Section 15.4 unchanged. Refinement is the only stage that
+repairs such errors, and it is therefore the only stage that can exceed the
+accuracy obtainable by merging alone.
+
+Seeding from Section 15.4 rather than at random makes the result deterministic
+and removes the restart-and-select procedure a randomly initialised mixture
+requires. It is not, on the measurements available, the source of the method's
+accuracy: a randomly initialised fit of the same model at the same component
+count reaches materially similar agreement with allele labels. The seed buys
+reproducibility and the automatic choice of component count, not accuracy.
+
+### 15.6 Reporting and status
+
+The motif partition **does not** satisfy the invariant of Section 13.4. Two
+peptides sharing a motif need not pass the mode's rule against any common
+representative. It is therefore written to `motif_clusters.tsv` and
+`motif_profiles.tsv` and never merged into the similarity outputs.
+
+All parameters of this section are provisional. The values compiled as defaults
+were selected by a sweep scored on the same held-out split used to report the
+result, which is not a valid selection protocol; a nested cross-validated
+selection is required before they can be described as calibrated. There is no
+background or outlier component, so contaminant peptides are forced into a real
+motif.
+
+## 16. Interpretation and limitations
 
 The existing scoped sensitive stage can omit eligible edges between two
 assigned non-representatives. It therefore does not guarantee that prefilter and

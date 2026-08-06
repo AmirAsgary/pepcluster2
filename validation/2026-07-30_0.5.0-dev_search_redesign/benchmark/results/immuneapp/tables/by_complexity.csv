@@ -1,0 +1,13 @@
+band,tool,baseline,pools,mean_ami_gap,tool_wins_fraction
+2-6,MixMHCp (default),PepCluster2 k-mer,72,0.41120837447173664,0.9722222222222222
+2-6,MixMHCp (default),PepCluster2 alignment,72,0.43040838031208833,0.9722222222222222
+7-12,MixMHCp (default),PepCluster2 k-mer,55,0.15532791980864702,0.8181818181818182
+7-12,MixMHCp (default),PepCluster2 alignment,55,0.1799187188106797,0.8363636363636363
+13-30,MixMHCp (default),PepCluster2 k-mer,66,-0.015138409663217929,0.5303030303030303
+13-30,MixMHCp (default),PepCluster2 alignment,66,0.005571532778990057,0.6212121212121212
+2-6,MixMHCp (forced k),PepCluster2 k-mer,72,0.46823545148304596,1.0
+2-6,MixMHCp (forced k),PepCluster2 alignment,72,0.4874354573233977,1.0
+7-12,MixMHCp (forced k),PepCluster2 k-mer,55,0.24159019980039803,0.8909090909090909
+7-12,MixMHCp (forced k),PepCluster2 alignment,55,0.2661809988024306,0.9090909090909091
+13-30,MixMHCp (forced k),PepCluster2 k-mer,66,0.041695479176184845,0.5303030303030303
+13-30,MixMHCp (forced k),PepCluster2 alignment,66,0.06240542161839282,0.5454545454545454

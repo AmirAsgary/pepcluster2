@@ -368,6 +368,99 @@ pub fn write_compact_outputs(
     Ok(())
 }
 
+/// Motif layer outputs.
+///
+/// Written as separate files rather than as extra columns on `clusters.tsv`,
+/// because the motif partition and the similarity partition carry different
+/// guarantees: every peptide passes the scoring rule against its similarity
+/// representative, and no such statement holds within a motif. Keeping them in
+/// separate files makes it impossible to read one as the other by accident.
+pub fn write_motif_outputs(
+    output_dir: &Path,
+    nodes: &[Node],
+    clustering: &Clustering,
+    motifs: &crate::motif::MotifResult,
+) -> Result<(), DynError> {
+    use crate::motif::{ALPHABET, MOTIF_COLUMNS};
+    const RESIDUES: &[u8; ALPHABET] = b"ARNDCQEGHILKMFPSTWYV";
+
+    let cluster_width = clustering.representatives.len().max(1).to_string().len().max(6);
+    let motif_width = motifs.profiles.len().max(1).to_string().len().max(4);
+    let motif_name = |motif: u32| format!("MOTIF_{:0width$}", motif + 1, width = motif_width);
+
+    let mut writer = BufWriter::with_capacity(
+        4 * 1024 * 1024,
+        File::create(output_dir.join("motif_clusters.tsv"))?,
+    );
+    writeln!(
+        writer,
+        "motif_id\tsimilarity_cluster_id\tsequence\tfrequency\tmotif_frame"
+    )?;
+    for (node_id, node) in nodes.iter().enumerate() {
+        let framed: String = crate::motif::frame(&node.sequence_codes)
+            .iter()
+            .map(|&code| {
+                if (code as usize) < ALPHABET {
+                    RESIDUES[code as usize] as char
+                } else {
+                    '-'
+                }
+            })
+            .collect();
+        writeln!(
+            writer,
+            "{}\t{}\t{}\t{}\t{}",
+            motif_name(motifs.motif_of[node_id]),
+            cluster_name(clustering.cluster_of[node_id], cluster_width),
+            String::from_utf8_lossy(&node.sequence),
+            node.frequency,
+            framed
+        )?;
+    }
+    writer.flush()?;
+
+    let mut occupancy = vec![0u64; motifs.profiles.len().max(1)];
+    let mut unique = vec![0u64; motifs.profiles.len().max(1)];
+    for (node_id, node) in nodes.iter().enumerate() {
+        occupancy[motifs.motif_of[node_id] as usize] += node.frequency;
+        unique[motifs.motif_of[node_id] as usize] += 1;
+    }
+
+    let mut profiles = BufWriter::with_capacity(
+        1024 * 1024,
+        File::create(output_dir.join("motif_profiles.tsv"))?,
+    );
+    write!(profiles, "motif_id\tpeptides\tunique_sequences\tmixing_weight\tcolumn")?;
+    for residue in RESIDUES.iter() {
+        write!(profiles, "\t{}", *residue as char)?;
+    }
+    writeln!(profiles)?;
+    for (motif, profile) in motifs.profiles.iter().enumerate() {
+        if occupancy[motif] == 0 {
+            // EM can empty a component; reporting it would imply a motif that
+            // explains no peptide.
+            continue;
+        }
+        for column in 0..MOTIF_COLUMNS {
+            write!(
+                profiles,
+                "{}\t{}\t{}\t{:.6}\t{}",
+                motif_name(motif as u32),
+                occupancy[motif],
+                unique[motif],
+                motifs.weights.get(motif).copied().unwrap_or(0.0),
+                column + 1
+            )?;
+            for residue in 0..ALPHABET {
+                write!(profiles, "\t{:.6}", profile[column * ALPHABET + residue])?;
+            }
+            writeln!(profiles)?;
+        }
+    }
+    profiles.flush()?;
+    Ok(())
+}
+
 pub fn write_edges(
     edge_file: &Path,
     output_file: &Path,
