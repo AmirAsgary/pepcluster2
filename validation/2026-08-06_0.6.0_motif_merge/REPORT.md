@@ -137,6 +137,63 @@ concentrations 30 to 3 at matched k - but that demonstrates smoothing matters, n
 that it is specifically what differs from MixMHCp. Establishing the latter needs
 MixMHCp's own pseudocount scheme, which has not been read.
 
+## GibbsCluster
+
+Now included. It had never been run: the tool sits behind a DTU licence form, and
+the parser written against its documentation could not have worked. Three
+independent defects, all fixed:
+
+- it looked for a comment-prefixed header, but the header is the uncommented
+  first line;
+- it searched for a column named `cluster` or `group`, but the group column is
+  `Gn` and is 0-based;
+- it chose the number of groups from the last column of
+  `images/gibbs.KLDvsClusters.tab`. That file is a zero-padded matrix - rows are
+  group counts, columns are per-cluster KLD - so the last column is usually
+  padding. The criterion is the row sum. On a test case the old rule would have
+  chosen 4 groups (row sum 6.42) over the correct 2 (7.63).
+
+Runtime was the other obstacle. A 972-peptide pool did not finish in 35 minutes,
+because `-k` defaults to 1. GibbsCluster forks over `seeds x group counts`, which
+is 30 independent fits for the default preset, and with `-k 16` the mean run over
+all 386 is **106 s** (max 2219 s). All 386 completed; none timed out.
+
+Test split, 48 pools:
+
+| Tool | AMI | Purity | Recall | F1 | Clusters |
+|---|---:|---:|---:|---:|---:|
+| GibbsCluster (default) | 0.1799 | 0.1000 | 0.6046 | 0.2656 | 2.9 |
+| GibbsCluster (forced k) | 0.2522 | 0.1861 | 0.2576 | 0.2628 | 12.4 |
+| MixMHCp (default) | 0.3918 | 0.2215 | 0.8282 | 0.3918 | 4.1 |
+| MixMHCp (forced k) | 0.4915 | 0.4178 | 0.4843 | 0.4728 | 12.4 |
+| PepCluster2, similarity only | 0.3333 | 0.4974 | 0.0624 | 0.1098 | 174.9 |
+| **PepCluster2 + motif layer** | **0.5964** | 0.4617 | 0.7163 | **0.5680** | 7.4 |
+
+AMI by complexity:
+
+| Alleles | Gibbs def | Gibbs forced k | MixMHCp def | MixMHCp forced k | PC2 sim | PC2 + motif |
+|---|---:|---:|---:|---:|---:|---:|
+| 2-6 | 0.348 | 0.378 | 0.573 | 0.712 | 0.337 | 0.735 |
+| 7-12 | 0.185 | 0.249 | 0.441 | 0.535 | 0.348 | 0.632 |
+| 13-30 | 0.080 | 0.183 | 0.253 | 0.335 | 0.321 | 0.492 |
+
+GibbsCluster trails MixMHCp throughout and degrades faster with allele count.
+Against the *similarity* clustering alone it wins below 7 alleles and loses above,
+the same crossover MixMHCp shows but at a lower level.
+
+**Coverage caveat.** At motif length 9 GibbsCluster cannot place a core in an
+8-mer, and its trash cluster removes outliers, so mean coverage is 0.849 (minimum
+0.554). Every run is therefore scored twice: over the full pool with unassigned
+peptides collected into one cluster, and over assigned peptides only. The two
+barely differ - assigned-only AMI is 0.186 (default) and 0.266 (forced k) against
+0.180 and 0.252 - so coverage is *not* what places it behind MixMHCp.
+
+The trash threshold used, `-j 2`, is more aggressive than the tool's own default
+of 0. A sensitivity run at `-j 0` over the test split is recorded in
+`results/immuneapp/raw/gibbscluster_trash0.csv`; the flag is now
+`--trash-threshold` rather than hard-coded, so the choice is visible and
+adjustable rather than buried in a command string.
+
 ## Pool composition
 
 Relevant because it determines whether length handling is exercised at all.

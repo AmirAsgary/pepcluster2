@@ -11,3 +11,15 @@ band,tool,baseline,pools,mean_ami_gap,tool_wins_fraction
 7-12,MixMHCp (forced k),PepCluster2 alignment,55,0.2661809988024306,0.9090909090909091
 13-30,MixMHCp (forced k),PepCluster2 k-mer,66,0.041695479176184845,0.5303030303030303
 13-30,MixMHCp (forced k),PepCluster2 alignment,66,0.06240542161839282,0.5454545454545454
+2-6,GibbsCluster (default),PepCluster2 k-mer,72,0.18246505719811312,0.8194444444444444
+2-6,GibbsCluster (default),PepCluster2 alignment,72,0.20166506303846482,0.8333333333333334
+7-12,GibbsCluster (default),PepCluster2 k-mer,55,-0.10527539089579505,0.07272727272727272
+7-12,GibbsCluster (default),PepCluster2 alignment,55,-0.08068459189376243,0.10909090909090909
+13-30,GibbsCluster (default),PepCluster2 k-mer,66,-0.19789416851277777,0.0
+13-30,GibbsCluster (default),PepCluster2 alignment,66,-0.17718422607056974,0.0
+2-6,GibbsCluster (forced k),PepCluster2 k-mer,72,0.19593394407876666,0.9166666666666666
+2-6,GibbsCluster (forced k),PepCluster2 alignment,72,0.21513394991911838,0.9444444444444444
+7-12,GibbsCluster (forced k),PepCluster2 k-mer,55,-0.07048215486040635,0.03636363636363636
+7-12,GibbsCluster (forced k),PepCluster2 alignment,55,-0.045891355858373714,0.16363636363636364
+13-30,GibbsCluster (forced k),PepCluster2 k-mer,66,-0.12080203743976892,0.0
+13-30,GibbsCluster (forced k),PepCluster2 alignment,66,-0.10009209499756092,0.0

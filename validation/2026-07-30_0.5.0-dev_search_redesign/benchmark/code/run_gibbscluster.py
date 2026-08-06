@@ -127,7 +127,7 @@ def run_one(job: dict, pools: Path, binary: Path, tmp_root: Path) -> dict:
         output.mkdir()
         command = [str(binary), "-f", str(peptides), "-P", "gibbs",
                    "-g", job["groups"], "-l", "9", "-S", "5",
-                   "-T", "-j", "2", "-k", str(job.get("threads", 1)),
+                   "-T", "-j", str(job.get("trash", 2)), "-k", str(job.get("threads", 1)),
                    "-R", str(output)]
         # GibbsCluster is MCMC over a range of group counts with five seeds
         # each; on the largest pools that is hours. A per-run limit keeps one
@@ -202,6 +202,8 @@ def main() -> None:
     parser.add_argument("--shards", type=int, default=1)
     parser.add_argument("--timeout", type=int, default=14400,
                         help="per-run wall clock limit in seconds")
+    parser.add_argument("--trash-threshold", type=int, default=2,
+                        help="GibbsCluster -j; the tool's own default is 0")
     parser.add_argument("--gibbs-threads", type=int, default=1,
                         help="passed to GibbsCluster -k; it forks seeds x group "
                              "counts, so values above seeds*(maxg-ming+1) idle")
@@ -215,6 +217,7 @@ def main() -> None:
     for job in jobs:
         job["timeout"] = args.timeout
         job["threads"] = args.gibbs_threads
+        job["trash"] = args.trash_threshold
     # Round-robin so each shard gets the same mix of pool sizes.
     if args.shards > 1:
         jobs = jobs[args.shard::args.shards]
