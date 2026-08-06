@@ -774,12 +774,20 @@ peptides sharing a motif need not pass the mode's rule against any common
 representative. It is therefore written to `motif_clusters.tsv` and
 `motif_profiles.tsv` and never merged into the similarity outputs.
 
-All parameters of this section are provisional. The values compiled as defaults
-were selected by a sweep scored on the same held-out split used to report the
-result, which is not a valid selection protocol; a nested cross-validated
-selection is required before they can be described as calibrated. There is no
-background or outlier component, so contaminant peptides are forced into a real
-motif.
+The compiled defaults were selected by nested cross-validation: the
+configuration with the best mean AMI over the inner folds, evaluated once on the
+independent test pools. Selecting on BCubed F1 instead chooses the same
+configuration. It remains a single dataset and a single label universe.
+
+Refinement, not merging, is what makes this section work. Measured on the
+benchmark, the merge of Section 15.4 is worth about +0.02 AMI once Section 15.5
+runs, while the EM prior concentration moves AMI by 0.34 across its swept range;
+EM also selects its own component count by emptying components. Section 15.4
+justifies itself by determinism, by reducing the number of components to fit, and
+by producing an interpretable intermediate - not by accuracy.
+
+There is no background or outlier component, so contaminant peptides are forced
+into a real motif.
 
 ## 16. Interpretation and limitations
 

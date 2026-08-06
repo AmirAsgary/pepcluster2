@@ -179,18 +179,20 @@ MOTIF LAYER (optional, off by default):
                                 Dirichlet pseudocounts per motif column, divided
                                 over the background residue frequencies. Larger
                                 values smooth harder and merge more readily
-                                [default: 1.0, PROVISIONAL - not yet calibrated]
+                                [default: 10]
       --motif-merge-threshold FLOAT
                                 Merge while the best log Bayes factor exceeds
                                 this. Equivalent to a prior over partitions
                                 proportional to exp(-t * clusters), so larger
-                                values keep more motifs [default: 0]
+                                values keep more motifs [default: 25]
       --no-motif-em             Skip EM refinement and keep the merged partition.
                                 Merging can only combine clusters; only EM can
                                 move a peptide out of the wrong one
       --motif-em-prior-concentration FLOAT
-                                Dirichlet pseudocounts smoothing the EM profiles
-                                [default: 1.0, PROVISIONAL]
+                                Dirichlet pseudocounts smoothing the EM profiles.
+                                This is the parameter that matters most: over the
+                                swept range it moves AMI by 0.34, far more than
+                                any merge setting [default: 3]
       --motif-em-max-iterations INT
                                 EM iteration cap [default: 200]
       --motif-em-tolerance FLOAT
@@ -290,10 +292,12 @@ pub fn parse() -> Result<Option<Config>, String> {
     let mut write_cluster_fastas = false;
     let mut write_scored_pairs = false;
     let mut merge_motifs = false;
-    let mut motif_prior_concentration = 1.0f64;
-    let mut motif_merge_threshold = 0.0f64;
+    // Selected by nested cross-validation on the inner folds; see
+    // validation/2026-08-06_0.6.0_motif_merge/REPORT.md.
+    let mut motif_prior_concentration = 10.0f64;
+    let mut motif_merge_threshold = 25.0f64;
     let mut motif_em = true;
-    let mut motif_em_prior_concentration = 1.0f64;
+    let mut motif_em_prior_concentration = 3.0f64;
     let mut motif_em_max_iterations = 200usize;
     let mut motif_em_tolerance = 1e-6f64;
 

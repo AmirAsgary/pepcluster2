@@ -132,8 +132,11 @@ log BF = log L(counts_A + counts_B) - log L(counts_A) - log L(counts_B)
 ```
 
 EM refinement of a mixture of position weight matrices follows, seeded from the
-merged partition rather than at random. On the same benchmark this reaches
-recall ~0.66 at ~11 motifs.
+merged partition rather than at random. On the same benchmark this reaches recall
+0.72 at ~7 motifs, AMI 0.596 and BCubed F1 0.568, ahead of MixMHCp given the true
+allele count (0.491 / 0.473). Seeding from the merge rather than at random is
+worth about +0.017 AMI - it buys determinism and an automatic component count
+rather than accuracy.
 
 The frame is nine columns. For `L >= 9` it takes peptide positions 1–4 and
 `L-4..L`, so a 9-mer maps identically and the centre of a longer peptide is
@@ -156,10 +159,10 @@ Three things to know before relying on it:
   invariant.** Two peptides in one motif need not pass the scoring rule against
   any common representative. That is the point of the stage, and it is why the
   motif layer is written to its own files and never replaces `clusters.tsv`.
-- **The defaults are provisional.** They come from a sweep scored on the
-  benchmark's own test split, so they are optimistic and not a calibrated
-  recommendation. Tune `--motif-prior-concentration` and
-  `--motif-em-prior-concentration` on your own data.
+- **EM does nearly all of the work.** The merge is worth about +0.02 AMI once EM
+  runs; `--motif-em-prior-concentration` moves AMI by 0.34 across its range and is
+  the parameter to tune first on new data. The defaults were selected by nested
+  cross-validation on one dataset.
 - **Merging can only coarsen.** Contamination already inside a similarity cluster
   survives it; only EM can move a peptide out.
 

@@ -1,16 +1,20 @@
 #!/usr/bin/env python3
 """Compare PepCluster2 against external motif-deconvolution tools on one dataset.
 
-Every tool sees the identical pools and is scored with the identical metrics:
-AMI, adjusted per-allele purity (macro) and the singleton fraction of clusters.
+Every tool sees the identical pools and is scored with the identical metrics.
 
 A caveat that governs how the numbers should be read: PepCluster2 is a similarity
 clustering method and produces on the order of a hundred clusters per pool, while
-MixMHCp and GibbsCluster are mixture models that fit a handful of motifs. AMI is
-chance-corrected and penalises the extra partitions, so it favours the mixture
-models here; purity rewards homogeneous clusters, so it favours fine-grained
-partitions. Neither metric alone settles which output is more useful - they
-answer different questions, and both are reported.
+MixMHCp and GibbsCluster are mixture models that fit a handful of motifs.
+
+Purity must not be read on its own. Adjusted per-allele purity is BCubed
+precision corrected against the allele prior, and that correction removes the
+baseline for one large cluster but *not* the inflation from fragmentation: a
+singleton scores precision 1 and therefore adjusted purity 1, so a partition into
+singletons scores a perfect 1.0. Comparing a hundred clusters against four on
+that metric alone is not a like-for-like contest. BCubed recall is its
+counterpart - it penalises exactly what purity rewards - and BCubed F1 is the
+balance of the two. AMI is chance-corrected over the whole partition.
 
 Results are written under `results/<dataset>/` so further datasets can be added
 alongside without disturbing this one.
@@ -31,7 +35,13 @@ import plotstyle as PS  # noqa: E402
 
 METRICS = [("ami", "AMI"),
            ("adjusted_purity_macro", "Adjusted per-allele purity"),
+           ("bcubed_recall_macro", "BCubed recall"),
+           ("bcubed_f1_macro", "BCubed F1"),
            ("singleton_fraction_of_clusters", "Singleton fraction")]
+# Columns carried through from every tool's own scored output.
+CARRY = ["ami", "adjusted_purity_macro", "bcubed_precision_macro",
+         "bcubed_recall_macro", "bcubed_f1_macro",
+         "singleton_fraction_of_clusters", "clusters"]
 
 # Blue and red stay with our two modes across every figure in the study; the
 # external tools take the next colours in the fixed order.
@@ -64,14 +74,11 @@ def load_ours(runs: Path) -> pd.DataFrame:
                           (frame.primary_threshold == choice.primary_threshold) &
                           (frame.anchor_threshold == choice.anchor_threshold)]
             frame = frame.drop_duplicates("pool")
-            for record in frame.itertuples():
-                rows.append({"tool": label, "split": split, "pool": record.pool,
-                             "allele_count": record.allele_count,
-                             "ami": record.ami,
-                             "adjusted_purity_macro": record.adjusted_purity_macro,
-                             "singleton_fraction_of_clusters":
-                                 record.singleton_fraction_of_clusters,
-                             "clusters": record.clusters})
+            for record in frame.to_dict("records"):
+                row = {"tool": label, "split": split, "pool": record["pool"],
+                       "allele_count": record["allele_count"]}
+                row.update({c: record[c] for c in CARRY})
+                rows.append(row)
     return pd.DataFrame(rows)
 
 
@@ -82,9 +89,7 @@ def load_external(path: Path, name: str) -> pd.DataFrame:
     frame = frame[frame.status == "ok"]
     label = {"default": f"{name} (default)", "oracle_k": f"{name} (forced k)"}
     frame = frame.assign(tool=frame["setting"].map(label))
-    return frame[["tool", "split", "pool", "allele_count", "ami",
-                  "adjusted_purity_macro", "singleton_fraction_of_clusters",
-                  "clusters"]]
+    return frame[["tool", "split", "pool", "allele_count"] + CARRY]
 
 
 def figure(detail: pd.DataFrame, output: Path, dataset: str) -> None:
@@ -93,7 +98,13 @@ def figure(detail: pd.DataFrame, output: Path, dataset: str) -> None:
 
     order = [t for t in STYLE if t in set(detail["tool"])]
     splits = [s for s in SPLITS if s in set(detail["split"])]
-    figure, axes = plt.subplots(1, 3, figsize=(13.5, 4.0), constrained_layout=True)
+    columns = 3
+    rows_n = (len(METRICS) + columns - 1) // columns
+    figure, axes = plt.subplots(rows_n, columns, figsize=(13.5, 4.0 * rows_n),
+                                constrained_layout=True)
+    axes = np.atleast_1d(axes).ravel()
+    for spare in axes[len(METRICS):]:
+        spare.axis("off")
     width = 0.8 / max(len(order), 1)
     for axis, (metric, title) in zip(axes, METRICS):
         for i, tool in enumerate(order):
@@ -131,10 +142,11 @@ def figure_by_complexity(detail: pd.DataFrame, output: Path, dataset: str) -> pd
     detail["band"] = pd.cut(detail["allele_count"],
                             bins=[1, 6, 12, 30], labels=[f"{a}-{b}" for a, b in bins])
 
-    figure, axes = plt.subplots(1, 2, figsize=(11.5, 4.0), constrained_layout=True)
+    figure, axes = plt.subplots(1, 3, figsize=(16.0, 4.0), constrained_layout=True)
     for metric, title, axis in ((("ami"), "AMI", axes[0]),
                                 ("adjusted_purity_macro", "Adjusted per-allele purity",
-                                 axes[1])):
+                                 axes[1]),
+                                ("bcubed_f1_macro", "BCubed F1", axes[2])):
         for tool in order:
             grouped = detail[detail.tool == tool].groupby(
                 "allele_count", observed=True)[metric].mean()
@@ -183,9 +195,17 @@ def write_report(detail: pd.DataFrame, output: Path, dataset: str, missing: list
     w("")
     w("PepCluster2 is a similarity clustering method and returns on the order of a")
     w("hundred clusters per pool. MixMHCp and GibbsCluster are mixture models that")
-    w("fit a handful of motifs. The two metrics therefore disagree by construction:")
-    w("AMI is chance-corrected and penalises the finer partition, while purity")
-    w("rewards it. Both are reported; neither on its own decides the question.")
+    w("fit a handful of motifs, so partition size differs by more than an order of")
+    w("magnitude and the metrics must be read as a set.")
+    w("")
+    w("Adjusted per-allele purity is BCubed precision corrected against the allele")
+    w("prior. That correction removes the baseline for one large cluster but not the")
+    w("inflation from fragmentation: a singleton scores precision 1, so a partition")
+    w("into singletons scores a perfect 1.0. **Purity alone therefore cannot be used")
+    w("to compare partitions of different granularity.** BCubed recall penalises")
+    w("exactly what purity rewards, and BCubed F1 balances them. AMI is")
+    w("chance-corrected over the whole partition. F1 and AMI are the two figures")
+    w("that can be compared across tools directly.")
     w("")
     w("`forced k` gives a tool the true number of alleles in the pool. No user could")
     w("do that in practice, so it is not a fair headline number - it isolates how")
@@ -197,13 +217,15 @@ def write_report(detail: pd.DataFrame, output: Path, dataset: str, missing: list
             continue
         w(f"## {PS.SPLIT_LABEL[split].capitalize()}")
         w("")
-        w("| Tool | Pools | AMI | Purity (macro) | Singletons | Clusters |")
-        w("|---|---:|---:|---:|---:|---:|")
+        w("| Tool | Pools | AMI | Purity (macro) | Recall | F1 | Singletons | Clusters |")
+        w("|---|---:|---:|---:|---:|---:|---:|---:|")
         for tool in [t for t in STYLE if t in set(subset.tool)]:
             s = subset[subset.tool == tool]
             w(f"| {tool} | {len(s)} | {s.ami.mean():.4f} ± {s.ami.std():.4f} | "
               f"{s.adjusted_purity_macro.mean():.4f} ± "
               f"{s.adjusted_purity_macro.std():.4f} | "
+              f"{s.bcubed_recall_macro.mean():.4f} | "
+              f"{s.bcubed_f1_macro.mean():.4f} | "
               f"{s.singleton_fraction_of_clusters.mean():.3f} | "
               f"{s.clusters.mean():.1f} |")
         w("")
@@ -241,10 +263,25 @@ def write_report(detail: pd.DataFrame, output: Path, dataset: str, missing: list
         best_other = table[[t for t in tools if t not in ours]].max(axis=1)
         leads = [str(b) for b in table.index if best_ours[b] > best_other[b]]
         if leads:
-            w(f"PepCluster2 leads on purity in the {', '.join(leads)} band(s); it does")
-            w("not lead everywhere. So neither tool is simply better: MixMHCp wins")
-            w("decisively on simple pools, PepCluster2 holds up better as pools grow,")
-            w("and which matters depends on how many alleles a sample actually mixes.")
+            w(f"PepCluster2 leads on purity in the {', '.join(leads)} band(s). Read that")
+            w("against the cluster counts in the tables above and against F1 below")
+            w("before drawing a conclusion: purity rises mechanically with the number")
+            w("of clusters, so a lead on purity held by the partition with an order of")
+            w("magnitude more clusters is not evidence of a better partition.")
+            w("")
+        w("Mean BCubed F1 over the same bands, which penalises fragmentation and")
+        w("lumping together and is the figure to compare across tools:")
+        w("")
+        f1 = detail.copy()
+        f1["band"] = pd.cut(f1["allele_count"], bins=[1, 6, 12, 30],
+                            labels=["2-6", "7-12", "13-30"])
+        f1_table = f1.pivot_table(index="band", columns="tool",
+                                  values="bcubed_f1_macro", observed=True)
+        f1_tools = [t for t in STYLE if t in f1_table.columns]
+        w("| Alleles in pool | " + " | ".join(f1_tools) + " |")
+        w("|---" * (len(f1_tools) + 1) + "|")
+        for band, record in f1_table.iterrows():
+            w(f"| {band} | " + " | ".join(f"{record[t]:.4f}" for t in f1_tools) + " |")
         w("")
     w("## Files")
     w("")
@@ -283,6 +320,9 @@ def main() -> None:
         ami_mean=("ami", "mean"), ami_std=("ami", "std"),
         purity_mean=("adjusted_purity_macro", "mean"),
         purity_std=("adjusted_purity_macro", "std"),
+        recall_mean=("bcubed_recall_macro", "mean"),
+        recall_std=("bcubed_recall_macro", "std"),
+        f1_mean=("bcubed_f1_macro", "mean"), f1_std=("bcubed_f1_macro", "std"),
         singletons=("singleton_fraction_of_clusters", "mean"),
         clusters=("clusters", "mean")).reset_index()
     summary.to_csv(results / "tables" / "summary.csv", index=False)

@@ -17,8 +17,9 @@ many clusters, and no single threshold repairs it.
 Measured against MHC allele labels on the 48 held-out benchmark pools, the
 similarity clustering alone reaches BCubed recall 0.06 at ~175 clusters: the
 clusters are enriched for their allele but far too small. Merging their profiles
-and refining with EM raises recall to ~0.66 at ~11 motifs, with purity roughly
-held.
+and refining with EM raises recall to 0.72 at ~7 motifs, AMI from 0.333 to 0.596
+and BCubed F1 from 0.110 to 0.568 - ahead of MixMHCp forced to the true allele
+count (0.491 / 0.473) in every complexity band.
 
 ### Added
 
@@ -52,11 +53,17 @@ shifting its C-terminal residues into the wrong columns.
   any common representative. That is the intent, not a defect, but it is why the
   motif layer is written to separate files and never overwrites `clusters.tsv`.
 
-- **The default parameters are provisional.** They are the values a sweep
-  selected on the benchmark's own test split, so they are optimistic and are not
-  a calibrated recommendation. A clean nested cross-validated selection is
-  pending; until it lands, treat `--motif-prior-concentration` and
-  `--motif-em-prior-concentration` as parameters to tune on your own data.
+- **EM does nearly all of the work.** The Bayesian merge is worth about +0.02
+  AMI once EM runs; the EM smoothing concentration alone moves AMI by 0.34 across
+  its range, and EM performs its own model selection by emptying components. The
+  merge stage earns its place on determinism, cost and interpretability, not on
+  accuracy. Numbers in `validation/2026-08-06_0.6.0_motif_merge/REPORT.md`.
+
+- **The defaults are calibrated on one dataset.** They were selected by nested
+  cross-validation on the inner folds of the peptide-MHC benchmark and evaluated
+  once on its 48 held-out test pools. That is a valid protocol but a single
+  label universe, so treat them as a starting point on data of a different
+  character.
 
 - **Positions are assumed independent** given the motif, so two clusters with
   matching per-position marginals merge even if their joint residue

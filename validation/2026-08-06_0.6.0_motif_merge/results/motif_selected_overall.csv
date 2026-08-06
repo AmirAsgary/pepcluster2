@@ -1,0 +1,2 @@
+merge_concentration,merge_threshold,em,em_concentration,inner_score,test_pools,ami,bcubed_f1_macro,adjusted_purity_macro,bcubed_recall_macro,clusters,merged_groups,singleton_fraction_of_clusters,ami_std,bcubed_f1_macro_std
+10.0,25.0,True,3.0,0.5898817304943277,48,0.5964061002163219,0.5679725004692556,0.46167800788331004,0.7162688266210262,7.416666666666667,112.41666666666667,0.00942460317460317,0.13837601495146257,0.19524940950632283
