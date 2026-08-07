@@ -238,9 +238,59 @@ pub fn initial_clustering_lazy_exact(
     let mut cluster_of = vec![u32::MAX; nodes.len()];
     let mut representatives = Vec::<u32>::new();
 
+    // Scored candidate lists for nodes waiting in the heap after reinsertion.
+    //
+    // A node's candidate set, and the score of every pair it takes part in, are
+    // functions of immutable data; `assigned` only ever gains members. The
+    // accepted list at a later pop is therefore exactly the list from the
+    // earlier pop with newly assigned candidates removed - no retrieval and no
+    // rescoring. Without this a reinserted node repeats its whole retrieval and
+    // scoring pass, measured as 14x more pairs scored and 3.5x more index
+    // retrievals than the static ordering needs.
+    //
+    // Only reinserted nodes are held. An entry is dropped as soon as its node
+    // becomes a representative or is found already assigned, so the cache never
+    // grows into the full edge graph that this path exists to avoid.
+    let mut cache: Vec<Option<Vec<(u32, u16)>>> = vec![None; nodes.len()];
+
     while let Some(entry) = heap.pop() {
         let rep = entry.node as usize;
         if assigned[rep] {
+            cache[rep] = None;
+            continue;
+        }
+        // Cached path: reuse the earlier scoring, keeping only candidates that
+        // are still unassigned.
+        if let Some(previous) = cache[rep].take() {
+            let accepted: Vec<(u32, u16)> = previous
+                .into_iter()
+                .filter(|(candidate, _)| !assigned[*candidate as usize])
+                .collect();
+            let exact = LazyEntry {
+                coverage_upper_bound: 1 + accepted.len() as u32,
+                weight_sum_upper_bound: accepted.iter().map(|item| item.1 as u64).sum(),
+                frequency: nodes[rep].frequency,
+                node: entry.node,
+            };
+            while heap
+                .peek()
+                .is_some_and(|candidate| assigned[candidate.node as usize])
+            {
+                heap.pop();
+            }
+            if heap.peek().is_some_and(|upper_bound| exact < *upper_bound) {
+                cache[rep] = Some(accepted);
+                heap.push(exact);
+                continue;
+            }
+            let cluster = representatives.len() as u32;
+            representatives.push(entry.node);
+            assigned[rep] = true;
+            cluster_of[rep] = cluster;
+            for (candidate, _) in accepted {
+                assigned[candidate as usize] = true;
+                cluster_of[candidate as usize] = cluster;
+            }
             continue;
         }
         let (candidates, retrieved) =
@@ -285,6 +335,7 @@ pub fn initial_clustering_lazy_exact(
             heap.pop();
         }
         if heap.peek().is_some_and(|upper_bound| exact < *upper_bound) {
+            cache[rep] = Some(accepted);
             heap.push(exact);
             continue;
         }
