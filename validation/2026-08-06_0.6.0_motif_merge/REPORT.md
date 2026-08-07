@@ -586,6 +586,30 @@ implementation also terminates a similarity computation as soon as the remaining
 positions cannot reach the threshold. That idea transfers without touching the
 method, and is where most of the 2x came from.
 
+### Is there prefiltering headroom left?
+
+No, not meaningfully. Instrumenting the acceptance test on the largest test pool:
+
+| Outcome | Pairs | Share |
+|---|---:|---:|
+| rejected by the k-mer test (six lookups, no dynamic program) | 7,333,195 | 63.1% |
+| rejected by the anchor dynamic program | 587,711 | 5.1% |
+| accepted | 3,692,111 | 31.8% |
+
+The cheap component already rejects 63% of pairs before the expensive one runs,
+and only 5.1% of pairs pay for a dynamic program that then rejects them. A
+perfect prefilter could reclaim at most that 5.1%, and any bound tight enough to
+catch those cases approaches the cost of the exact computation it would replace -
+the anchor upper bound is already applied at retrieval and removes a further 29%
+of index hits before scoring.
+
+One free reordering was found and kept: `bounded_candidates` applied the anchor
+upper bound, 36 lookups per pair, to everything the index returned, including
+candidates already assigned and discarded immediately afterwards. Testing
+assignment first skips the bound for those. The filters are independent so the
+surviving set is unchanged; it is worth about 1.02x, which is to say the anchor
+bound was not where the time went.
+
 ### What did not transfer, and why it matters at 11M
 
 Neither fix changes the asymptotics. Scored pairs still grow quadratically:

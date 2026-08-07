@@ -328,16 +328,36 @@ pub fn initial_clustering_lazy_exact(
                 }
             }
         }
-        let evaluated: Vec<(LazyEntry, Vec<(u32, u16)>, u64, u64)> = batch
+        let evaluated: Vec<(LazyEntry, Vec<(u32, u16)>, u64, u64, u64)> = batch
             .par_iter()
             .map(|member| {
                 let node = member.node;
-                let (candidates, retrieved) =
-                    bounded_candidates(node, nodes, buckets, table, scorer, seed);
-                let rejected = retrieved - candidates.len() as u64;
-                let accepted: Vec<(u32, u16)> = candidates
+                // Cheapest test first. `bounded_candidates` applies the anchor
+                // upper bound - 36 table lookups per pair - to everything the
+                // index returns, including candidates that are already assigned
+                // and will be dropped immediately afterwards. Discarding those
+                // first skips the bound entirely for them. Both filters are
+                // independent of each other, so the surviving set is unchanged.
+                let retrieved_list =
+                    retrieve_candidates(Some(node), &nodes[node as usize], buckets, table, seed);
+                let retrieved = retrieved_list.len() as u64;
+                let live: Vec<u32> = retrieved_list
                     .into_iter()
                     .filter(|candidate| !assigned[*candidate as usize])
+                    .collect();
+                let unassigned: Vec<u32> = live
+                    .into_iter()
+                    .filter(|candidate| {
+                        scorer.anchor_bound_passes(
+                            &nodes[node as usize],
+                            &nodes[*candidate as usize],
+                        )
+                    })
+                    .collect();
+                let scored = unassigned.len() as u64;
+                let rejected = retrieved - scored;
+                let accepted: Vec<(u32, u16)> = unassigned
+                    .into_iter()
                     .filter_map(|candidate| {
                         score_pair(nodes, scorer, node, candidate)
                             .map(|weight| (candidate, weight))
@@ -349,13 +369,14 @@ pub fn initial_clustering_lazy_exact(
                     frequency: nodes[node as usize].frequency,
                     node,
                 };
-                (exact, accepted, retrieved, rejected)
+                (exact, accepted, retrieved, rejected, scored)
             })
             .collect();
-        for (exact, accepted, retrieved, rejected) in evaluated {
+        for (exact, accepted, retrieved, rejected, scored) in evaluated {
             stats.candidate_queries += 1;
             stats.index_candidate_occurrences += retrieved;
             stats.anchor_bound_rejected += rejected;
+            stats.candidate_pairs_scored += scored;
             stats.eligible_pairs += accepted.len() as u64;
             cache[exact.node as usize] = Some(accepted);
             heap.push(exact);
