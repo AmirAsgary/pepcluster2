@@ -591,6 +591,37 @@ impl Scorer {
                 ranking_weight,
             });
         }
+        if self.mode == ScoringMode::SeparateKmerAnchor {
+            // Cheap component first. Terminal k-mer similarity is six table
+            // lookups; anchor-combination similarity runs a bit-mask assignment
+            // dynamic program over up to six hypotheses per peptide. Computing
+            // both and testing afterwards, as the generic path below does, pays
+            // for the dynamic program on every pair that the k-mer test alone
+            // would have rejected. The separate-alignment branch above already
+            // short-circuits this way; this mode did not.
+            let front = self.aligned_three_mer_mean(a, b, 0);
+            let end = self.aligned_three_mer_mean(a, b, 3);
+            let terminal_kmer = ((front as u32 + end as u32 + 1) / 2) as u16;
+            if (terminal_kmer as i32) < self.kmer_threshold_q {
+                return None;
+            }
+            let anchor_combination = self.anchor_combination_q(a, b);
+            if (anchor_combination as i32) < self.anchor_threshold_q {
+                return None;
+            }
+            let combined =
+                ((terminal_kmer as u32 + anchor_combination as u32 + 1) / 2) as u16;
+            let ranking_weight = (terminal_kmer as i32 - self.kmer_threshold_q)
+                .min(anchor_combination as i32 - self.anchor_threshold_q)
+                .max(0) as u16;
+            return Some(SimilarityScores {
+                terminal_kmer,
+                anchor_combination,
+                alignment: 0,
+                combined,
+                ranking_weight,
+            });
+        }
         let scores = self.scores(a, b);
         self.eligible_scores(scores, false).then_some(scores)
     }

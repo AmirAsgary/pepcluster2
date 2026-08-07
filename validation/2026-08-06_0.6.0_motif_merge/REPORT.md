@@ -513,6 +513,72 @@ many it settles on changes its runtime.
 
 `figures/fig6_speed_vs_pool_size` and `fig7_speed_vs_performance`.
 
+## Representative selection, and two speed fixes
+
+`--greedy-selection kmer-degree` had never been scored against the allele labels;
+every accuracy figure in this study used `graph` or `lazy-exact`. It is much
+cheaper, so it was worth knowing whether the extra work buys anything. It does.
+Test split, paired against `lazy_exact`:
+
+| Selection | Similarity AMI | Similarity F1 | Motif AMI | Motif F1 | Clusters |
+|---|---:|---:|---:|---:|---:|
+| graph | 0.3333 | 0.1098 | 0.5964 | 0.5680 | 174.9 |
+| lazy_exact | 0.3336 | 0.1091 | 0.5939 | 0.5645 | 174.0 |
+| kmer_degree | 0.3190 | 0.0801 | 0.5569 | 0.5250 | 223.1 |
+
+`graph` and `lazy_exact` are interchangeable (motif AMI p = 0.075), which
+confirms lazy-exact reproduces the graph's set-cover selection as designed.
+`kmer_degree` loses 0.037 AMI and 0.040 F1 at the motif level (p = 0.0002 and
+0.0003) and the deficit *grows* through the motif layer rather than being
+absorbed by it: a worse representative order gives EM a worse starting partition
+and EM cannot recover. Raw runs in `results/selection_comparison.csv`.
+
+So the cheap ordering is not free, and speeding up `lazy_exact` is worth doing.
+Two changes, both exact:
+
+**Memoised candidate lists.** A node reinserted into the priority queue had its
+whole candidate list re-retrieved and rescored on the next pop. Neither is
+necessary: the candidate set and every pair score are functions of immutable
+data, and `assigned` only gains members, so a later pop is the earlier list minus
+newly assigned candidates.
+
+**Cheap component first.** In `separate_kmer_anchor`, acceptance needs terminal
+k-mer similarity (six table lookups) *and* anchor-combination similarity (a
+bit-mask assignment dynamic program over up to six hypotheses per peptide). The
+code computed both and tested afterwards, paying for the dynamic program on every
+pair the k-mer test alone would reject. The `separate_aln_anchor` branch already
+short-circuited this way; this mode did not.
+
+Measured over 40 benchmark pools, single-threaded, `node_clusters.tsv`
+byte-identical in every case:
+
+| | Time | Speedup |
+|---|---:|---:|
+| 0.7.0 baseline | 295.0 s | 1.00x |
+| memoisation only | 221.6 s | 1.33x |
+| **both** | **148.0 s** | **1.99x** |
+
+The graph path gains 1.27x from the short-circuit alone, and
+`separate_aln_anchor` is untouched.
+
+The second fix came from reading `pepcluster_out/PepCluster`, an earlier tool
+that clusters 10M peptides in seconds. Its speed comes mostly from a different
+method - first-match greedy against block-local centroids, so a peptide stops at
+its first acceptable match instead of scoring every candidate - but its
+implementation also terminates a similarity computation as soon as the remaining
+positions cannot reach the threshold. That idea transfers without touching the
+method, and is where most of the 2x came from.
+
+### What did not transfer, and why it matters at 11M
+
+Neither fix changes the asymptotics. Scored pairs still grow quadratically:
+8.6M at 10,000 peptides, 189M at 50,000, 765M at 100,000. A 2x constant buys
+headroom, not feasibility. The remaining structural costs are the precompute pass
+in `initial_clustering_lazy_exact`, which retrieves a full candidate list for all
+n nodes only to size the heap and then discards them, and the serial main loop -
+PepCluster parallelises because its greedy is block-local, while set-cover
+selection is inherently sequential.
+
 ## Pool composition
 
 Relevant because it determines whether length handling is exercised at all.
