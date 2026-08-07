@@ -268,35 +268,37 @@ def main() -> None:
         plt.close(figure)
 
     # ---- fig 5: every metric on every split ---------------------------
-    figure, axes = plt.subplots(1, 5, figsize=(19, 3.8), constrained_layout=True)
+    # Independent test split only: the tuning folds informed the choice of
+    # configuration, so showing them beside the test set invites reading a number
+    # that is not held out.
+    figure, axes = plt.subplots(1, 5, figsize=(17, 3.8), constrained_layout=True)
     width = 0.8 / len(ORDER)
     for letter, (axis, (metric, title)) in zip("abcde", zip(axes, METRICS)):
         panel_rows = []
         for i, tool in enumerate(ORDER):
             offset = (i - (len(ORDER) - 1) / 2) * width
             means, errs = [], []
-            for split in SPLITS:
+            for split in ["test"]:
                 sub = frame[(frame.tool == tool) & (frame.split == split)][metric]
                 means.append(sub.mean())
                 errs.append(sub.std(ddof=1) / max(np.sqrt(len(sub)), 1))
             panel_rows += [dict(tool=tool, split=s, mean=m, sem=e)
-                           for s, m, e in zip(SPLITS, means, errs)]
+                           for s, m, e in zip(["test"], means, errs)]
             style = STYLE[tool]
-            axis.bar(np.arange(len(SPLITS)) + offset, means, width, yerr=errs,
+            axis.bar(np.arange(1) + offset, means, width, yerr=errs,
                      capsize=2, color=style["color"], label=tool,
                      alpha=1.0 if style["ls"] == "-" else 0.45,
                      hatch="" if style["ls"] == "-" else "///",
                      edgecolor="white", linewidth=0.5)
         pd.DataFrame(panel_rows).to_csv(
-            args.out / f"fig5{letter}_{metric}_by_split.csv", index=False)
-        axis.set_xticks(np.arange(len(SPLITS)))
-        axis.set_xticklabels([SPLIT_LABEL[s] for s in SPLITS], fontsize=7)
+            args.out / f"fig5{letter}_{metric}_test.csv", index=False)
+        axis.set_xticks([])
         axis.set_title(title)
         axis.set_ylim(0, 1.0)
         axis.grid(axis="y", alpha=0.25, lw=0.5)
     axes[0].set_ylabel("Score")
     axes[0].legend(fontsize=6.5, loc="upper right")
-    figure.suptitle("All metrics on all benchmark splits (mean ± s.e.m.); "
+    figure.suptitle("All metrics, independent test pools (mean ± s.e.m.); "
                     "hatched = variant given the true allele count")
     for suffix in ("png", "pdf"):
         figure.savefig(args.out / f"fig5_all_splits.{suffix}", bbox_inches="tight")

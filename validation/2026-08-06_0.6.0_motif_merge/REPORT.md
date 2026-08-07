@@ -351,6 +351,59 @@ In `figures/`:
 Colour is fixed throughout: black PepCluster2, red MixMHCp, blue GibbsCluster;
 solid as documented, dashed given the true allele count.
 
+## Why the motif count saturates near ten
+
+The component count tracks the allele count to about ten and then flattens and
+falls: 5.2 motifs at 5 alleles, 9.3 at 10, 8.8 at 15, 8.0 at 19. Two causes, and
+both are real.
+
+**Allele motifs genuinely converge as pools grow.** Jensen-Shannon divergence
+between the *true* per-allele profiles, built from the labels, over 3,470 pairs:
+
+| percentile | p01 | p10 | p50 | p90 | p99 |
+|---|---:|---:|---:|---:|---:|
+| bits | 0.057 | 0.085 | 0.140 | 0.193 | 0.238 |
+
+It is a smooth continuum with no gap, so there is no natural cut between "same
+motif" and "different motif" and any count of distinct motifs is threshold-
+dependent. What is not threshold-dependent is the trend: median divergence falls
+from 0.170 bits at 5 alleles to 0.130 at 19, and the closest pair in a pool falls
+from 0.110 to 0.058. Larger pools necessarily contain more closely related
+alleles, so part of the saturation is the target genuinely becoming less
+separable. At a 0.15-bit complete-linkage cut the distinguishable count is 3.3 at
+5 alleles rising only to 4.6 at 19 - the same saturation shape our method shows.
+
+An earlier version of this analysis used *single* linkage and reported 1.6
+distinguishable motifs from 11 alleles. That was wrong: single linkage chains, so
+one path of near-neighbours collapsed everything. Complete linkage is used
+instead, and the pair-level percentiles above are the honest summary.
+
+**Our model selection also under-splits, and that part is fixable.** Seeding EM
+with the true allele count instead of letting the merge choose:
+
+| Alleles | Automatic k | Automatic AMI | Forced-k AMI | Automatic F1 | Forced-k F1 |
+|---|---:|---:|---:|---:|---:|
+| 4-6 | 5.2 | 0.735 | 0.725 | 0.798 | 0.789 |
+| 7-9 | 6.5 | 0.619 | 0.627 | 0.625 | 0.633 |
+| 10-12 | 9.3 | 0.647 | 0.646 | 0.621 | 0.625 |
+| 13-16 | 8.8 | 0.527 | 0.555 | 0.447 | 0.482 |
+| 17-20 | 8.0 | 0.453 | 0.493 | 0.342 | 0.393 |
+
+Overall +0.013 AMI (p = 0.13) and +0.018 F1 (p = 0.057) - not significant. Above
+twelve alleles, where the automatic count has saturated, +0.033 AMI and +0.043
+F1. Below twelve it costs nothing. So the automatic count is adequate for simple
+pools and leaves something on the table for complex ones.
+
+`--motif-count K` is therefore provided. It changes only the stopping rule; the
+merge order remains the Bayes factor, and EM may still empty a component, so the
+reported count can come out below K. On the hardest test pool (20 alleles) it
+moves AMI 0.479 to 0.564 and F1 0.344 to 0.443.
+
+This is not an oracle setting in practice. A sample's alleles are normally known
+from HLA typing, so supplying the count is ordinary use - unlike the `forced k`
+arms of MixMHCp and GibbsCluster in the benchmark, which are reported separately
+precisely because the benchmark treats the allele count as unknown.
+
 ## Pool composition
 
 Relevant because it determines whether length handling is exercised at all.
@@ -394,7 +447,7 @@ together with a corrected description of what purity can and cannot compare.
 
 ## Rust implementation
 
-`src/motif.rs`, cross-checked against `code/bhc.py` on pools test_01-03 at
+`src/motif.rs`, cross-checked against `results/full.csv` on pools test_01-03 at
 concentration 1.0, threshold 0: cluster counts agree exactly at every stage
 (106->23->16, 159->46->33, 151->41->32). Post-EM AMI agrees to 0.0005 on test_03
 and differs by up to 0.023 on test_01, because the prototype capped EM at 60

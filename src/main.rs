@@ -268,6 +268,15 @@ fn write_config(
         config.motif.prior_concentration
     )?;
     writeln!(w, "motif_merge_threshold={}", config.motif.merge_threshold)?;
+    writeln!(
+        w,
+        "motif_count={}",
+        config
+            .motif
+            .target_count
+            .map(|x| x.to_string())
+            .unwrap_or_else(|| "automatic".into())
+    )?;
     writeln!(w, "motif_em={}", config.motif.em)?;
     writeln!(
         w,

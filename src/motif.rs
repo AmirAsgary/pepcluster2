@@ -197,6 +197,12 @@ impl Prior {
 pub struct MotifParams {
     /// Dirichlet prior concentration used when scoring merges.
     pub prior_concentration: f64,
+    /// Stop merging when exactly this many groups remain, overriding
+    /// `merge_threshold`. In practice the alleles in a sample are usually known
+    /// from typing, so supplying the count is ordinary use rather than an oracle.
+    /// EM may still empty a component afterwards, so the final motif count can be
+    /// lower.
+    pub target_count: Option<usize>,
     /// Merge while the best available log Bayes factor exceeds this. Zero means
     /// "merge whenever the evidence favours one profile over two". A positive
     /// value is a flat per-cluster penalty: requiring `log BF > t` is the same
@@ -286,12 +292,14 @@ fn merged_profile(a: &Profile, b: &Profile) -> Profile {
 ///
 /// Every cost here scales with the number of clusters, not the number of
 /// peptides. The peptides are read once, when the profiles are built.
-fn agglomerate(profiles: &mut [Profile], prior: &Prior, threshold: f64) -> (Vec<u32>, usize) {
+fn agglomerate(profiles: &mut [Profile], prior: &Prior, threshold: f64,
+               target: Option<usize>) -> (Vec<u32>, usize) {
     let k = profiles.len();
     let mut group: Vec<u32> = (0..k as u32).collect();
     if k < 2 {
         return (group, k);
     }
+    let mut remaining = k;
     let mut single: Vec<f64> = profiles.iter().map(|p| prior.log_marginal(p)).collect();
     let mut alive = vec![true; k];
 
@@ -339,8 +347,13 @@ fn agglomerate(profiles: &mut [Profile], prior: &Prior, threshold: f64) -> (Vec<
             }
         }
         let Some((i, j)) = pair else { break };
-        if !(top > threshold) {
-            break;
+        // A requested count overrides the evidence threshold: the merge order is
+        // still the Bayes factor, only the stopping rule changes.
+        match target {
+            Some(want) if remaining <= want.max(1) => break,
+            Some(_) => {}
+            None if !(top > threshold) => break,
+            None => {}
         }
 
         profiles[i] = merged_profile(&profiles[i], &profiles[j]);
@@ -351,6 +364,7 @@ fn agglomerate(profiles: &mut [Profile], prior: &Prior, threshold: f64) -> (Vec<
                 *g = i as u32;
             }
         }
+        remaining -= 1;
 
         // Refresh every score touching the surviving cluster.
         let base = profiles[i];
@@ -589,8 +603,8 @@ pub fn build_motifs(
 
     let cluster_count = clustering.representatives.len();
     let mut profiles = group_profiles(nodes, &frames, &clustering.cluster_of, cluster_count);
-    let (group_of_cluster, merged_count) =
-        agglomerate(&mut profiles, &merge_prior, params.merge_threshold);
+    let (group_of_cluster, merged_count) = agglomerate(
+        &mut profiles, &merge_prior, params.merge_threshold, params.target_count);
     let merges = cluster_count.saturating_sub(merged_count);
 
     let mut motif_of: Vec<u32> = clustering
