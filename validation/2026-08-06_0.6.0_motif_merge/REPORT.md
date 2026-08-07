@@ -399,25 +399,36 @@ of the K largest similarity clusters and bypasses the merge; every other peptide
 is placed by the first E-step. EM may still empty a component, so the reported
 count can come out below K.
 
-### It is a seed count, not a guarantee
+### K is strict
 
-Requesting K does not produce K motifs. Over the test pools, a request averaging
-11.4 delivers 8.8. The reason is worth stating plainly because it is a property
-of the problem, not a bug: EM merges components the data does not separate, and
-after the similarity clustering has shattered each motif into fragments, several
-of those fragments belong to the same motif. Forcing the count to hold exactly -
-by flooring the mixing weights so no component can die - would only manufacture
-duplicate motifs.
+`--motif-count K` returns exactly K motifs, on 48 of 48 test pools. A user who
+asks for K wants K; the tool does not get to return fewer because it prefers its
+own answer.
+
+Delivering that needs one step beyond seeding, because EM on its own merges
+components the data does not separate: a request averaging 11.4 converged to 8.8.
+Any component EM empties therefore reclaims the peptide with the highest
+likelihood under it, drawn from a component that can spare one. Ties resolve to
+the lowest node index, so the result stays reproducible.
+
+The cost of strictness was expected to be real and turned out to be negligible:
+AMI 0.6201 strict against 0.6209 non-strict, F1 0.5998 against 0.5991 - well
+inside noise. The reclaimed motifs are ones the likelihood did not support alone,
+so on data where the requested count genuinely exceeds the number of separable
+motifs some returned motifs will resemble each other. That is the honest price of
+a strict count, and it is the caller's choice to pay it: the automatic path never
+invokes this and still reports whatever the data supports.
 
 Four seedings were implemented and measured. The differences are large, so this
 is the part of the feature that needed care:
 
-| Seeding | Delivered of 11.4 requested | AMI | F1 |
+| Seeding (before strictness was added) | Delivered of 11.4 | AMI | F1 |
 |---|---:|---:|---:|
 | Merge down to K, then EM from those groups | 7.2 | 0.5946 | 0.5643 |
 | Top-K largest, remainder folded into last component | 6.1 | 0.5213 | 0.5031 |
 | Top-K largest, remainder unseeded | 8.4 | 0.6054 | 0.5811 |
 | **Farthest-apart clusters, remainder unseeded** | **8.8** | **0.6209** | **0.5991** |
+| the above, plus strict reclaim | **11.4 = requested** | 0.6201 | 0.5998 |
 
 Merging first is worst because the merge has already blended its groups toward
 one another. Folding the remainder into the last component makes that component a
@@ -431,8 +442,8 @@ near-duplicate seeds guarantees it will merge them. Choosing seeds farthest apar
 in profile space instead - a farthest-first traversal over clusters above the
 median size - is worth +0.014 AMI and +0.016 F1 over the size rule.
 
-Against the automatic count, over 48 test pools: AMI 0.5964 -> 0.6209
-(p = 0.008), F1 0.5680 -> 0.5991 (p = 0.003), and +0.045 AMI / +0.055 F1 above
+Against the automatic count, over 48 test pools: AMI 0.5964 -> 0.6201
+(p = 0.010), F1 0.5680 -> 0.5998 (p = 0.002), and +0.043 AMI / +0.057 F1 above
 twelve alleles.
 
 This is not an oracle setting in practice. A sample's alleles are normally known

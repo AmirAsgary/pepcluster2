@@ -605,8 +605,89 @@ fn expectation_maximization(
         previous = objective;
     }
 
-    let profiles = counts.iter().map(|c| normalise(c, prior)).collect();
+    let profiles: Vec<Vec<f64>> = counts.iter().map(|c| normalise(c, prior)).collect();
     (hard, profiles, mixing, iterations, converged)
+}
+
+/// Log probability of one peptide under every component.
+fn component_log_likelihood(
+    frame: &[u8; MOTIF_COLUMNS],
+    log_profiles: &[Vec<f64>],
+    log_mixing: &[f64],
+    out: &mut [f64],
+) {
+    for (component, profile) in log_profiles.iter().enumerate() {
+        let mut value = log_mixing[component];
+        for (column, &residue) in frame.iter().enumerate() {
+            if (residue as usize) < ALPHABET {
+                value += profile[column * ALPHABET + residue as usize];
+            }
+        }
+        out[component] = value;
+    }
+}
+
+/// Guarantee that every requested component holds at least one peptide.
+///
+/// EM merges components the data does not separate, so a request for K motifs
+/// normally converges to fewer. When the caller has asked for K explicitly, K is
+/// what they get: each empty component reclaims the peptide that fits it best
+/// among peptides whose own component would still be non-empty without them.
+///
+/// This is a deliberate trade. The reclaimed motifs are ones the likelihood did
+/// not support on its own, so a strict count can produce motifs that are close
+/// copies of each other, and the measured cost is recorded in the report. It is
+/// applied only when `--motif-count` is given; the automatic path never invokes
+/// it and continues to report whatever the data supports.
+fn enforce_component_count(
+    nodes: &[Node],
+    frames: &[[u8; MOTIF_COLUMNS]],
+    hard: &mut [u32],
+    profiles: &[Vec<f64>],
+    mixing: &[f64],
+) -> usize {
+    let components = profiles.len();
+    let log_profiles: Vec<Vec<f64>> = profiles
+        .iter()
+        .map(|p| p.iter().map(|v| v.max(1e-300).ln()).collect())
+        .collect();
+    let log_mixing: Vec<f64> = mixing.iter().map(|w| w.max(1e-300).ln()).collect();
+
+    let mut occupancy = vec![0usize; components];
+    for &component in hard.iter() {
+        occupancy[component as usize] += 1;
+    }
+    let mut reclaimed = 0usize;
+    let mut scratch = vec![0.0f64; components];
+    // At most one pass per empty component; each pass fills exactly one.
+    for _ in 0..components {
+        let Some(empty) = (0..components).find(|&c| occupancy[c] == 0) else {
+            break;
+        };
+        // The peptide with the highest likelihood under the empty component,
+        // among those whose current component can spare it. Ties resolve to the
+        // lowest node index, so the outcome is reproducible.
+        let mut best = None;
+        let mut best_score = f64::NEG_INFINITY;
+        for (node, frame) in frames.iter().enumerate() {
+            let current = hard[node] as usize;
+            if occupancy[current] <= 1 {
+                continue;
+            }
+            component_log_likelihood(frame, &log_profiles, &log_mixing, &mut scratch);
+            if scratch[empty] > best_score {
+                best_score = scratch[empty];
+                best = Some(node);
+            }
+        }
+        let Some(node) = best else { break };
+        occupancy[hard[node] as usize] -= 1;
+        hard[node] = empty as u32;
+        occupancy[empty] += 1;
+        reclaimed += 1;
+    }
+    let _ = nodes;
+    reclaimed
 }
 
 /// Run the motif stage over a finished similarity clustering.
@@ -739,15 +820,19 @@ pub fn build_motifs(
 
     let (final_profiles, weights, em_iterations, em_converged) =
         if params.em && merged_count > 1 {
-            let (hard, profiles, mixing, iterations, converged) = expectation_maximization(
-                nodes,
-                &frames,
-                seed_counts,
-                seed_mixing,
-                &em_prior,
-                params.em_max_iterations,
-                params.em_tolerance,
-            );
+            let (mut hard, profiles, mixing, iterations, converged) =
+                expectation_maximization(
+                    nodes,
+                    &frames,
+                    seed_counts,
+                    seed_mixing,
+                    &em_prior,
+                    params.em_max_iterations,
+                    params.em_tolerance,
+                );
+            if params.target_count.is_some() {
+                enforce_component_count(nodes, &frames, &mut hard, &profiles, &mixing);
+            }
             motif_of = hard;
             (profiles, mixing, iterations, converged)
         } else {

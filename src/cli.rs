@@ -186,15 +186,14 @@ MOTIF LAYER (optional, off by default):
                                 the largest are drawn from far fewer distinct
                                 motifs than their number suggests, so seeding on
                                 size hands EM duplicates that it then merges.
-                                This is a seed count, NOT a guarantee. EM merges
-                                components the data does not separate, so the
-                                reported motif count is typically below the
-                                request - about 9 for a request of 11 on the
-                                benchmark. Forcing the count exactly would only
-                                produce duplicate motifs. The alleles of a sample
-                                are usually known from typing, so supplying this
-                                is ordinary use rather than an oracle; it helps
-                                mainly above ~12 alleles and costs nothing below
+                                Exactly this many motifs are returned. EM on its
+                                own merges components the data does not separate,
+                                so any it empties reclaim the peptide that fits
+                                them best; motifs recovered that way can resemble
+                                each other, which is the price of a strict count.
+                                The alleles of a sample are usually known from
+                                typing, so supplying this is ordinary use rather
+                                than an oracle
       --motif-merge-threshold FLOAT
                                 Merge while the best log Bayes factor exceeds
                                 this. Equivalent to a prior over partitions
