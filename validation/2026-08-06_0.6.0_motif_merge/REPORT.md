@@ -549,17 +549,34 @@ code computed both and tested afterwards, paying for the dynamic program on ever
 pair the k-mer test alone would reject. The `separate_aln_anchor` branch already
 short-circuited this way; this mode did not.
 
-Measured over 40 benchmark pools, single-threaded, `node_clusters.tsv`
-byte-identical in every case:
+**Batched parallel evaluation.** The selection loop popped one node at a time
+and did that node's retrieval and scoring serially, so the stage barely used more
+than one core - the old binary actually got *slower* from 8 to 32 threads, 9.50 s
+to 11.51 s, because the serial loop dominated and thread overhead did the rest.
 
-| | Time | Speedup |
-|---|---:|---:|
-| 0.7.0 baseline | 295.0 s | 1.00x |
-| memoisation only | 221.6 s | 1.33x |
-| **both** | **148.0 s** | **1.99x** |
+Candidates are now evaluated a batch at a time. This is exact: a value computed
+against the current `assigned` snapshot stays a valid upper bound for every later
+state, because assigning more peptides can only remove candidates from a node's
+accepted list. Batch members therefore return to the heap carrying admissible
+bounds, and the commit rule - take a node only when its exact value is at least
+every remaining upper bound - still selects the node with the greatest true exact
+value. Bounds only tighten, so a batched entry can move down the heap but never
+up. The loop itself stays sequential; only retrieval and scoring parallelise.
 
-The graph path gains 1.27x from the short-circuit alone, and
-`separate_aln_anchor` is untouched.
+Measured over 40 benchmark pools, `node_clusters.tsv` byte-identical in every
+case:
+
+| | Single thread | Speedup | 32 threads | Speedup |
+|---|---:|---:|---:|---:|
+| 0.7.0 baseline | 295.0 s | 1.00x | 203.1 s | 1.00x |
+| memoisation only | 221.6 s | 1.33x | - | - |
+| memoise + short-circuit | 148.0 s | 1.99x | - | - |
+| **all three** | - | **2.07x** | **24.2 s** | **8.39x** |
+
+On the largest test pool the three together give 2.07x at one thread, 7.59x at
+eight and 10.53x at thirty-two. Output is identical between 1, 4 and 32 threads,
+the graph path gains 1.27x from the short-circuit alone, and
+`separate_aln_anchor` and `combined_kmer_anchor` are untouched.
 
 The second fix came from reading `pepcluster_out/PepCluster`, an earlier tool
 that clusters 10M peptides in seconds. Its speed comes mostly from a different

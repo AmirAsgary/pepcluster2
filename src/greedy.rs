@@ -293,61 +293,77 @@ pub fn initial_clustering_lazy_exact(
             }
             continue;
         }
-        let (candidates, retrieved) =
-            bounded_candidates(entry.node, nodes, buckets, table, scorer, seed);
-        stats.candidate_queries += 1;
-        stats.index_candidate_occurrences += retrieved;
-        stats.anchor_bound_rejected += retrieved - candidates.len() as u64;
-        let unassigned: Vec<u32> = candidates
-            .into_iter()
-            .filter(|candidate| !assigned[*candidate as usize])
+        // Nothing cached for this node, so it needs a full retrieval and scoring
+        // pass. Do it for a batch of heap candidates at once rather than one at
+        // a time.
+        //
+        // This is exact. An exact value computed against the current `assigned`
+        // snapshot stays a valid upper bound for every later state, because
+        // assigning more peptides can only remove candidates from a node's
+        // accepted list. Batch members therefore go back on the heap carrying
+        // admissible bounds, and the commit rule - take a node only when its
+        // exact value is at least every remaining upper bound - still selects
+        // the node with the greatest true exact value. Bounds only ever tighten,
+        // so a batched entry can move down the heap but never up.
+        //
+        // The main loop stays sequential; only the retrieval and scoring, which
+        // is where the time goes, runs in parallel.
+        let batch_size = rayon::current_num_threads().max(1) * 4;
+        let mut batch: Vec<LazyEntry> = vec![entry];
+        let mut deferred: Vec<LazyEntry> = Vec::new();
+        while batch.len() < batch_size {
+            match heap.pop() {
+                None => break,
+                Some(next) => {
+                    if assigned[next.node as usize] {
+                        cache[next.node as usize] = None;
+                        continue;
+                    }
+                    if cache[next.node as usize].is_some() {
+                        // Already cheap to evaluate; leave it for the serial path.
+                        deferred.push(next);
+                        break;
+                    }
+                    batch.push(next);
+                }
+            }
+        }
+        let evaluated: Vec<(LazyEntry, Vec<(u32, u16)>, u64, u64)> = batch
+            .par_iter()
+            .map(|member| {
+                let node = member.node;
+                let (candidates, retrieved) =
+                    bounded_candidates(node, nodes, buckets, table, scorer, seed);
+                let rejected = retrieved - candidates.len() as u64;
+                let accepted: Vec<(u32, u16)> = candidates
+                    .into_iter()
+                    .filter(|candidate| !assigned[*candidate as usize])
+                    .filter_map(|candidate| {
+                        score_pair(nodes, scorer, node, candidate)
+                            .map(|weight| (candidate, weight))
+                    })
+                    .collect();
+                let exact = LazyEntry {
+                    coverage_upper_bound: 1 + accepted.len() as u32,
+                    weight_sum_upper_bound: accepted.iter().map(|item| item.1 as u64).sum(),
+                    frequency: nodes[node as usize].frequency,
+                    node,
+                };
+                (exact, accepted, retrieved, rejected)
+            })
             .collect();
-        stats.candidate_pairs_scored += unassigned.len() as u64;
-        let accepted: Vec<(u32, u16)> = if unassigned.len() >= 1024 {
-            unassigned
-                .par_iter()
-                .filter_map(|&candidate| {
-                    score_pair(nodes, scorer, rep as u32, candidate)
-                        .map(|weight| (candidate, weight))
-                })
-                .collect()
-        } else {
-            unassigned
-                .iter()
-                .filter_map(|&candidate| {
-                    score_pair(nodes, scorer, rep as u32, candidate)
-                        .map(|weight| (candidate, weight))
-                })
-                .collect()
-        };
-        stats.eligible_pairs += accepted.len() as u64;
-        let exact = LazyEntry {
-            coverage_upper_bound: 1 + accepted.len() as u32,
-            weight_sum_upper_bound: accepted.iter().map(|item| item.1 as u64).sum(),
-            frequency: nodes[rep].frequency,
-            node: entry.node,
-        };
-
-        while heap
-            .peek()
-            .is_some_and(|candidate| assigned[candidate.node as usize])
-        {
-            heap.pop();
-        }
-        if heap.peek().is_some_and(|upper_bound| exact < *upper_bound) {
-            cache[rep] = Some(accepted);
+        for (exact, accepted, retrieved, rejected) in evaluated {
+            stats.candidate_queries += 1;
+            stats.index_candidate_occurrences += retrieved;
+            stats.anchor_bound_rejected += rejected;
+            stats.eligible_pairs += accepted.len() as u64;
+            cache[exact.node as usize] = Some(accepted);
             heap.push(exact);
-            continue;
         }
-
-        let cluster = representatives.len() as u32;
-        representatives.push(entry.node);
-        assigned[rep] = true;
-        cluster_of[rep] = cluster;
-        for (candidate, _) in accepted {
-            assigned[candidate as usize] = true;
-            cluster_of[candidate as usize] = cluster;
+        for entry in deferred {
+            heap.push(entry);
         }
+        continue;
     }
     debug_assert!(assigned.iter().all(|value| *value));
     (
