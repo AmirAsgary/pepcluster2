@@ -469,24 +469,22 @@ fn normalise(counts: &Profile, prior: &Prior) -> Vec<f64> {
 fn expectation_maximization(
     nodes: &[Node],
     frames: &[[u8; MOTIF_COLUMNS]],
-    assignment: &[u32],
-    components: usize,
+    seed_counts: Vec<Profile>,
+    seed_mixing: Vec<f64>,
     prior: &Prior,
     max_iterations: usize,
     tolerance: f64,
 ) -> (Vec<u32>, Vec<Vec<f64>>, Vec<f64>, usize, bool) {
     const CHUNK: usize = 4096;
-    let total_weight: f64 = nodes.iter().map(|n| n.frequency as f64).sum();
-    let mut counts = group_profiles(nodes, frames, assignment, components);
-    let mut mixing = vec![0.0f64; components];
-    for (index, node) in nodes.iter().enumerate() {
-        mixing[assignment[index] as usize] += node.frequency as f64;
-    }
+    let components = seed_counts.len();
+    let mut counts = seed_counts;
+    let mut mixing = seed_mixing;
+    let total: f64 = mixing.iter().sum();
     for w in mixing.iter_mut() {
-        *w = (*w / total_weight).max(1e-12);
+        *w = (*w / total).max(1e-12);
     }
 
-    let mut hard = assignment.to_vec();
+    let mut hard = vec![0u32; nodes.len()];
     let mut previous = f64::NEG_INFINITY;
     let mut iterations = 0usize;
     let mut converged = false;
@@ -603,15 +601,62 @@ pub fn build_motifs(
 
     let cluster_count = clustering.representatives.len();
     let mut profiles = group_profiles(nodes, &frames, &clustering.cluster_of, cluster_count);
-    let (group_of_cluster, merged_count) = agglomerate(
-        &mut profiles, &merge_prior, params.merge_threshold, params.target_count);
-    let merges = cluster_count.saturating_sub(merged_count);
 
-    let mut motif_of: Vec<u32> = clustering
-        .cluster_of
-        .iter()
-        .map(|&cluster| group_of_cluster[cluster as usize])
-        .collect();
+    // Two ways to seed EM.
+    //
+    // Automatic: agglomerate by Bayes factor, then one component per merged group.
+    //
+    // Requested count: one component per each of the K largest similarity
+    // clusters, and the merge is bypassed. Only those K clusters contribute seed
+    // counts; every other peptide is placed by the first E-step. Two alternatives
+    // were measured and are worse. Merging down to K first keeps only 8.2
+    // components of a requested 16.6 (AMI 0.500), because the merge has already
+    // blended its groups toward one another. Folding the remaining clusters into
+    // the last component is worse still (AMI 0.521 overall against 0.596
+    // automatic): it makes that component a bin of everything unlike the others.
+    let mut sizes = vec![0u64; cluster_count];
+    for (node, &cluster) in clustering.cluster_of.iter().enumerate() {
+        sizes[cluster as usize] += nodes[node].frequency;
+    }
+    let (seed_counts, seed_mixing, merged_count, mut motif_of) = match params.target_count
+    {
+        Some(want) => {
+            let want = want.max(1).min(cluster_count.max(1));
+            let mut order: Vec<usize> = (0..cluster_count).collect();
+            // Largest first; ties by cluster index so the choice is reproducible.
+            order.sort_by(|&a, &b| sizes[b].cmp(&sizes[a]).then(a.cmp(&b)));
+            let chosen = &order[..want];
+            let counts: Vec<Profile> = chosen.iter().map(|&c| profiles[c]).collect();
+            let mixing: Vec<f64> = chosen.iter().map(|&c| sizes[c] as f64).collect();
+            // Provisional only: the first E-step replaces every assignment.
+            let mut rank_of = vec![0u32; cluster_count];
+            for (rank, &cluster) in chosen.iter().enumerate() {
+                rank_of[cluster] = rank as u32;
+            }
+            let provisional = clustering
+                .cluster_of
+                .iter()
+                .map(|&c| rank_of[c as usize])
+                .collect();
+            (counts, mixing, want, provisional)
+        }
+        None => {
+            let (group_of_cluster, merged) =
+                agglomerate(&mut profiles, &merge_prior, params.merge_threshold, None);
+            let assignment: Vec<u32> = clustering
+                .cluster_of
+                .iter()
+                .map(|&cluster| group_of_cluster[cluster as usize])
+                .collect();
+            let counts = group_profiles(nodes, &frames, &assignment, merged);
+            let mut mixing = vec![0.0f64; merged];
+            for (index, node) in nodes.iter().enumerate() {
+                mixing[assignment[index] as usize] += node.frequency as f64;
+            }
+            (counts, mixing, merged, assignment)
+        }
+    };
+    let merges = cluster_count.saturating_sub(merged_count);
 
     let em_prior = Prior::new(params.em_prior_concentration, &background);
     let (final_profiles, weights, em_iterations, em_converged) =
@@ -619,8 +664,8 @@ pub fn build_motifs(
             let (hard, profiles, mixing, iterations, converged) = expectation_maximization(
                 nodes,
                 &frames,
-                &motif_of,
-                merged_count,
+                seed_counts,
+                seed_mixing,
                 &em_prior,
                 params.em_max_iterations,
                 params.em_tolerance,

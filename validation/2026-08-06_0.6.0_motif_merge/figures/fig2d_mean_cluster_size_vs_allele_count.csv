@@ -5,6 +5,12 @@ x,y,err,n,tool,response,predictor
 10.285714285714286,448.5109977324263,77.17212351479692,7,PepCluster2 + motif,mean_cluster_size,allele_count
 14.727272727272727,408.04307359307364,33.70057587757634,11,PepCluster2 + motif,mean_cluster_size,allele_count
 18.7,380.83678266178265,40.46875343030258,10,PepCluster2 + motif,mean_cluster_size,allele_count
+4.777777777777778,586.0833333333334,91.32090890249492,9,PepCluster2 + motif (given k),mean_cluster_size,allele_count
+6.4,559.8828571428571,115.24445477926308,5,PepCluster2 + motif (given k),mean_cluster_size,allele_count
+8.333333333333334,344.8518518518519,41.952315711445685,6,PepCluster2 + motif (given k),mean_cluster_size,allele_count
+10.285714285714286,461.3161616161616,117.60274893515647,7,PepCluster2 + motif (given k),mean_cluster_size,allele_count
+14.727272727272727,333.10586307631763,35.292985635826895,11,PepCluster2 + motif (given k),mean_cluster_size,allele_count
+18.7,283.5564185814186,34.47299001369935,10,PepCluster2 + motif (given k),mean_cluster_size,allele_count
 4.777777777777778,18.197053584658267,1.9412829421223259,9,PepCluster2 (similarity),mean_cluster_size,allele_count
 6.4,20.63548865071069,3.2623492361229336,5,PepCluster2 (similarity),mean_cluster_size,allele_count
 8.333333333333334,14.823829917006039,2.0758622257002988,6,PepCluster2 (similarity),mean_cluster_size,allele_count

@@ -394,15 +394,63 @@ twelve alleles, where the automatic count has saturated, +0.033 AMI and +0.043
 F1. Below twelve it costs nothing. So the automatic count is adequate for simple
 pools and leaves something on the table for complex ones.
 
-`--motif-count K` is therefore provided. It changes only the stopping rule; the
-merge order remains the Bayes factor, and EM may still empty a component, so the
-reported count can come out below K. On the hardest test pool (20 alleles) it
-moves AMI 0.479 to 0.564 and F1 0.344 to 0.443.
+`--motif-count K` is therefore provided. It seeds EM with one component per each
+of the K largest similarity clusters and bypasses the merge; every other peptide
+is placed by the first E-step. EM may still empty a component, so the reported
+count can come out below K.
+
+Two other implementations were tried and measured worse, which is why the
+shipped one is as described:
+
+| Seeding | Components kept (of 16.6 requested) | AMI |
+|---|---:|---:|
+| Merge down to K, then EM from those groups | 8.2 | 0.500 |
+| Top-K clusters, remainder folded into the last component | - | 0.521 |
+| **Top-K clusters, remainder unseeded** | **10.9** | **0.530** |
+
+Merging first is worse because the merge has already blended its groups toward
+one another, so EM collapses them and the requested count does not survive.
+Folding the remainder into the last component is worse still: it makes that
+component a bin of everything unlike the others.
+
+Over the 48 test pools the shipped version gives AMI 0.5964 -> 0.6054
+(p = 0.11) and F1 0.5680 -> 0.5811 (p = 0.075) overall, and +0.039 AMI / +0.046
+F1 above twelve alleles.
 
 This is not an oracle setting in practice. A sample's alleles are normally known
 from HLA typing, so supplying the count is ordinary use - unlike the `forced k`
 arms of MixMHCp and GibbsCluster in the benchmark, which are reported separately
 precisely because the benchmark treats the allele count as unknown.
+
+## Cost
+
+Serial runs on an idle node, eight test pools log-spaced from 995 to 11,656
+peptides. The elapsed times recorded during the sweeps are not usable for this:
+those ran 40-64 jobs at once, so their wall clocks include contention.
+
+PepCluster2 and MixMHCp are single-threaded here, so wall time is also CPU cost.
+GibbsCluster is impractical single-threaded and is run at `-k 16`, so its cost is
+wall x 16. CPU seconds is the comparable figure; wall seconds is what a user
+waits.
+
+| Arm | Median CPU s | Relative | Mean F1 | Mean AMI |
+|---|---:|---:|---:|---:|
+| PepCluster2, clustering only | 1.41 | 0.77x | 0.109 | 0.329 |
+| **PepCluster2 + merge + EM** | **1.83** | **1.00x** | **0.592** | **0.608** |
+| PepCluster2 + merge + EM, given k | 1.57 | 0.86x | 0.577 | 0.592 |
+| MixMHCp | 6.93 | 3.78x | 0.470 | 0.456 |
+| GibbsCluster | 864.50 | 472x | 0.297 | 0.238 |
+
+The motif layer costs 30% on top of clustering and takes F1 from 0.109 to 0.592.
+Against the external tools the pipeline is 3.8x cheaper than MixMHCp and 472x
+cheaper than GibbsCluster while scoring higher than both. Supplying k is slightly
+*cheaper* than the automatic count, since it skips the agglomeration.
+
+Cost rises with pool size for every tool (Spearman rho 0.91 to 1.00, all
+significant). Eight pools is too few to separate the scaling exponents, so no
+claim is made about asymptotic complexity - only about cost in this range.
+
+`figures/fig6_speed_vs_pool_size` and `fig7_speed_vs_performance`.
 
 ## Pool composition
 

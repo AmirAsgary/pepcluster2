@@ -180,15 +180,14 @@ MOTIF LAYER (optional, off by default):
                                 over the background residue frequencies. Larger
                                 values smooth harder and merge more readily
                                 [default: 10]
-      --motif-count INT         Stop merging at exactly this many motifs,
-                                overriding --motif-merge-threshold. The alleles in
-                                a sample are usually known from typing, so this is
-                                ordinary use, not an oracle. Helps mainly above
-                                ~12 alleles, where the automatic count saturates:
-                                +0.03 AMI and +0.04 BCubed F1 on the benchmark's
-                                high-complexity pools, and no loss below that.
-                                EM may still empty a component, so the reported
-                                count can be lower
+      --motif-count INT         Seed EM with this many components, taken from the
+                                largest similarity clusters, and skip the merge.
+                                The alleles in a sample are usually known from
+                                typing, so this is ordinary use, not an oracle.
+                                Helps mainly above ~12 alleles, where the
+                                automatic count saturates, and costs nothing
+                                below. EM may still empty a component, so the
+                                reported count can come out lower
       --motif-merge-threshold FLOAT
                                 Merge while the best log Bayes factor exceeds
                                 this. Equivalent to a prior over partitions
@@ -607,6 +606,11 @@ pub fn parse() -> Result<Option<Config>, String> {
     }
     if motif_count == Some(0) {
         return Err("--motif-count must be at least 1".into());
+    }
+    if motif_count.is_some() && !motif_em {
+        // The requested count seeds components from the largest clusters only;
+        // without EM nothing would place the remaining peptides.
+        return Err("--motif-count requires the EM stage; remove --no-motif-em".into());
     }
     if !merge_motifs {
         // Fail loudly rather than silently ignoring motif settings: a sweep that

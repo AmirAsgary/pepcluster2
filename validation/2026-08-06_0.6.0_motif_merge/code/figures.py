@@ -36,7 +36,9 @@ METRICS = [("ami", "AMI"),
 
 # black = ours, red = MixMHCp, blue = GibbsCluster.
 STYLE = {
-    "PepCluster2 + motif":     dict(color="#000000", ls="-",  marker="o", lw=2.0, zorder=5),
+    "PepCluster2 + motif":     dict(color="#000000", ls="-",  marker="o", lw=2.0, zorder=6),
+    "PepCluster2 + motif (given k)": dict(color="#000000", ls=(0, (4, 1.5)),
+                                          marker="D", lw=1.6, alpha=0.85, zorder=5),
     "PepCluster2 (similarity)": dict(color="#000000", ls=":",  marker="s", lw=1.4, zorder=4),
     "MixMHCp (default)":       dict(color="#d62728", ls="-",  marker="o", lw=1.6, zorder=3),
     "MixMHCp (forced k)":      dict(color="#d62728", ls=(0, (5, 2)), marker="^", lw=1.6, alpha=0.85, zorder=3),
@@ -49,7 +51,8 @@ SPLIT_LABEL = {"inner": "tuning folds", "outer": "held-out alleles",
                "test": "independent test"}
 
 
-def build_table(bench: Path, study: Path, grid: Path, selected: Path) -> pd.DataFrame:
+def build_table(bench: Path, study: Path, grid: Path, selected: Path,
+                forced: Path | None = None) -> pd.DataFrame:
     """Every tool on every pool, with the pool's own properties attached."""
     per_pool = pd.read_csv(bench / "results/immuneapp/tables/per_pool.csv")
     per_pool = per_pool[per_pool.tool != "PepCluster2 alignment"].copy()
@@ -70,7 +73,13 @@ def build_table(bench: Path, study: Path, grid: Path, selected: Path) -> pd.Data
     ours["tool"] = "PepCluster2 + motif"
     keep = ["tool", "split", "pool", "allele_count"] + [m for m, _ in METRICS] + \
            ["singleton_fraction_of_clusters", "clusters"]
-    frame = pd.concat([per_pool[keep], ours[keep]], ignore_index=True)
+    parts = [per_pool[keep], ours[keep]]
+    if forced is not None and forced.exists():
+        fk = pd.read_csv(forced)
+        fk = fk[fk.status == "ok"].copy()
+        fk["tool"] = "PepCluster2 + motif (given k)"
+        parts.append(fk[keep])
+    frame = pd.concat(parts, ignore_index=True)
 
     manifest = pd.read_csv(study / "runs/mhc_bench_sep_kmer_anchor/pool_manifest.csv")
     frame = frame.merge(manifest[["pool", "peptides"]], on="pool", how="left")
@@ -170,6 +179,8 @@ def main() -> None:
     parser.add_argument("--study", type=Path, required=True)
     parser.add_argument("--grid", type=Path, required=True)
     parser.add_argument("--selected", type=Path, required=True)
+    parser.add_argument("--forced", type=Path, default=None,
+                        help="forced_k_runs.csv, added as a separate arm")
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
@@ -180,7 +191,8 @@ def main() -> None:
     plt.rcParams.update({"font.size": 9, "axes.spines.top": False,
                          "axes.spines.right": False, "figure.dpi": 150})
 
-    frame = build_table(args.bench, args.study, args.grid, args.selected)
+    frame = build_table(args.bench, args.study, args.grid, args.selected,
+                        args.forced)
     frame.to_csv(args.out / "per_pool_all_tools.csv", index=False)
     print(f"per-pool table: {len(frame)} rows, {frame.tool.nunique()} tools, "
           f"{frame.pool.nunique()} pools")
@@ -196,6 +208,34 @@ def main() -> None:
     summary.to_csv(args.out / "benchmark_summary_all_splits.csv", index=False)
     summary[summary.split == "test"].to_csv(args.out / "benchmark_summary_test.csv",
                                             index=False)
+
+    # Headline tables, generated here so they cannot drift from the figures.
+    def block(subset):
+        rows = []
+        for tool in ORDER:
+            s = subset[subset.tool == tool]
+            if s.empty:
+                continue
+            row = {"tool": tool, "pools": len(s)}
+            for metric, label in METRICS:
+                row[label] = round(s[metric].mean(), 4)
+                row[f"{label}_sd"] = round(s[metric].std(ddof=1), 4)
+            row["clusters"] = round(s.clusters.mean(), 2)
+            row["mean_cluster_size"] = round(s.mean_cluster_size.mean(), 1)
+            rows.append(row)
+        return pd.DataFrame(rows)
+
+    test = frame[frame.split == "test"]
+    block(test).to_csv(args.out / "table1_benchmark_test.csv", index=False)
+    banded = test.assign(allele_band=pd.cut(test.allele_count, bins=[3, 6, 12, 20],
+                                            labels=["4-6", "7-12", "13-20"]))
+    pd.concat([block(g).assign(allele_band=b)
+               for b, g in banded.groupby("allele_band", observed=True)],
+              ignore_index=True).to_csv(
+        args.out / "table2_test_by_allele_band.csv", index=False)
+    pd.concat([block(frame[frame.split == s]).assign(split=s) for s in SPLITS],
+              ignore_index=True).to_csv(args.out / "table3_all_splits.csv",
+                                        index=False)
 
     corr = correlations(frame, args.out / "correlations_spearman.csv")
     print(f"correlations: {len(corr)} tests, "

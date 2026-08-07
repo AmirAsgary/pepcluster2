@@ -4,6 +4,11 @@ x,y,err,n,tool,response,predictor
 2664.777777777778,0.4876202237645982,0.08520929135118567,9,PepCluster2 + motif,bcubed_precision_macro,peptides
 4042.3,0.4766172931859961,0.07237079386821818,10,PepCluster2 + motif,bcubed_precision_macro,peptides
 6396.090909090909,0.64594023386031,0.04149095216707034,11,PepCluster2 + motif,bcubed_precision_macro,peptides
+1155.375,0.3808597983119322,0.06123268162916481,8,PepCluster2 + motif (given k),bcubed_precision_macro,peptides
+1833.2,0.532790985598536,0.08350899698381796,10,PepCluster2 + motif (given k),bcubed_precision_macro,peptides
+2664.777777777778,0.5370452496391546,0.06686099716049365,9,PepCluster2 + motif (given k),bcubed_precision_macro,peptides
+4042.3,0.539035922752862,0.052599319468740795,10,PepCluster2 + motif (given k),bcubed_precision_macro,peptides
+6396.090909090909,0.6157752128531198,0.03385376780261645,11,PepCluster2 + motif (given k),bcubed_precision_macro,peptides
 1155.375,0.5610951589482261,0.04432413048029996,8,PepCluster2 (similarity),bcubed_precision_macro,peptides
 1833.2,0.6060008833490299,0.050276069377903,10,PepCluster2 (similarity),bcubed_precision_macro,peptides
 2664.777777777778,0.540607579845747,0.036222914683314344,9,PepCluster2 (similarity),bcubed_precision_macro,peptides
