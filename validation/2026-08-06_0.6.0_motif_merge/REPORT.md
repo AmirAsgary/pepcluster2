@@ -81,10 +81,37 @@ A 0.34 range, against 0.02 for every merge setting combined. EM also performs it
 own model selection by emptying components, so the merge stage is not even
 required to choose the component count.
 
-This is a negative result about the part of the design that took the most effort.
-The merge stage earns its place on grounds other than accuracy: it is
-deterministic, it reduces the number of EM components to fit, and it produces an
-interpretable intermediate. It is not what makes the method work.
+### Corrected on the test pools, and on every metric
+
+The `+0.02` above is an inner-fold figure read off AMI alone. Measured properly -
+paired on the 48 test pools, selected configuration against near-zero merging,
+both with EM - it does not replicate, and the picture on the other metrics is
+different in kind:
+
+| Metric | merge + EM | EM, minimal merging | Delta | Wilcoxon p |
+|---|---:|---:|---:|---:|
+| AMI | 0.5964 | 0.6074 | -0.0110 | 0.21 |
+| BCubed F1 | 0.5680 | 0.5801 | -0.0121 | 0.22 |
+| Adjusted purity | 0.4617 | 0.5195 | **-0.0578** | <0.0001 |
+| BCubed precision | 0.5115 | 0.5632 | **-0.0517** | <0.0001 |
+| BCubed recall | 0.7163 | 0.6538 | **+0.0625** | <0.0001 |
+| Clusters | 7.42 | 9.92 | -2.50 | <0.0001 |
+
+So the merge stage does **not** improve overall agreement - AMI and F1 are
+statistically indistinguishable, and both point slightly the wrong way. What it
+does, highly significantly, is trade precision for recall by returning a coarser
+partition. **It is a granularity control, not a quality improvement**, and the
+earlier "+0.02 AMI" reading was inner-fold noise that reversed sign on the test
+pools.
+
+Reporting this on AMI alone would have hidden it in both directions: AMI shows no
+effect where precision and recall each move by more than 0.05, because a
+chance-corrected summary is insensitive to a shift that moves both in
+compensating directions.
+
+The merge stage still earns its place on determinism, on the number of components
+EM must fit, and on producing an interpretable intermediate. It is not what makes
+the method work, and it does not make it more accurate.
 
 ## Initialisation control
 
@@ -188,11 +215,65 @@ peptides collected into one cluster, and over assigned peptides only. The two
 barely differ - assigned-only AMI is 0.186 (default) and 0.266 (forced k) against
 0.180 and 0.252 - so coverage is *not* what places it behind MixMHCp.
 
-The trash threshold used, `-j 2`, is more aggressive than the tool's own default
-of 0. A sensitivity run at `-j 0` over the test split is recorded in
-`results/immuneapp/raw/gibbscluster_trash0.csv`; the flag is now
-`--trash-threshold` rather than hard-coded, so the choice is visible and
-adjustable rather than buried in a command string.
+**Trash threshold, settled.** The `-j 2` used here is more aggressive than the
+tool's own default of 0. Paired over all 96 test runs:
+
+| Setting | AMI at -j 2 | AMI at -j 0 | Coverage -j 2 | Coverage -j 0 |
+|---|---:|---:|---:|---:|
+| default | 0.1799 | 0.1568 | 0.771 | 0.855 |
+| forced k | 0.2522 | 0.2521 | 0.912 | 0.925 |
+
+Wilcoxon p = 0.068, and the tool's own default is if anything *worse*. The choice
+does not affect any conclusion, and `--trash-threshold` is now a flag rather than
+a hard-coded constant.
+
+## How granularity responds to the pool
+
+Spearman rho between the number of clusters returned and the pool's properties,
+on the test pools; the whole family of 252 tests is Benjamini-Hochberg corrected
+together (`figures/correlations_spearman.csv`).
+
+| Tool | vs peptides | vs alleles |
+|---|---:|---:|
+| PepCluster2 + motif | 0.766 *** | **0.444 **** |
+| PepCluster2 (similarity) | 0.906 *** | 0.437 ** |
+| MixMHCp (default) | 0.678 *** | -0.298 (ns) |
+| GibbsCluster (default) | 0.163 (ns) | **-0.664 **** |
+| MixMHCp / GibbsCluster (forced k) | 0.103 (ns) | 1.000 *** |
+
+The forced-k rows returning exactly 1.000 against allele count is the sanity
+check that the harness does what it claims.
+
+The informative row is the last unforced one. **GibbsCluster's own model
+selection returns *fewer* motifs as a pool gains alleles**, strongly and
+significantly so, and MixMHCp's is flat. Only the motif layer's component count
+rises with the number of alleles present without being told it. That is a
+statement about model selection, not about partition quality, and it is the
+mechanism behind the collapse of both external tools in the 13-30 band.
+
+Rank correlation is used because these are counts spanning an order of magnitude
+with no reason to be linear or normally distributed. Pools are treated as
+independent, which is approximate: they are drawn from a shared peptide universe
+and some alleles recur across pools, so the p-values are mildly optimistic.
+
+## Figures and tables
+
+In `figures/`:
+
+- `fig1_protocol` - the selection surface on the tuning folds, each held-out
+  fold scored by a choice made without it, and what each stage adds
+- `fig2_granularity` - clusters returned and mean cluster size, against pool size
+  and against allele count
+- `fig3_performance_alleles`, `fig4_performance_size` - AMI, purity, precision,
+  recall and F1 against allele count and pool size
+- `fig5_all_splits` - every metric on every split
+- `per_pool_all_tools.csv` - the per-pool table behind all of it
+- `table1_benchmark_test.csv`, `table2_test_by_allele_band.csv`,
+  `table3_all_splits.csv`, `correlations_spearman.csv`,
+  `stage_contribution_all_metrics.csv`, `stage_deltas_all_metrics.csv`
+
+Colour is fixed throughout: black PepCluster2, red MixMHCp, blue GibbsCluster;
+solid as documented, dashed given the true allele count.
 
 ## Pool composition
 

@@ -1,0 +1,5 @@
+arm,ami,bcubed_f1_macro,clusters,adjusted_purity_macro,bcubed_precision_macro,bcubed_recall_macro,config
+similarity only,0.33332817962912914,0.10979299611966527,174.89583333333334,,,,
+merge only (no EM),0.4295305512283953,0.4275366515590737,10.75,0.3127577457527826,0.3812960697210477,0.5633621705849503,"merge_concentration=10.0, merge_threshold=0.0, em=False, em_concentration=-1.0"
+merge + EM,0.5964061002163219,0.5679725004692556,7.416666666666667,0.46167800788331004,0.511510104710715,0.7162688266210262,"merge_concentration=10.0, merge_threshold=25.0, em=True, em_concentration=3.0"
+"EM, minimal merging",0.6073981039686598,0.5801079075830178,9.916666666666666,0.5195244212444541,0.5632469480718186,0.6537871479114895,"merge_concentration=0.3, merge_threshold=25.0, em=True, em_concentration=3.0"
