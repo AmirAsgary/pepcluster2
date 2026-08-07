@@ -207,18 +207,6 @@ def main() -> None:
     print(f"per-pool table: {len(frame)} rows, {frame.tool.nunique()} tools, "
           f"{frame.pool.nunique()} pools")
 
-    # ---- summary tables per split -------------------------------------
-    summary = frame.groupby(["split", "tool"]).agg(
-        pools=("pool", "size"),
-        **{f"{m}_mean": (m, "mean") for m, _ in METRICS},
-        **{f"{m}_std": (m, "std") for m, _ in METRICS},
-        clusters=("clusters", "mean"),
-        mean_cluster_size=("mean_cluster_size", "mean"),
-        singleton_fraction=("singleton_fraction_of_clusters", "mean")).reset_index()
-    summary.to_csv(args.out / "benchmark_summary_all_splits.csv", index=False)
-    summary[summary.split == "test"].to_csv(args.out / "benchmark_summary_test.csv",
-                                            index=False)
-
     # Headline tables, generated here so they cannot drift from the figures.
     def block(subset):
         rows = []

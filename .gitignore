@@ -30,3 +30,6 @@
 # scripts beside them.
 /validation/**/grid/
 /validation/**/raw/gibbs_shards/
+
+# SLURM logs written to the repo root by sbatch --output=logs/...
+/logs/
