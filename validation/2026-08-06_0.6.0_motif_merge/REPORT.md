@@ -453,9 +453,15 @@ precisely because the benchmark treats the allele count as unknown.
 
 ## Cost
 
-Serial runs on an idle node, eight test pools log-spaced from 995 to 11,656
-peptides. The elapsed times recorded during the sweeps are not usable for this:
-those ran 40-64 jobs at once, so their wall clocks include contention.
+Serial runs on an **exclusive** node, nine test pools log-spaced from 995 to
+11,656 peptides. The elapsed times recorded during the sweeps are not usable for
+this: those ran 40-64 jobs at once, so their wall clocks include contention.
+
+A first attempt at this table was itself contaminated. It ran on a shared login
+node while a GibbsCluster sweep was using about 48 cores, and one pool came out
+at 13.5 s against 2.2 s on a clean re-run - a spike that looked like a scaling
+cliff and was not. The numbers below come from a job holding a whole node. Cost
+is now monotone in pool size for every PepCluster2 arm, Spearman rho = 1.000.
 
 PepCluster2 and MixMHCp are single-threaded here, so wall time is also CPU cost.
 GibbsCluster is impractical single-threaded and is run at `-k 16`, so its cost is
@@ -464,20 +470,27 @@ waits.
 
 | Arm | Median CPU s | Relative | Mean F1 | Mean AMI |
 |---|---:|---:|---:|---:|
-| PepCluster2, clustering only | 1.41 | 0.77x | 0.109 | 0.329 |
-| **PepCluster2 + merge + EM** | **1.83** | **1.00x** | **0.592** | **0.608** |
-| PepCluster2 + merge + EM, given k | 1.57 | 0.86x | 0.577 | 0.592 |
-| MixMHCp | 6.93 | 3.78x | 0.470 | 0.456 |
-| GibbsCluster | 864.50 | 472x | 0.297 | 0.238 |
+| PepCluster2, clustering only | 0.88 | 0.57x | 0.099 | 0.316 |
+| **PepCluster2 + merge + EM** | **1.55** | **1.00x** | **0.519** | **0.560** |
+| PepCluster2 + merge + EM, given k | 0.85 | 0.55x | 0.570 | 0.599 |
+| MixMHCp | 7.87 | 5.06x | 0.335 | 0.332 |
+| GibbsCluster | 459.52 | 296x | 0.229 | 0.173 |
 
-The motif layer costs 30% on top of clustering and takes F1 from 0.109 to 0.592.
-Against the external tools the pipeline is 3.8x cheaper than MixMHCp and 472x
-cheaper than GibbsCluster while scoring higher than both. Supplying k is slightly
-*cheaper* than the automatic count, since it skips the agglomeration.
+The motif layer roughly doubles the cost of clustering alone and takes F1 from
+0.099 to 0.519. Against the external tools the pipeline is 5x cheaper than
+MixMHCp and 296x cheaper than GibbsCluster while scoring above both. Supplying k
+is *cheaper* than the automatic count - it skips the agglomeration entirely, and
+EM converges faster from diverse seeds than from merged groups.
 
-Cost rises with pool size for every tool (Spearman rho 0.91 to 1.00, all
-significant). Eight pools is too few to separate the scaling exponents, so no
-claim is made about asymptotic complexity - only about cost in this range.
+These F1 and AMI means are over the nine timing pools only, so they differ from
+the 48-pool benchmark figures elsewhere in this report; they are here to place
+each arm on the cost axis, not to restate accuracy.
+
+Cost rises with pool size for every tool (Spearman rho 0.90 to 1.00, all
+significant). Nine pools is too few to separate the scaling exponents, so no
+claim is made about asymptotic complexity - only about cost in this range. The
+MixMHCp curve is not monotone because it selects its own motif count, and how
+many it settles on changes its runtime.
 
 `figures/fig6_speed_vs_pool_size` and `fig7_speed_vs_performance`.
 
