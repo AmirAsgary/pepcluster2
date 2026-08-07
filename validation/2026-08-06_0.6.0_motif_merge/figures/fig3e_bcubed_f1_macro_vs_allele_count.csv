@@ -5,12 +5,12 @@ x,y,err,n,tool,response,predictor
 10.285714285714286,0.6209953687285301,0.033123165742384005,7,PepCluster2 + motif,bcubed_f1_macro,allele_count
 14.727272727272727,0.4472687623050941,0.03401001940334761,11,PepCluster2 + motif,bcubed_f1_macro,allele_count
 18.7,0.3421103124483197,0.035026600748371405,10,PepCluster2 + motif,bcubed_f1_macro,allele_count
-4.777777777777778,0.7736160593183452,0.03837031321726287,9,PepCluster2 + motif (given k),bcubed_f1_macro,allele_count
-6.4,0.7517840974441101,0.04815080974942018,5,PepCluster2 + motif (given k),bcubed_f1_macro,allele_count
-8.333333333333334,0.5875206988491412,0.03034588162010419,6,PepCluster2 + motif (given k),bcubed_f1_macro,allele_count
-10.285714285714286,0.6205109803060335,0.022617634115655608,7,PepCluster2 + motif (given k),bcubed_f1_macro,allele_count
-14.727272727272727,0.4793345269377287,0.026145007132633957,11,PepCluster2 + motif (given k),bcubed_f1_macro,allele_count
-18.7,0.4027702336909984,0.037039268156142315,10,PepCluster2 + motif (given k),bcubed_f1_macro,allele_count
+4.777777777777778,0.7939128922239583,0.028059382178683034,9,PepCluster2 + motif (given k),bcubed_f1_macro,allele_count
+6.4,0.7872232846389643,0.04156612299336058,5,PepCluster2 + motif (given k),bcubed_f1_macro,allele_count
+8.333333333333334,0.6305273631084124,0.03150883851963041,6,PepCluster2 + motif (given k),bcubed_f1_macro,allele_count
+10.285714285714286,0.6282984838535397,0.020196313626229003,7,PepCluster2 + motif (given k),bcubed_f1_macro,allele_count
+14.727272727272727,0.4959082974994724,0.022322930568896514,11,PepCluster2 + motif (given k),bcubed_f1_macro,allele_count
+18.7,0.40408391798769516,0.03691490729886071,10,PepCluster2 + motif (given k),bcubed_f1_macro,allele_count
 4.777777777777778,0.10896913493980269,0.006067013303185014,9,PepCluster2 (similarity),bcubed_f1_macro,allele_count
 6.4,0.11880284232856526,0.006551521879020929,5,PepCluster2 (similarity),bcubed_f1_macro,allele_count
 8.333333333333334,0.1124393350658295,0.008045412628532624,6,PepCluster2 (similarity),bcubed_f1_macro,allele_count

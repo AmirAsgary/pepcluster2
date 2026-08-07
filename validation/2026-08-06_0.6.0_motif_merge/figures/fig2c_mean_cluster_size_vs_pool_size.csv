@@ -4,11 +4,11 @@ x,y,err,n,tool,response,predictor
 2664.777777777778,394.40299823633154,20.14012684085649,9,PepCluster2 + motif,mean_cluster_size,peptides
 4042.3,526.1487698412699,27.914729487988346,10,PepCluster2 + motif,mean_cluster_size,peptides
 6396.090909090909,614.6558774558775,52.08280503307874,11,PepCluster2 + motif,mean_cluster_size,peptides
-1155.375,224.8452380952381,16.438048293192914,8,PepCluster2 + motif (given k),mean_cluster_size,peptides
-1833.2,323.0229761904762,39.51231313168643,10,PepCluster2 + motif (given k),mean_cluster_size,peptides
-2664.777777777778,332.20032806699476,41.1902274894254,9,PepCluster2 + motif (given k),mean_cluster_size,peptides
-4042.3,445.10940115440116,63.172226941369345,10,PepCluster2 + motif (given k),mean_cluster_size,peptides
-6396.090909090909,672.938961543507,73.21993377086375,11,PepCluster2 + motif (given k),mean_cluster_size,peptides
+1155.375,197.35059523809522,11.644713620805646,8,PepCluster2 + motif (given k),mean_cluster_size,peptides
+1833.2,308.75416666666666,40.863253139904636,10,PepCluster2 + motif (given k),mean_cluster_size,peptides
+2664.777777777778,325.8135241301908,40.901015118019856,9,PepCluster2 + motif (given k),mean_cluster_size,peptides
+4042.3,442.30700577200577,65.04708853661681,10,PepCluster2 + motif (given k),mean_cluster_size,peptides
+6396.090909090909,646.1193533738989,79.44230926890803,11,PepCluster2 + motif (given k),mean_cluster_size,peptides
 1155.375,9.592197726575417,0.3796756380677188,8,PepCluster2 (similarity),mean_cluster_size,peptides
 1833.2,13.74973614761733,0.9603492894432314,10,PepCluster2 (similarity),mean_cluster_size,peptides
 2664.777777777778,15.58337391306452,0.32352388207024263,9,PepCluster2 (similarity),mean_cluster_size,peptides

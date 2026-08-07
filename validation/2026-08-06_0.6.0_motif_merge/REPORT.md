@@ -399,23 +399,41 @@ of the K largest similarity clusters and bypasses the merge; every other peptide
 is placed by the first E-step. EM may still empty a component, so the reported
 count can come out below K.
 
-Two other implementations were tried and measured worse, which is why the
-shipped one is as described:
+### It is a seed count, not a guarantee
 
-| Seeding | Components kept (of 16.6 requested) | AMI |
-|---|---:|---:|
-| Merge down to K, then EM from those groups | 8.2 | 0.500 |
-| Top-K clusters, remainder folded into the last component | - | 0.521 |
-| **Top-K clusters, remainder unseeded** | **10.9** | **0.530** |
+Requesting K does not produce K motifs. Over the test pools, a request averaging
+11.4 delivers 8.8. The reason is worth stating plainly because it is a property
+of the problem, not a bug: EM merges components the data does not separate, and
+after the similarity clustering has shattered each motif into fragments, several
+of those fragments belong to the same motif. Forcing the count to hold exactly -
+by flooring the mixing weights so no component can die - would only manufacture
+duplicate motifs.
 
-Merging first is worse because the merge has already blended its groups toward
-one another, so EM collapses them and the requested count does not survive.
-Folding the remainder into the last component is worse still: it makes that
-component a bin of everything unlike the others.
+Four seedings were implemented and measured. The differences are large, so this
+is the part of the feature that needed care:
 
-Over the 48 test pools the shipped version gives AMI 0.5964 -> 0.6054
-(p = 0.11) and F1 0.5680 -> 0.5811 (p = 0.075) overall, and +0.039 AMI / +0.046
-F1 above twelve alleles.
+| Seeding | Delivered of 11.4 requested | AMI | F1 |
+|---|---:|---:|---:|
+| Merge down to K, then EM from those groups | 7.2 | 0.5946 | 0.5643 |
+| Top-K largest, remainder folded into last component | 6.1 | 0.5213 | 0.5031 |
+| Top-K largest, remainder unseeded | 8.4 | 0.6054 | 0.5811 |
+| **Farthest-apart clusters, remainder unseeded** | **8.8** | **0.6209** | **0.5991** |
+
+Merging first is worst because the merge has already blended its groups toward
+one another. Folding the remainder into the last component makes that component a
+bin of everything unlike the others.
+
+Seeding by *size* is the subtle failure. The largest similarity clusters are not
+the most distinct ones: measured on a 20-allele pool, the twenty largest clusters
+had median pairwise Jensen-Shannon divergence 0.098 bits against 0.153 for the
+true allele profiles, and 54% of seed pairs fell below 0.10 bits. Handing EM
+near-duplicate seeds guarantees it will merge them. Choosing seeds farthest apart
+in profile space instead - a farthest-first traversal over clusters above the
+median size - is worth +0.014 AMI and +0.016 F1 over the size rule.
+
+Against the automatic count, over 48 test pools: AMI 0.5964 -> 0.6209
+(p = 0.008), F1 0.5680 -> 0.5991 (p = 0.003), and +0.045 AMI / +0.055 F1 above
+twelve alleles.
 
 This is not an oracle setting in practice. A sample's alleles are normally known
 from HLA typing, so supplying the count is ordinary use - unlike the `forced k`

@@ -180,14 +180,21 @@ MOTIF LAYER (optional, off by default):
                                 over the background residue frequencies. Larger
                                 values smooth harder and merge more readily
                                 [default: 10]
-      --motif-count INT         Seed EM with this many components, taken from the
-                                largest similarity clusters, and skip the merge.
-                                The alleles in a sample are usually known from
-                                typing, so this is ordinary use, not an oracle.
-                                Helps mainly above ~12 alleles, where the
-                                automatic count saturates, and costs nothing
-                                below. EM may still empty a component, so the
-                                reported count can come out lower
+      --motif-count INT         Seed EM with this many components and skip the
+                                merge. Seeds are the similarity clusters that are
+                                FARTHEST APART in profile space, not the largest:
+                                the largest are drawn from far fewer distinct
+                                motifs than their number suggests, so seeding on
+                                size hands EM duplicates that it then merges.
+                                This is a seed count, NOT a guarantee. EM merges
+                                components the data does not separate, so the
+                                reported motif count is typically below the
+                                request - about 9 for a request of 11 on the
+                                benchmark. Forcing the count exactly would only
+                                produce duplicate motifs. The alleles of a sample
+                                are usually known from typing, so supplying this
+                                is ordinary use rather than an oracle; it helps
+                                mainly above ~12 alleles and costs nothing below
       --motif-merge-threshold FLOAT
                                 Merge while the best log Bayes factor exceeds
                                 this. Equivalent to a prior over partitions
