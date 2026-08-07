@@ -88,7 +88,7 @@ def main() -> None:
                          clusters=chosen.clusters.mean(),
                          config=", ".join(f"{c}={v}" for c, v in zip(CONFIG, best))))
     stages = pd.DataFrame(rows)
-    stages.to_csv(args.out / "stage_contribution_all_metrics.csv", index=False)
+    stages.to_csv(args.out / "fig1c_stage_contribution_all_metrics.csv", index=False)
     print("=== stage contribution on the test pools, every metric ===")
     print(stages.round(4).to_string(index=False))
 
@@ -109,7 +109,7 @@ def main() -> None:
             gain_from_em=get("merge + EM", metric) - get("merge only (no EM)", metric),
             merge_worth_given_em=get("merge + EM", metric) - get("EM, minimal merging", metric)))
     deltas = pd.DataFrame(deltas)
-    deltas.to_csv(args.out / "stage_deltas_all_metrics.csv", index=False)
+    deltas.to_csv(args.out / "fig1c_stage_deltas_all_metrics.csv", index=False)
     print("\n=== per-metric deltas ===")
     print(deltas.round(4).to_string(index=False))
 
@@ -132,6 +132,7 @@ def main() -> None:
     axis.set_title("(a) Selection surface, tuning folds only")
     axis.legend(fontsize=6.5, ncol=2)
     axis.grid(alpha=0.25, lw=0.5)
+    surface.to_csv(args.out / "fig1a_selection_surface_tuning_folds.csv", index=False)
 
     # (b) per-fold choice reproducibility
     axis = figure.add_subplot(spec[0, 1])
@@ -146,6 +147,7 @@ def main() -> None:
     axis.set_title("(b) Each fold scored by a choice\nmade without it")
     axis.legend(fontsize=7)
     axis.grid(axis="y", alpha=0.25, lw=0.5)
+    per_fold.to_csv(args.out / "fig1b_per_fold_evaluation.csv", index=False)
 
     # (c) the pipeline, stage by stage
     axis = figure.add_subplot(spec[0, 2])

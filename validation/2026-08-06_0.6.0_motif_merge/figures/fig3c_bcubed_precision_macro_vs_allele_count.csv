@@ -1,0 +1,37 @@
+x,y,err,n,tool,response,predictor
+4.777777777777778,0.7669643263269473,0.046500540628086,9,PepCluster2 + motif,bcubed_precision_macro,allele_count
+6.4,0.7638876534056651,0.04414093988080958,5,PepCluster2 + motif,bcubed_precision_macro,allele_count
+8.333333333333334,0.5273498130992119,0.04215156157289648,6,PepCluster2 + motif,bcubed_precision_macro,allele_count
+10.285714285714286,0.5794785480454515,0.050855260203349274,7,PepCluster2 + motif,bcubed_precision_macro,allele_count
+14.727272727272727,0.3657701921569272,0.041780139474388016,11,PepCluster2 + motif,bcubed_precision_macro,allele_count
+18.7,0.25864469935038364,0.038677740289154994,10,PepCluster2 + motif,bcubed_precision_macro,allele_count
+4.777777777777778,0.73289786492992,0.018284504785545,9,PepCluster2 (similarity),bcubed_precision_macro,allele_count
+6.4,0.6917533142838295,0.013731086838133408,5,PepCluster2 (similarity),bcubed_precision_macro,allele_count
+8.333333333333334,0.5933577010722934,0.011224728976736853,6,PepCluster2 (similarity),bcubed_precision_macro,allele_count
+10.285714285714286,0.544274328220536,0.006122089536208632,7,PepCluster2 (similarity),bcubed_precision_macro,allele_count
+14.727272727272727,0.4460153839890974,0.0086807006413772,11,PepCluster2 (similarity),bcubed_precision_macro,allele_count
+18.7,0.39264132381283595,0.00527502937145004,10,PepCluster2 (similarity),bcubed_precision_macro,allele_count
+4.777777777777778,0.5608557384037562,0.07822385066652958,9,MixMHCp (default),bcubed_precision_macro,allele_count
+6.4,0.546725530822543,0.09522898814672569,5,MixMHCp (default),bcubed_precision_macro,allele_count
+8.333333333333334,0.3104963264174265,0.03266299616129669,6,MixMHCp (default),bcubed_precision_macro,allele_count
+10.285714285714286,0.2806807851072786,0.04868628570963904,7,MixMHCp (default),bcubed_precision_macro,allele_count
+14.727272727272727,0.16715668309063703,0.020736955604793134,11,MixMHCp (default),bcubed_precision_macro,allele_count
+18.7,0.09113906042678348,0.014405511239961895,10,MixMHCp (default),bcubed_precision_macro,allele_count
+4.777777777777778,0.776153081569224,0.03956686158700151,9,MixMHCp (forced k),bcubed_precision_macro,allele_count
+6.4,0.7531060817185031,0.059422303926162455,5,MixMHCp (forced k),bcubed_precision_macro,allele_count
+8.333333333333334,0.47880826866390414,0.05997870877194208,6,MixMHCp (forced k),bcubed_precision_macro,allele_count
+10.285714285714286,0.5220342501471498,0.06056184258989129,7,MixMHCp (forced k),bcubed_precision_macro,allele_count
+14.727272727272727,0.3020770525016628,0.03967476452921778,11,MixMHCp (forced k),bcubed_precision_macro,allele_count
+18.7,0.20102815186927964,0.029141566988472534,10,MixMHCp (forced k),bcubed_precision_macro,allele_count
+4.777777777777778,0.43022794325543356,0.05306086275070304,9,GibbsCluster (default),bcubed_precision_macro,allele_count
+6.4,0.31795178242925903,0.03718921139270553,5,GibbsCluster (default),bcubed_precision_macro,allele_count
+8.333333333333334,0.19289131482027777,0.015683896178060496,6,GibbsCluster (default),bcubed_precision_macro,allele_count
+10.285714285714286,0.1478566459008601,0.010274742149024088,7,GibbsCluster (default),bcubed_precision_macro,allele_count
+14.727272727272727,0.09172907482443135,0.006640917420130418,11,GibbsCluster (default),bcubed_precision_macro,allele_count
+18.7,0.06710358640285383,0.0033007191563681764,10,GibbsCluster (default),bcubed_precision_macro,allele_count
+4.777777777777778,0.49927542930198104,0.03371385892317694,9,GibbsCluster (forced k),bcubed_precision_macro,allele_count
+6.4,0.4156248639809327,0.031415561033728445,5,GibbsCluster (forced k),bcubed_precision_macro,allele_count
+8.333333333333334,0.2720847119625305,0.003444558820282721,6,GibbsCluster (forced k),bcubed_precision_macro,allele_count
+10.285714285714286,0.2419817959681278,0.008930314020067599,7,GibbsCluster (forced k),bcubed_precision_macro,allele_count
+14.727272727272727,0.16078151074102734,0.005805089606475519,11,GibbsCluster (forced k),bcubed_precision_macro,allele_count
+18.7,0.1330932310455492,0.0031883817859115907,10,GibbsCluster (forced k),bcubed_precision_macro,allele_count

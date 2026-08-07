@@ -1,0 +1,31 @@
+x,y,err,n,tool,response,predictor
+1155.375,5.0,0.5,8,PepCluster2 + motif,clusters,peptides
+1833.2,5.5,0.37267799624996495,10,PepCluster2 + motif,clusters,peptides
+2664.777777777778,6.888888888888889,0.3888888888888889,9,PepCluster2 + motif,clusters,peptides
+4042.3,7.9,0.5666666666666667,10,PepCluster2 + motif,clusters,peptides
+6396.090909090909,10.909090909090908,0.8785788675163323,11,PepCluster2 + motif,clusters,peptides
+1155.375,121.0,4.574775560458832,8,PepCluster2 (similarity),clusters,peptides
+1833.2,137.0,6.604712122585073,10,PepCluster2 (similarity),clusters,peptides
+2664.777777777778,171.22222222222223,4.6421312687223075,9,PepCluster2 (similarity),clusters,peptides
+4042.3,200.4,6.527208012959633,10,PepCluster2 (similarity),clusters,peptides
+6396.090909090909,228.36363636363637,10.144656208407305,11,PepCluster2 (similarity),clusters,peptides
+1155.375,2.75,0.31339158526400435,8,MixMHCp (default),clusters,peptides
+1833.2,3.6,0.22110831935702666,10,MixMHCp (default),clusters,peptides
+2664.777777777778,3.6666666666666665,0.4082482904638631,9,MixMHCp (default),clusters,peptides
+4042.3,4.1,0.31446603773522014,10,MixMHCp (default),clusters,peptides
+6396.090909090909,5.7272727272727275,0.3590621392387545,11,MixMHCp (default),clusters,peptides
+1155.375,12.375,2.1542109924517607,8,MixMHCp (forced k),clusters,peptides
+1833.2,10.9,1.8040078836979745,10,MixMHCp (forced k),clusters,peptides
+2664.777777777778,12.11111111111111,1.6452325438845385,9,MixMHCp (forced k),clusters,peptides
+4042.3,14.0,1.8196458751941573,10,MixMHCp (forced k),clusters,peptides
+6396.090909090909,12.454545454545455,1.281785944146514,11,MixMHCp (forced k),clusters,peptides
+1155.375,2.625,0.2630521404045756,8,GibbsCluster (default),clusters,peptides
+1833.2,3.0,0.3333333333333333,10,GibbsCluster (default),clusters,peptides
+2664.777777777778,3.0,0.37267799624996495,9,GibbsCluster (default),clusters,peptides
+4042.3,2.6,0.26666666666666666,10,GibbsCluster (default),clusters,peptides
+6396.090909090909,3.272727272727273,0.27272727272727276,11,GibbsCluster (default),clusters,peptides
+1155.375,12.375,2.1542109924517607,8,GibbsCluster (forced k),clusters,peptides
+1833.2,10.9,1.8040078836979743,10,GibbsCluster (forced k),clusters,peptides
+2664.777777777778,12.11111111111111,1.6452325438845385,9,GibbsCluster (forced k),clusters,peptides
+4042.3,14.0,1.8196458751941573,10,GibbsCluster (forced k),clusters,peptides
+6396.090909090909,12.454545454545455,1.281785944146514,11,GibbsCluster (forced k),clusters,peptides

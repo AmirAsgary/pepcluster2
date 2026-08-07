@@ -17,6 +17,66 @@ smoothing concentration alone moves AMI by 0.34 across its swept range. Second,
 **the PepCluster2 seed contributes about +0.017 AMI**, so the pipeline's
 advantage is its mixture model, not its initialisation.
 
+## What "PepCluster2 + motif" is
+
+The full pipeline, three stages, run in one command
+(`pepcluster2 --merge-motifs ...`):
+
+1. **Similarity clustering.** Sections 1-14 of `ALGORITHM.md`, unchanged.
+   Produces ~175 clusters per pool.
+2. **Merge.** Each cluster is summarised as amino-acid counts on nine columns and
+   pairs are merged greedily while a Dirichlet-multinomial marginal likelihood
+   prefers one shared profile to two. Produces ~112 groups at the selected
+   settings.
+3. **EM.** A mixture of position weight matrices, one component per surviving
+   group, fitted by expectation-maximization and **seeded from stage 2 rather
+   than at random**. Components that lose all their weight disappear. Produces
+   ~7 motifs.
+
+**No k is supplied at any point.** The number of motifs is a consequence of the
+merge threshold and of EM emptying components; nothing in the pipeline is told
+how many alleles a pool contains. The only arms in this study that receive k are
+the `forced k` variants of MixMHCp and GibbsCluster, which exist precisely to
+show how much of those tools' results come from their model rather than their
+model selection.
+
+"Motif layer" means stages 2 and 3 together. It is reported as a second,
+separate partition: it does not satisfy the representative-to-member invariant
+that stage 1 guarantees, so it is written to its own files.
+
+### The two concentration parameters
+
+Both are Dirichlet pseudocount totals per column, spread over the dataset's
+background residue frequencies as `alpha_a = concentration * 20 * background_a`.
+They differ only in where they are used:
+
+| Flag | Used by | Effect |
+|---|---|---|
+| `--motif-prior-concentration` | stage 2, the merge Bayes factor | higher smooths the profiles being compared, so more pairs look alike and more merges happen |
+| `--motif-em-prior-concentration` | stage 3, smoothing the PWMs each EM iteration | higher pulls components toward background, collapsing more of them; this is the dominant parameter |
+
+They were swept independently precisely because an earlier exploratory sweep tied
+them to one value and could not attribute the result between the two stages.
+
+### It is a Dirichlet prior, not a Dirichlet mixture
+
+A single Dirichlet per column, scaled by background composition. A Dirichlet
+*mixture* prior - several components encoding amino-acid classes, which would
+make the merge aware that D and E are chemically alike - was considered and
+deliberately **not** implemented. The criterion is therefore blind to amino-acid
+similarity: it treats the 20 residues as unordered categories, so an all-D column
+and an all-E column are as different as all-D and all-W. That is a known
+limitation, not an oversight.
+
+### The Chinese-restaurant prior was removed
+
+A size-scaled partition prior of Chinese-restaurant form was implemented,
+measured, and rejected: it corrupted the merge order and collapsed the
+dendrogram (numbers below). **It never entered the Rust implementation**, and its
+prototype code has now been deleted. The rationale is retained in `ALGORITHM.md`
+Section 15.4 so the same design is not attempted again; the evidence is in
+`results/full.csv`.
+
 ## Headline, nested cross-validated
 
 Configuration selected on the inner folds only, evaluated once on the 48
@@ -135,8 +195,24 @@ supported.** An earlier argument for it cited MixMHCp's ±0.203 as evidence of
 restart instability; that is variance across pools, not across restarts, and the
 two were conflated.
 
-What the seed does buy is determinism - one run instead of ten restarts plus a
-selection step - and a component count chosen without being told the answer.
+What the seed buys, stated precisely, is three things:
+
+1. **Accuracy, slightly.** +0.017 AMI over the max-likelihood of ten random
+   restarts, paired, p = 4.2e-4.
+2. **Compute.** Measured on three test pools spanning 995 to 11,656 peptides:
+   the merge costs 0.23 s and one EM run 0.70 s, so the whole motif stage is
+   0.93 s. Matching it from random initialisation needs ten EM restarts plus a
+   likelihood comparison, about 7.0 s - roughly **7.5x the motif-stage compute
+   for a slightly worse result**. (Timings in
+   `figures/fig1c_stage_contribution_all_metrics.csv` context; raw in the
+   commit message.)
+3. **A component count, unprompted.** The random-init arms had to be *given* k -
+   either ours to match, or the true allele count. Nothing supplies it here.
+
+So the earlier phrasing "the seed is not where the accuracy comes from" is right
+about accuracy and understated everything else. It is better read as: the seed is
+not what makes the method *work*, but it makes it cheaper, reproducible, and
+free of a parameter the alternatives require.
 
 Note these four numbers share the test-set-tuned concentration and so are jointly
 optimistic; the comparison between them is unaffected, since all four used

@@ -1,0 +1,31 @@
+x,y,err,n,tool,response,predictor
+1155.375,0.3800489378008145,0.06847131142377122,8,PepCluster2 + motif,bcubed_precision_macro,peptides
+1833.2,0.525199600550305,0.08778929884876506,10,PepCluster2 + motif,bcubed_precision_macro,peptides
+2664.777777777778,0.4876202237645982,0.08520929135118567,9,PepCluster2 + motif,bcubed_precision_macro,peptides
+4042.3,0.4766172931859961,0.07237079386821818,10,PepCluster2 + motif,bcubed_precision_macro,peptides
+6396.090909090909,0.64594023386031,0.04149095216707034,11,PepCluster2 + motif,bcubed_precision_macro,peptides
+1155.375,0.5610951589482261,0.04432413048029996,8,PepCluster2 (similarity),bcubed_precision_macro,peptides
+1833.2,0.6060008833490299,0.050276069377903,10,PepCluster2 (similarity),bcubed_precision_macro,peptides
+2664.777777777778,0.540607579845747,0.036222914683314344,9,PepCluster2 (similarity),bcubed_precision_macro,peptides
+4042.3,0.4980846275541532,0.04380046545566745,10,PepCluster2 (similarity),bcubed_precision_macro,peptides
+6396.090909090909,0.5329465202313641,0.03761712639646747,11,PepCluster2 (similarity),bcubed_precision_macro,peptides
+1155.375,0.17609124072330695,0.036809894515185446,8,MixMHCp (default),bcubed_precision_macro,peptides
+1833.2,0.3479711644601892,0.09077239334175158,10,MixMHCp (default),bcubed_precision_macro,peptides
+2664.777777777778,0.2708354829380583,0.07385291329742537,9,MixMHCp (default),bcubed_precision_macro,peptides
+4042.3,0.26842274767535534,0.06621395544255648,10,MixMHCp (default),bcubed_precision_macro,peptides
+6396.090909090909,0.3953634980620406,0.06753051518160433,11,MixMHCp (default),bcubed_precision_macro,peptides
+1155.375,0.32798793667852455,0.0720781275355277,8,MixMHCp (forced k),bcubed_precision_macro,peptides
+1833.2,0.4819498051532616,0.09676656320603756,10,MixMHCp (forced k),bcubed_precision_macro,peptides
+2664.777777777778,0.46186475851559206,0.08586514035307681,9,MixMHCp (forced k),bcubed_precision_macro,peptides
+4042.3,0.43489591845494446,0.08242426903361426,10,MixMHCp (forced k),bcubed_precision_macro,peptides
+6396.090909090909,0.6056348223445006,0.055452723711210336,11,MixMHCp (forced k),bcubed_precision_macro,peptides
+1155.375,0.1638743587024032,0.03277431638997474,8,GibbsCluster (default),bcubed_precision_macro,peptides
+1833.2,0.27070504240425175,0.07359209777152545,10,GibbsCluster (default),bcubed_precision_macro,peptides
+2664.777777777778,0.18751751818240237,0.045877831044821904,9,GibbsCluster (default),bcubed_precision_macro,peptides
+4042.3,0.15263112529738457,0.04110744994926949,10,GibbsCluster (default),bcubed_precision_macro,peptides
+6396.090909090909,0.19110875349935982,0.040807750538372246,11,GibbsCluster (default),bcubed_precision_macro,peptides
+1155.375,0.2611227966704831,0.048338001758684794,8,GibbsCluster (forced k),bcubed_precision_macro,peptides
+1833.2,0.34698846981930787,0.06435991527624373,10,GibbsCluster (forced k),bcubed_precision_macro,peptides
+2664.777777777778,0.24708969024890085,0.03664673468952106,9,GibbsCluster (forced k),bcubed_precision_macro,peptides
+4042.3,0.23216790702669968,0.04179088075259028,10,GibbsCluster (forced k),bcubed_precision_macro,peptides
+6396.090909090909,0.2630145092470287,0.04002420637193287,11,GibbsCluster (forced k),bcubed_precision_macro,peptides

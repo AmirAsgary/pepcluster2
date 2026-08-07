@@ -1,0 +1,37 @@
+x,y,err,n,tool,response,predictor
+4.777777777777778,4.777777777777778,0.4006168083848877,9,PepCluster2 + motif,clusters,allele_count
+6.4,6.6,0.39999999999999997,5,PepCluster2 + motif,clusters,allele_count
+8.333333333333334,6.333333333333333,0.5577733510227171,6,PepCluster2 + motif,clusters,allele_count
+10.285714285714286,9.285714285714286,1.1278780268882866,7,PepCluster2 + motif,clusters,allele_count
+14.727272727272727,8.818181818181818,0.9127200289462643,11,PepCluster2 + motif,clusters,allele_count
+18.7,8.0,0.9545214042184235,10,PepCluster2 + motif,clusters,allele_count
+4.777777777777778,142.88888888888889,12.56034815118643,9,PepCluster2 (similarity),clusters,allele_count
+6.4,158.8,14.571890748972832,5,PepCluster2 (similarity),clusters,allele_count
+8.333333333333334,151.66666666666666,15.534191678716699,6,PepCluster2 (similarity),clusters,allele_count
+10.285714285714286,195.28571428571428,22.04833897826955,7,PepCluster2 (similarity),clusters,allele_count
+14.727272727272727,198.27272727272728,12.138661682327939,11,PepCluster2 (similarity),clusters,allele_count
+18.7,185.7,12.545074287898373,10,PepCluster2 (similarity),clusters,allele_count
+4.777777777777778,3.888888888888889,0.3888888888888889,9,MixMHCp (default),clusters,allele_count
+6.4,5.0,0.6324555320336759,5,MixMHCp (default),clusters,allele_count
+8.333333333333334,4.166666666666667,0.3073181485764296,6,MixMHCp (default),clusters,allele_count
+10.285714285714286,4.714285714285714,0.7142857142857142,7,MixMHCp (default),clusters,allele_count
+14.727272727272727,4.181818181818182,0.37702620642414036,11,MixMHCp (default),clusters,allele_count
+18.7,3.1,0.4333333333333333,10,MixMHCp (default),clusters,allele_count
+4.777777777777778,5.777777777777778,0.14698618394803278,9,MixMHCp (forced k),clusters,allele_count
+6.4,7.4,0.24494897427831777,5,MixMHCp (forced k),clusters,allele_count
+8.333333333333334,9.333333333333334,0.210818510677892,6,MixMHCp (forced k),clusters,allele_count
+10.285714285714286,11.285714285714286,0.18442777839082938,7,MixMHCp (forced k),clusters,allele_count
+14.727272727272727,15.727272727272727,0.40655781409087083,11,MixMHCp (forced k),clusters,allele_count
+18.7,19.7,0.36666666666666664,10,MixMHCp (forced k),clusters,allele_count
+4.777777777777778,3.6666666666666665,0.3333333333333333,9,GibbsCluster (default),clusters,allele_count
+6.4,3.8,0.3741657386773941,5,GibbsCluster (default),clusters,allele_count
+8.333333333333334,3.1666666666666665,0.3073181485764296,6,GibbsCluster (default),clusters,allele_count
+10.285714285714286,2.857142857142857,0.2608202654786505,7,GibbsCluster (default),clusters,allele_count
+14.727272727272727,2.5454545454545454,0.24729946379518986,11,GibbsCluster (default),clusters,allele_count
+18.7,2.1,0.09999999999999999,10,GibbsCluster (default),clusters,allele_count
+4.777777777777778,5.777777777777778,0.14698618394803278,9,GibbsCluster (forced k),clusters,allele_count
+6.4,7.4,0.24494897427831783,5,GibbsCluster (forced k),clusters,allele_count
+8.333333333333334,9.333333333333334,0.210818510677892,6,GibbsCluster (forced k),clusters,allele_count
+10.285714285714286,11.285714285714286,0.18442777839082938,7,GibbsCluster (forced k),clusters,allele_count
+14.727272727272727,15.727272727272727,0.40655781409087083,11,GibbsCluster (forced k),clusters,allele_count
+18.7,19.7,0.36666666666666664,10,GibbsCluster (forced k),clusters,allele_count

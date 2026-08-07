@@ -1,0 +1,37 @@
+x,y,err,n,tool,response,predictor
+4.777777777777778,547.1111111111111,62.87849743604577,9,PepCluster2 + motif,mean_cluster_size,allele_count
+6.4,515.1771428571428,107.95966722317542,5,PepCluster2 + motif,mean_cluster_size,allele_count
+8.333333333333334,358.80654761904765,57.27589254603886,6,PepCluster2 + motif,mean_cluster_size,allele_count
+10.285714285714286,448.5109977324263,77.17212351479692,7,PepCluster2 + motif,mean_cluster_size,allele_count
+14.727272727272727,408.04307359307364,33.70057587757634,11,PepCluster2 + motif,mean_cluster_size,allele_count
+18.7,380.83678266178265,40.46875343030258,10,PepCluster2 + motif,mean_cluster_size,allele_count
+4.777777777777778,18.197053584658267,1.9412829421223259,9,PepCluster2 (similarity),mean_cluster_size,allele_count
+6.4,20.63548865071069,3.2623492361229336,5,PepCluster2 (similarity),mean_cluster_size,allele_count
+8.333333333333334,14.823829917006039,2.0758622257002988,6,PepCluster2 (similarity),mean_cluster_size,allele_count
+10.285714285714286,21.28196633073437,3.735870900216181,7,PepCluster2 (similarity),mean_cluster_size,allele_count
+14.727272727272727,17.778564984627604,1.8408869352367363,11,PepCluster2 (similarity),mean_cluster_size,allele_count
+18.7,16.238144446741725,2.217623414166107,10,PepCluster2 (similarity),mean_cluster_size,allele_count
+4.777777777777778,685.1777777777778,80.48470183791619,9,MixMHCp (default),mean_cluster_size,allele_count
+6.4,662.75,96.590386570185,5,MixMHCp (default),mean_cluster_size,allele_count
+8.333333333333334,572.9361111111111,126.08697097026634,6,MixMHCp (default),mean_cluster_size,allele_count
+10.285714285714286,898.6564625850341,147.5830526169856,7,MixMHCp (default),mean_cluster_size,allele_count
+14.727272727272727,859.0359307359307,86.35391518838428,11,MixMHCp (default),mean_cluster_size,allele_count
+18.7,1059.9233333333334,170.77265105078618,10,MixMHCp (default),mean_cluster_size,allele_count
+4.777777777777778,474.1777777777778,80.86139871699682,9,MixMHCp (forced k),mean_cluster_size,allele_count
+6.4,467.325,108.63078270697773,5,MixMHCp (forced k),mean_cluster_size,allele_count
+8.333333333333334,254.92962962962963,56.28277522812795,6,MixMHCp (forced k),mean_cluster_size,allele_count
+10.285714285714286,401.30194805194805,109.965810365461,7,MixMHCp (forced k),mean_cluster_size,allele_count
+14.727272727272727,240.26880888719123,39.136173844198126,11,MixMHCp (forced k),mean_cluster_size,allele_count
+18.7,168.98104845446952,34.65817429216736,10,MixMHCp (forced k),mean_cluster_size,allele_count
+4.777777777777778,758.9351851851851,129.72459084931413,9,GibbsCluster (default),mean_cluster_size,allele_count
+6.4,933.9,246.52669226678069,5,GibbsCluster (default),mean_cluster_size,allele_count
+8.333333333333334,844.0694444444443,250.11880734061933,6,GibbsCluster (default),mean_cluster_size,allele_count
+10.285714285714286,1591.1666666666667,421.1561295407387,7,GibbsCluster (default),mean_cluster_size,allele_count
+14.727272727272727,1499.4318181818182,233.55061388213036,11,GibbsCluster (default),mean_cluster_size,allele_count
+18.7,1524.55,270.8843177651876,10,GibbsCluster (default),mean_cluster_size,allele_count
+4.777777777777778,474.1777777777778,80.86139871699683,9,GibbsCluster (forced k),mean_cluster_size,allele_count
+6.4,467.325,108.63078270697773,5,GibbsCluster (forced k),mean_cluster_size,allele_count
+8.333333333333334,254.92962962962963,56.28277522812795,6,GibbsCluster (forced k),mean_cluster_size,allele_count
+10.285714285714286,401.30194805194805,109.965810365461,7,GibbsCluster (forced k),mean_cluster_size,allele_count
+14.727272727272727,240.26880888719123,39.136173844198126,11,GibbsCluster (forced k),mean_cluster_size,allele_count
+18.7,168.98104845446952,34.65817429216736,10,GibbsCluster (forced k),mean_cluster_size,allele_count

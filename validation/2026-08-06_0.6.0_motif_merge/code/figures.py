@@ -110,8 +110,30 @@ def correlations(frame: pd.DataFrame, out: Path) -> pd.DataFrame:
     return table
 
 
-def _panel(axis, frame, response, xkey, bins, logx):
-    """Binned mean with standard error, one line per tool."""
+def _decade_ticks(caxis):
+    """Ticks at 1, 2 and 5 of every decade, labelled as plain numbers.
+
+    A log axis labelled only at 10, 100, 1000 makes it hard to read off a value
+    that sits between decades, which is most of them here.
+    """
+    from matplotlib import ticker
+    caxis.set_major_locator(ticker.LogLocator(base=10.0, subs=(1.0, 2.0, 5.0),
+                                              numticks=30))
+    caxis.set_minor_locator(ticker.LogLocator(base=10.0,
+                                              subs=tuple(np.arange(1, 10) * 0.1),
+                                              numticks=100))
+    caxis.set_major_formatter(ticker.FuncFormatter(
+        lambda v, _: f"{v:,.0f}" if v >= 1 else f"{v:g}"))
+    caxis.set_minor_formatter(ticker.NullFormatter())
+
+
+def _panel(axis, frame, response, xkey, bins, logx, logy=False):
+    """Binned mean with standard error, one line per tool.
+
+    Returns the plotted points so the panel can be written out verbatim: the
+    figure and its CSV are then guaranteed to be the same numbers.
+    """
+    collected = []
     for tool in ORDER:
         sub = frame[frame.tool == tool]
         if sub.empty:
@@ -129,9 +151,17 @@ def _panel(axis, frame, response, xkey, bins, logx):
         axis.errorbar(grouped["x"], grouped["y"], yerr=grouped["err"].fillna(0),
                       marker=marker,
                       markersize=4, capsize=2, label=tool, **style)
+        collected.append(grouped.reset_index(drop=True).assign(
+            tool=tool, response=response, predictor=xkey))
     if logx:
         axis.set_xscale("log")
-    axis.grid(alpha=0.25, lw=0.5)
+        _decade_ticks(axis.xaxis)
+    if logy:
+        axis.set_yscale("log")
+        _decade_ticks(axis.yaxis)
+    axis.grid(alpha=0.25, lw=0.5, which="both")
+    return (pd.concat(collected, ignore_index=True) if collected
+            else pd.DataFrame())
 
 
 def main() -> None:
@@ -186,17 +216,27 @@ def main() -> None:
 
     # ---- fig 2: granularity -------------------------------------------
     figure, axes = plt.subplots(2, 2, figsize=(11, 7.5), constrained_layout=True)
+    panel_names = {("clusters", "peptides"): "fig2a_clusters_vs_pool_size",
+                   ("clusters", "allele_count"): "fig2b_clusters_vs_allele_count",
+                   ("mean_cluster_size", "peptides"):
+                       "fig2c_mean_cluster_size_vs_pool_size",
+                   ("mean_cluster_size", "allele_count"):
+                       "fig2d_mean_cluster_size_vs_allele_count"}
     for row, (response, ylabel) in enumerate(
             [("clusters", "Clusters returned"),
              ("mean_cluster_size", "Mean peptides per cluster")]):
-        _panel(axes[row][0], test, response, "peptides", size_bins, True)
+        data = _panel(axes[row][0], test, response, "peptides", size_bins, True,
+                      logy=True)
+        data.to_csv(args.out / f"{panel_names[(response, 'peptides')]}.csv",
+                    index=False)
         axes[row][0].set_xlabel("Peptides in pool")
         axes[row][0].set_ylabel(ylabel)
-        axes[row][0].set_yscale("log")
-        _panel(axes[row][1], test, response, "allele_count", allele_bins, False)
+        data = _panel(axes[row][1], test, response, "allele_count", allele_bins,
+                      False, logy=True)
+        data.to_csv(args.out / f"{panel_names[(response, 'allele_count')]}.csv",
+                    index=False)
         axes[row][1].set_xlabel("Alleles in pool")
         axes[row][1].set_ylabel(ylabel)
-        axes[row][1].set_yscale("log")
     axes[0][0].legend(fontsize=7, loc="upper left")
     figure.suptitle("Granularity of the returned partition (independent test pools)")
     for suffix in ("png", "pdf"):
@@ -210,8 +250,12 @@ def main() -> None:
             ("fig4_performance_size", "peptides", size_bins,
              "Peptides in pool", True)):
         figure, axes = plt.subplots(1, 5, figsize=(19, 3.6), constrained_layout=True)
-        for axis, (metric, title) in zip(axes, METRICS):
-            _panel(axis, test, metric, xkey, bins, logx)
+        for letter, (axis, (metric, title)) in zip("abcde", zip(axes, METRICS)):
+            data = _panel(axis, test, metric, xkey, bins, logx)
+            number = name.split("_")[0]
+            data.to_csv(args.out / f"{number}{letter}_{metric}_vs_"
+                                   f"{'allele_count' if xkey == 'allele_count' else 'pool_size'}.csv",
+                        index=False)
             axis.set_xlabel(xlabel)
             axis.set_title(title)
             axis.set_ylim(-0.02, 1.0)
@@ -226,7 +270,8 @@ def main() -> None:
     # ---- fig 5: every metric on every split ---------------------------
     figure, axes = plt.subplots(1, 5, figsize=(19, 3.8), constrained_layout=True)
     width = 0.8 / len(ORDER)
-    for axis, (metric, title) in zip(axes, METRICS):
+    for letter, (axis, (metric, title)) in zip("abcde", zip(axes, METRICS)):
+        panel_rows = []
         for i, tool in enumerate(ORDER):
             offset = (i - (len(ORDER) - 1) / 2) * width
             means, errs = [], []
@@ -234,12 +279,16 @@ def main() -> None:
                 sub = frame[(frame.tool == tool) & (frame.split == split)][metric]
                 means.append(sub.mean())
                 errs.append(sub.std(ddof=1) / max(np.sqrt(len(sub)), 1))
+            panel_rows += [dict(tool=tool, split=s, mean=m, sem=e)
+                           for s, m, e in zip(SPLITS, means, errs)]
             style = STYLE[tool]
             axis.bar(np.arange(len(SPLITS)) + offset, means, width, yerr=errs,
                      capsize=2, color=style["color"], label=tool,
                      alpha=1.0 if style["ls"] == "-" else 0.45,
                      hatch="" if style["ls"] == "-" else "///",
                      edgecolor="white", linewidth=0.5)
+        pd.DataFrame(panel_rows).to_csv(
+            args.out / f"fig5{letter}_{metric}_by_split.csv", index=False)
         axis.set_xticks(np.arange(len(SPLITS)))
         axis.set_xticklabels([SPLIT_LABEL[s] for s in SPLITS], fontsize=7)
         axis.set_title(title)

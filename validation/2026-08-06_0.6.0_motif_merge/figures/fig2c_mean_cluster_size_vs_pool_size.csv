@@ -1,0 +1,31 @@
+x,y,err,n,tool,response,predictor
+1155.375,245.6875,25.275852856020627,8,PepCluster2 + motif,mean_cluster_size,peptides
+1833.2,355.13142857142856,36.574358385798504,10,PepCluster2 + motif,mean_cluster_size,peptides
+2664.777777777778,394.40299823633154,20.14012684085649,9,PepCluster2 + motif,mean_cluster_size,peptides
+4042.3,526.1487698412699,27.914729487988346,10,PepCluster2 + motif,mean_cluster_size,peptides
+6396.090909090909,614.6558774558775,52.08280503307874,11,PepCluster2 + motif,mean_cluster_size,peptides
+1155.375,9.592197726575417,0.3796756380677188,8,PepCluster2 (similarity),mean_cluster_size,peptides
+1833.2,13.74973614761733,0.9603492894432314,10,PepCluster2 (similarity),mean_cluster_size,peptides
+2664.777777777778,15.58337391306452,0.32352388207024263,9,PepCluster2 (similarity),mean_cluster_size,peptides
+4042.3,20.293837619800957,0.8623048432117544,10,PepCluster2 (similarity),mean_cluster_size,peptides
+6396.090909090909,27.76269490241897,1.176755075515971,11,PepCluster2 (similarity),mean_cluster_size,peptides
+1155.375,456.20833333333337,48.73547809755051,8,MixMHCp (default),mean_cluster_size,peptides
+1833.2,518.0783333333334,18.339932995623258,10,MixMHCp (default),mean_cluster_size,peptides
+2664.777777777778,796.4185185185185,89.06965735565645,9,MixMHCp (default),mean_cluster_size,peptides
+4042.3,1050.2216666666668,97.09541320649879,10,MixMHCp (default),mean_cluster_size,peptides
+6396.090909090909,1159.7051948051949,113.66468776209544,11,MixMHCp (default),mean_cluster_size,peptides
+1155.375,114.73093009931245,18.89367677917641,8,MixMHCp (forced k),mean_cluster_size,peptides
+1833.2,223.53365914786968,40.91377062399126,10,MixMHCp (forced k),mean_cluster_size,peptides
+2664.777777777778,258.71313331729993,40.002920805771005,9,MixMHCp (forced k),mean_cluster_size,peptides
+4042.3,353.1894154503907,59.21675700816508,10,MixMHCp (forced k),mean_cluster_size,peptides
+6396.090909090909,569.289764528401,68.6497241633764,11,MixMHCp (forced k),mean_cluster_size,peptides
+1155.375,471.90625,50.76711494360715,8,GibbsCluster (default),mean_cluster_size,peptides
+1833.2,666.5616666666667,59.62763082945131,10,GibbsCluster (default),mean_cluster_size,peptides
+2664.777777777778,982.737037037037,100.06959082330945,9,GibbsCluster (default),mean_cluster_size,peptides
+4042.3,1680.9916666666668,157.80449521930532,10,GibbsCluster (default),mean_cluster_size,peptides
+6396.090909090909,2122.3939393939395,264.97034141514825,11,GibbsCluster (default),mean_cluster_size,peptides
+1155.375,114.73093009931245,18.89367677917641,8,GibbsCluster (forced k),mean_cluster_size,peptides
+1833.2,223.53365914786968,40.913770623991276,10,GibbsCluster (forced k),mean_cluster_size,peptides
+2664.777777777778,258.71313331729993,40.00292080577101,9,GibbsCluster (forced k),mean_cluster_size,peptides
+4042.3,353.1894154503907,59.21675700816508,10,GibbsCluster (forced k),mean_cluster_size,peptides
+6396.090909090909,569.289764528401,68.6497241633764,11,GibbsCluster (forced k),mean_cluster_size,peptides
