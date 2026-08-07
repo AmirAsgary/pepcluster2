@@ -10,7 +10,13 @@ x,y,err,n,tool,response,predictor
 8.333333333333334,0.5313988263775562,0.047352935960564856,6,PepCluster2 + motif (given k),adjusted_purity_macro,allele_count
 10.285714285714286,0.5456570479563513,0.026834832907079418,7,PepCluster2 + motif (given k),adjusted_purity_macro,allele_count
 14.727272727272727,0.39306136422648896,0.029056988094980196,11,PepCluster2 + motif (given k),adjusted_purity_macro,allele_count
-18.7,0.3044976152655471,0.043822577676741414,10,PepCluster2 + motif (given k),adjusted_purity_macro,allele_count
+18.7,0.30449761526554703,0.043822577676741414,10,PepCluster2 + motif (given k),adjusted_purity_macro,allele_count
+4.777777777777778,0.7520448857516668,0.029288453230920584,9,PepCluster2 + EM only,adjusted_purity_macro,allele_count
+6.4,0.7676224979555519,0.025477695034109505,5,PepCluster2 + EM only,adjusted_purity_macro,allele_count
+8.333333333333334,0.5278933821078946,0.05643223633973433,6,PepCluster2 + EM only,adjusted_purity_macro,allele_count
+10.285714285714286,0.5982960019021178,0.03636940400848291,7,PepCluster2 + EM only,adjusted_purity_macro,allele_count
+14.727272727272727,0.37693365629323244,0.03963680041237105,11,PepCluster2 + EM only,adjusted_purity_macro,allele_count
+18.7,0.2742271306445932,0.044398933706954184,10,PepCluster2 + EM only,adjusted_purity_macro,allele_count
 4.777777777777778,0.6630586746672994,0.021025527175525038,9,PepCluster2 (similarity),adjusted_purity_macro,allele_count
 6.4,0.6344684980930355,0.014467054547629773,5,PepCluster2 (similarity),adjusted_purity_macro,allele_count
 8.333333333333334,0.5377218641846406,0.01221475240860887,6,PepCluster2 (similarity),adjusted_purity_macro,allele_count

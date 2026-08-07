@@ -39,6 +39,8 @@ STYLE = {
     "PepCluster2 + motif":     dict(color="#000000", ls="-",  marker="o", lw=2.0, zorder=6),
     "PepCluster2 + motif (given k)": dict(color="#000000", ls=(0, (4, 1.5)),
                                           marker="D", lw=1.6, alpha=0.85, zorder=5),
+    "PepCluster2 + EM only":   dict(color="#555555", ls="-.", marker="v", lw=1.6,
+                                    zorder=4),
     "PepCluster2 (similarity)": dict(color="#000000", ls=":",  marker="s", lw=1.4, zorder=4),
     "MixMHCp (default)":       dict(color="#d62728", ls="-",  marker="o", lw=1.6, zorder=3),
     "MixMHCp (forced k)":      dict(color="#d62728", ls=(0, (5, 2)), marker="^", lw=1.6, alpha=0.85, zorder=3),
@@ -51,8 +53,12 @@ SPLIT_LABEL = {"inner": "tuning folds", "outer": "held-out alleles",
                "test": "independent test"}
 
 
+VARIANT_LABEL = {"em_only": "PepCluster2 + EM only",
+                 "forced_k": "PepCluster2 + motif (given k)"}
+
+
 def build_table(bench: Path, study: Path, grid: Path, selected: Path,
-                forced: Path | None = None) -> pd.DataFrame:
+                variants=()) -> pd.DataFrame:
     """Every tool on every pool, with the pool's own properties attached."""
     per_pool = pd.read_csv(bench / "results/immuneapp/tables/per_pool.csv")
     per_pool = per_pool[per_pool.tool != "PepCluster2 alignment"].copy()
@@ -74,11 +80,15 @@ def build_table(bench: Path, study: Path, grid: Path, selected: Path,
     keep = ["tool", "split", "pool", "allele_count"] + [m for m, _ in METRICS] + \
            ["singleton_fraction_of_clusters", "clusters"]
     parts = [per_pool[keep], ours[keep]]
-    if forced is not None and forced.exists():
-        fk = pd.read_csv(forced)
-        fk = fk[fk.status == "ok"].copy()
-        fk["tool"] = "PepCluster2 + motif (given k)"
-        parts.append(fk[keep])
+    for path in variants:
+        path = Path(path)
+        if not path.exists():
+            continue
+        name = path.stem.replace("variant_", "")
+        extra = pd.read_csv(path)
+        extra = extra[extra.status == "ok"].copy()
+        extra["tool"] = VARIANT_LABEL.get(name, f"PepCluster2 ({name})")
+        parts.append(extra[keep])
     frame = pd.concat(parts, ignore_index=True)
 
     manifest = pd.read_csv(study / "runs/mhc_bench_sep_kmer_anchor/pool_manifest.csv")
@@ -179,8 +189,8 @@ def main() -> None:
     parser.add_argument("--study", type=Path, required=True)
     parser.add_argument("--grid", type=Path, required=True)
     parser.add_argument("--selected", type=Path, required=True)
-    parser.add_argument("--forced", type=Path, default=None,
-                        help="forced_k_runs.csv, added as a separate arm")
+    parser.add_argument("--variant", type=Path, nargs="*", default=(),
+                        help="variant_<name>.csv files, each added as an arm")
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
@@ -192,7 +202,7 @@ def main() -> None:
                          "axes.spines.right": False, "figure.dpi": 150})
 
     frame = build_table(args.bench, args.study, args.grid, args.selected,
-                        args.forced)
+                        args.variant)
     frame.to_csv(args.out / "per_pool_all_tools.csv", index=False)
     print(f"per-pool table: {len(frame)} rows, {frame.tool.nunique()} tools, "
           f"{frame.pool.nunique()} pools")

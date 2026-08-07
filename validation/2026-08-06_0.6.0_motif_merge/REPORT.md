@@ -77,6 +77,25 @@ prototype code has now been deleted. The rationale is retained in `ALGORITHM.md`
 Section 15.4 so the same design is not attempted again; the evidence is in
 `results/full.csv`.
 
+## Three variants
+
+All share the base clustering, the frame and the EM stage; they differ only in
+how EM is seeded. Test split, 48 independent pools:
+
+| Variant | Flags | AMI | Purity | Precision | Recall | F1 | Motifs |
+|---|---|---:|---:|---:|---:|---:|---:|
+| Merge and refine | `--merge-motifs` | 0.5964 | 0.4617 | 0.5115 | 0.7163 | 0.5680 | 7.4 |
+| Refine only | `+ --no-motif-merge` | 0.6056 | 0.5177 | 0.5618 | 0.6519 | 0.5785 | 10.0 |
+| Given count | `+ --motif-count K` | 0.6201 | 0.5106 | 0.5564 | 0.6897 | 0.5998 | exactly K |
+
+Merge-and-refine and refine-only are statistically indistinguishable on AMI and
+F1 (p = 0.21 and 0.22 paired); they differ in granularity, refine-only trading
+recall for precision. Both are supported and neither is declared correct.
+
+Reproducibility was verified for all three: output is bit-identical across 1, 4
+and 16 threads and across repeated runs, and a requested count is returned
+exactly for every K tried from 2 to 40.
+
 ## Headline, nested cross-validated
 
 Configuration selected on the inner folds only, evaluated once on the 48

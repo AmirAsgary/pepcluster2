@@ -120,36 +120,71 @@ different object — a product of per-position residue preferences, narrow at th
 anchors and near-flat elsewhere. A ball cannot cover such a region, and lowering
 the threshold widens it along every axis rather than only the tolerant ones, so
 one motif fragments into many clusters. On the peptide-MHC benchmark the
-similarity clustering reaches BCubed recall 0.06 at ~175 clusters per pool: the
+similarity clustering reaches BCubed recall 0.062 at ~175 clusters per pool: the
 clusters are enriched for their allele but far too small.
 
-The motif stage summarises each cluster as amino-acid counts on a nine-column
-frame, then merges greedily while a Dirichlet-multinomial marginal likelihood
-prefers one shared profile to two separate ones:
+The stage summarises each cluster as amino-acid counts on a nine-column frame,
+optionally merges pairs that a Dirichlet-multinomial marginal likelihood says
+came from one profile,
 
 ```text
 log BF = log L(counts_A + counts_B) - log L(counts_A) - log L(counts_B)
 ```
 
-EM refinement of a mixture of position weight matrices follows, seeded from the
-merged partition rather than at random. On the same benchmark this reaches recall
-0.72 at ~7 motifs, AMI 0.596 and BCubed F1 0.568, ahead of MixMHCp given the true
-allele count (0.491 / 0.473). Seeding from the merge rather than at random is
-worth about +0.017 AMI - it buys determinism and an automatic component count
-rather than accuracy.
+then fits a mixture of position weight matrices by EM, seeded deterministically
+rather than at random.
+
+### Three variants
+
+```bash
+# 1. merge and refine (default): the motif count is chosen by the data
+pepcluster2 -i peptides.fasta -o out --merge-motifs
+
+# 2. refine only: skip the merge, finer partition, count still chosen by the data
+pepcluster2 -i peptides.fasta -o out --merge-motifs --no-motif-merge
+
+# 3. given count: return exactly K motifs
+pepcluster2 -i peptides.fasta -o out --merge-motifs --motif-count 12
+```
+
+On 48 independent test pools:
+
+| Variant | AMI | Purity | Precision | Recall | F1 | Motifs |
+|---|---:|---:|---:|---:|---:|---:|
+| Merge and refine | 0.596 | 0.462 | 0.512 | 0.716 | 0.568 | 7.4 |
+| Refine only | 0.606 | 0.518 | 0.562 | 0.652 | 0.579 | 10.0 |
+| Given count | 0.620 | 0.511 | 0.556 | 0.690 | 0.600 | exactly K |
+| *similarity clustering alone* | *0.333* | *0.497* | *0.547* | *0.062* | *0.110* | *174.9* |
+| MixMHCp, as documented | 0.392 | 0.222 | 0.299 | 0.828 | 0.392 | 4.1 |
+| MixMHCp, given the true count | 0.492 | 0.418 | 0.471 | 0.484 | 0.473 | 12.4 |
+| GibbsCluster, as documented | 0.180 | 0.100 | 0.195 | 0.605 | 0.266 | 2.9 |
+| GibbsCluster, given the true count | 0.252 | 0.186 | 0.271 | 0.258 | 0.263 | 12.4 |
+
+Variants 1 and 2 are statistically indistinguishable on AMI and F1 (p = 0.21 and
+0.22 paired); they differ in granularity, variant 2 trading recall for precision.
+Neither is declared correct.
+
+Variant 3 is not an oracle in normal use: a sample's alleles are usually known
+from typing. It helps mainly above ~12 alleles, where the automatic count
+saturates, and costs nothing below.
+
+### Cost
+
+Serial runs on an exclusive node, nine pools from 995 to 11,656 peptides. Median
+CPU seconds per pool:
+
+| | CPU s | Relative |
+|---|---:|---:|
+| similarity clustering alone | 0.88 | 0.57× |
+| merge and refine | 1.55 | 1.00× |
+| given count | 0.85 | 0.55× |
+| MixMHCp | 7.87 | 5.06× |
+| GibbsCluster | 459.52 | 296× |
 
 The frame is nine columns. For `L >= 9` it takes peptide positions 1–4 and
 `L-4..L`, so a 9-mer maps identically and the centre of a longer peptide is
 dropped — it bulges out of the binding groove and carries little allele-specific
 signal. An 8-mer fills columns 1–4 and 6–9 and leaves column 5 unobserved.
-
-```bash
-target/release/pepcluster2 \
-    --input peptides.fasta \
-    --output-dir results/motifs \
-    --merge-motifs \
-    --threads 0
-```
 
 Writes `motif_clusters.tsv` and `motif_profiles.tsv` alongside the usual output.
 
@@ -159,17 +194,16 @@ Three things to know before relying on it:
   invariant.** Two peptides in one motif need not pass the scoring rule against
   any common representative. That is the point of the stage, and it is why the
   motif layer is written to its own files and never replaces `clusters.tsv`.
-- **EM does nearly all of the work.** The merge is worth about +0.02 AMI once EM
-  runs; `--motif-em-prior-concentration` moves AMI by 0.34 across its range and is
-  the parameter to tune first on new data. The defaults were selected by nested
-  cross-validation on one dataset.
-- **Merging can only coarsen.** Contamination already inside a similarity cluster
-  survives it; only EM can move a peptide out.
+- **Refinement carries the method, not merging.** Merging alone reaches AMI
+  0.430; adding EM reaches 0.596. `--motif-em-prior-concentration` moves AMI by
+  0.34 across its range and is the parameter to tune first on new data.
+- **A single Dirichlet prior, not a mixture.** The criterion treats the twenty
+  amino acids as unordered categories, so it is blind to chemical similarity
+  between residues.
 
-Cost scales with the number of clusters, not the number of peptides: the
-peptides are read once to build the profiles, after which the merge is `O(K^2)`
-marginal-likelihood evaluations. On an 11,656-peptide pool with 303 clusters the
-whole stage is a fraction of the clustering time it follows.
+Cost scales with the number of clusters, not the number of peptides: the peptides
+are read once to build the profiles, after which the merge is `O(K^2)`
+marginal-likelihood evaluations.
 
 ## Install
 
@@ -246,9 +280,10 @@ target/release/pepcluster2 \
 --merge-cap INT
 --no-merge
 --merge-motifs
+--no-motif-merge
+--motif-count INT
 --motif-prior-concentration FLOAT
 --motif-merge-threshold FLOAT
---no-motif-em
 --motif-em-prior-concentration FLOAT
 --motif-em-max-iterations INT
 --motif-em-tolerance FLOAT

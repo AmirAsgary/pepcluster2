@@ -5,7 +5,7 @@ use crate::scoring::{ScoringMode, SimdMode};
 use std::env;
 use std::path::PathBuf;
 
-pub const VERSION: &str = "0.6.0";
+pub const VERSION: &str = "0.7.0";
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PrefilterChoice {
@@ -95,7 +95,7 @@ pub struct Config {
 }
 
 fn help() -> &'static str {
-    "pepcluster2 0.6.0
+    "pepcluster2 0.7.0
 Experimental shift-aware clustering for MHC-I peptides.
 
 USAGE:
@@ -180,6 +180,12 @@ MOTIF LAYER (optional, off by default):
                                 over the background residue frequencies. Larger
                                 values smooth harder and merge more readily
                                 [default: 10]
+      --no-motif-merge          Skip the agglomerative merge and give EM one
+                                component per similarity cluster, letting it find
+                                its own count. Agreement is statistically
+                                indistinguishable from merging first, but the
+                                partition is finer: higher precision, lower
+                                recall. A supported variant, not a diagnostic
       --motif-count INT         Seed EM with this many components and skip the
                                 merge. Seeds are the similarity clusters that are
                                 FARTHEST APART in profile space, not the largest:
@@ -199,9 +205,11 @@ MOTIF LAYER (optional, off by default):
                                 this. Equivalent to a prior over partitions
                                 proportional to exp(-t * clusters), so larger
                                 values keep more motifs [default: 25]
-      --no-motif-em             Skip EM refinement and keep the merged partition.
-                                Merging can only combine clusters; only EM can
-                                move a peptide out of the wrong one
+      --no-motif-em             DIAGNOSTIC ONLY. Skip EM and keep the merged
+                                partition. Not a supported variant: merging alone
+                                reaches AMI 0.43 against 0.60 with EM. Retained so
+                                the published hyperparameter grid stays
+                                reproducible
       --motif-em-prior-concentration FLOAT
                                 Dirichlet pseudocounts smoothing the EM profiles.
                                 This is the parameter that matters most: over the
@@ -311,6 +319,7 @@ pub fn parse() -> Result<Option<Config>, String> {
     let mut motif_prior_concentration = 10.0f64;
     let mut motif_merge_threshold = 25.0f64;
     let mut motif_em = true;
+    let mut motif_merge = true;
     let mut motif_em_prior_concentration = 3.0f64;
     let mut motif_em_max_iterations = 200usize;
     let mut motif_em_tolerance = 1e-6f64;
@@ -467,6 +476,7 @@ pub fn parse() -> Result<Option<Config>, String> {
             }
             "--merge-motifs" => merge_motifs = true,
             "--no-motif-em" => motif_em = false,
+            "--no-motif-merge" => motif_merge = false,
             "--motif-prior-concentration" => {
                 motif_prior_concentration = parse_number(
                     next_value(&args, &mut i, "--motif-prior-concentration")?,
@@ -613,6 +623,15 @@ pub fn parse() -> Result<Option<Config>, String> {
     if motif_count == Some(0) {
         return Err("--motif-count must be at least 1".into());
     }
+    if motif_count.is_some() && !motif_merge {
+        return Err(
+            "--motif-count already bypasses the merge; --no-motif-merge is redundant"
+                .into(),
+        );
+    }
+    if !motif_merge && !motif_em {
+        return Err("--no-motif-merge with --no-motif-em would do nothing".into());
+    }
     if motif_count.is_some() && !motif_em {
         // The requested count seeds components from the largest clusters only;
         // without EM nothing would place the remaining peptides.
@@ -630,6 +649,7 @@ pub fn parse() -> Result<Option<Config>, String> {
             "--motif-em-tolerance",
             "--motif-count",
             "--no-motif-em",
+            "--no-motif-merge",
         ] {
             if args.iter().any(|a| a == flag) {
                 return Err(format!("{flag} requires --merge-motifs"));
@@ -708,6 +728,7 @@ pub fn parse() -> Result<Option<Config>, String> {
         write_scored_pairs,
         merge_motifs,
         motif: MotifParams {
+            merge: motif_merge,
             target_count: motif_count,
             prior_concentration: motif_prior_concentration,
             merge_threshold: motif_merge_threshold,

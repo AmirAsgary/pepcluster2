@@ -659,14 +659,18 @@ above.
 
 ### 15.1 Why a second partition is needed
 
-A cluster of Section 13 is a ball of a fixed radius around a representative. A
+A cluster of Section 13 is a ball of fixed radius around a representative. A
 binding motif is a product of per-position residue preferences: narrow at the
 anchor positions, close to flat elsewhere. The region of sequence space it
 occupies is therefore strongly anisotropic, and a ball in an additive similarity
 cannot cover it. Lowering the acceptance threshold widens the ball along every
-axis simultaneously, crossing anchor boundaries before it spans the tolerant
-positions, so no single threshold recovers a motif. One motif fragments into many
-clusters as a matter of geometry, not of calibration.
+axis at once, crossing anchor boundaries before it spans the tolerant positions,
+so no single threshold recovers a motif. One motif fragments into many clusters
+as a matter of geometry, not of calibration.
+
+Measured against allele labels, the similarity clustering reaches BCubed recall
+0.062 at about 175 clusters per pool: the clusters are enriched for their allele
+but far too small.
 
 ### 15.2 Frame
 
@@ -685,16 +689,15 @@ weakly, and carry correspondingly little allele-specific information. An 8-mer
 leaves the central column unobserved rather than shifting its C-terminal residues
 inward, which would place the dominant C-terminal anchor in the wrong column. A
 column with no residue contributes to no likelihood, so a peptide informs the
-columns it does occupy and no others.
+columns it occupies and no others.
 
 ### 15.3 Profiles and marginal likelihood
 
 Each cluster is summarised by a nine-by-twenty matrix of frequency-weighted
-residue counts. Place an independent Dirichlet prior `Dir(alpha)` on each
-column's amino-acid distribution, with
+residue counts. Place an independent Dirichlet prior on each column, with
 
 ```text
-alpha_a = --motif-prior-concentration * 20 * background_a
+alpha_a = concentration * 20 * background_a
 ```
 
 where `background` is the frequency-weighted residue composition of the dataset.
@@ -714,10 +717,12 @@ no multinomial coefficient: the data are the labelled observations, not the
 unordered counts. A coefficient would not cancel in Section 15.4 and would
 silently change the criterion.
 
-Positions are assumed independent given the motif. This is the standard position
-weight matrix assumption, and it is what makes the stage recover motifs rather
-than homologues; its cost is that two clusters with matching per-position
-marginals merge even when their joint residue distributions are disjoint.
+This is a single Dirichlet, not a Dirichlet mixture. The criterion is therefore
+blind to amino-acid similarity: it treats the twenty residues as unordered
+categories, so an all-D column and an all-E column are as different as all-D and
+all-W. Positions are also assumed independent given the motif. Both are standard
+position weight matrix assumptions, and they are what makes the stage recover
+motifs rather than homologues.
 
 ### 15.4 Merging
 
@@ -729,62 +734,94 @@ log BF(A,B) = log L(n_A + n_B) - log L(n_A) - log L(n_B).
 
 Merge greedily, always taking the pair of greatest `log BF`, while that value
 exceeds `--motif-merge-threshold`. Counts add exactly, so a merged profile is the
-elementwise sum and no re-reading of peptides is required.
+elementwise sum and no re-reading of peptides is required. Ties in the argmax
+resolve to the smallest cluster index.
 
 The threshold is a prior over partitions, not a similarity. Requiring
-`log BF > t` is equivalent to weighting a partition of `k` clusters by
-`exp(-t * k)`, a flat per-cluster penalty. Because the same constant applies to
-every candidate pair, it moves where agglomeration stops without changing the
-order in which pairs merge.
+`log BF > t` weights a partition of `k` clusters by `exp(-t * k)`, a flat
+per-cluster penalty. Because the same constant applies to every candidate pair,
+it moves where agglomeration stops without changing the order in which pairs
+merge.
 
-A size-scaled partition prior of Chinese-restaurant form was evaluated and
-rejected. Its per-merge term grows like `n log 2` for two clusters of size `n`,
-while the evidence against merging grows like `n` times the per-peptide
-divergence between the two motifs; measured over nine columns that divergence is
-frequently below `log 2` for alleles of one supertype, so the prior outvoted the
-data and the agglomeration collapsed. The flat penalty above does not have this
-failure because it does not scale with cluster size.
-
-Ties in the argmax resolve to the smallest cluster index, so the merge sequence
-is reproducible.
+A size-scaled partition prior of Chinese-restaurant form was implemented,
+measured and rejected. Its per-merge term grows like `n log 2` for two clusters
+of size `n`, while the evidence against merging grows like `n` times the
+per-peptide divergence between the two motifs; measured over nine columns that
+divergence is frequently below `log 2` for alleles of one supertype, so the prior
+outvoted the data and the agglomeration collapsed. The flat penalty does not have
+this failure because it does not scale with cluster size.
 
 ### 15.5 Refinement
 
-Unless `--no-motif-em` is given, a mixture of position weight matrices is fitted
-by expectation-maximization, seeded from the merged partition and the
-corresponding mixing weights. Peptides are assigned by maximum responsibility.
+A mixture of position weight matrices is fitted by expectation-maximization,
+seeded deterministically rather than at random, and peptides are assigned by
+maximum responsibility. Components that lose all their weight disappear, so EM
+performs its own model selection.
 
-Merging can only coarsen a partition: it cannot move a peptide out of a cluster
-it should not have joined, so contamination present in the input clusters
-propagates through Section 15.4 unchanged. Refinement is the only stage that
-repairs such errors, and it is therefore the only stage that can exceed the
-accuracy obtainable by merging alone.
+Refinement, not merging, is what makes this section work. Merging can only
+coarsen a partition: it cannot move a peptide out of a cluster it should not have
+joined, so contamination present in the input clusters propagates through
+Section 15.4 unchanged. On the benchmark, merging alone reaches AMI 0.430 and
+adding EM reaches 0.596.
 
-Seeding from Section 15.4 rather than at random makes the result deterministic
-and removes the restart-and-select procedure a randomly initialised mixture
-requires. It is not, on the measurements available, the source of the method's
-accuracy: a randomly initialised fit of the same model at the same component
-count reaches materially similar agreement with allele labels. The seed buys
-reproducibility and the automatic choice of component count, not accuracy.
+Seeding from Section 15.4 rather than at random makes the result deterministic,
+removes the restart-and-select procedure a randomly initialised mixture requires,
+and chooses the component count without being told it. It is not the source of
+the method's accuracy: a randomly initialised fit of the same model at the same
+component count reaches materially similar agreement, +0.017 AMI apart. What the
+seed buys is reproducibility, about 7.5x less refinement compute, and freedom
+from a parameter the alternatives require.
 
-### 15.6 Reporting and status
+### 15.6 Three variants
 
-The motif partition **does not** satisfy the invariant of Section 13.4. Two
+The stage supports exactly three configurations. All share Sections 15.2, 15.3
+and 15.5; they differ only in how EM is seeded.
+
+| Variant | Flags | Seeding | Motif count |
+|---|---|---|---|
+| Merge and refine | `--merge-motifs` | one component per merged group of Section 15.4 | chosen by the data |
+| Refine only | `--merge-motifs --no-motif-merge` | one component per similarity cluster | chosen by the data |
+| Given count | `--merge-motifs --motif-count K` | one component per each of the K clusters farthest apart in profile space | exactly K |
+
+**Merge and refine** is the default. **Refine only** skips Section 15.4
+entirely. The two are statistically indistinguishable on AMI and BCubed F1
+(paired over 48 independent pools, p = 0.21 and 0.22), but they differ in
+granularity: refine-only returns a finer partition with higher precision and
+lower recall. Neither is declared correct; the choice is the user's.
+
+**Given count** returns exactly K motifs. Seeds are chosen by farthest-first
+traversal in profile space over clusters above the median size, not by cluster
+size: the largest clusters are drawn from far fewer distinct motifs than their
+number suggests, so seeding on size supplies EM with duplicates that it correctly
+merges. Because EM still merges components the data does not separate, any
+component it empties reclaims the peptide with the highest likelihood under it,
+drawn from a component that can spare one. Where K exceeds the number of
+separable motifs this will return motifs resembling one another; that is the
+price of a strict count and it is the caller's to pay.
+
+`--no-motif-em` is retained as a diagnostic so the published hyperparameter grid
+remains reproducible. It is not a supported variant: merging without refinement
+reaches AMI 0.430 against 0.596.
+
+### 15.7 Determinism
+
+Every quantity is `f64`, accumulated in a fixed order. The agglomeration argmax
+breaks ties by cluster index, seed selection breaks ties by size then index, the
+reclaim step breaks ties by node index, EM is seeded deterministically, and
+parallel accumulation uses fixed chunk boundaries combined in index order. Output
+is bit-identical across thread counts for all three variants.
+
+### 15.8 Reporting and status
+
+The motif partition does **not** satisfy the invariant of Section 13.4. Two
 peptides sharing a motif need not pass the mode's rule against any common
 representative. It is therefore written to `motif_clusters.tsv` and
 `motif_profiles.tsv` and never merged into the similarity outputs.
 
-The compiled defaults were selected by nested cross-validation: the
-configuration with the best mean AMI over the inner folds, evaluated once on the
-independent test pools. Selecting on BCubed F1 instead chooses the same
-configuration. It remains a single dataset and a single label universe.
-
-Refinement, not merging, is what makes this section work. Measured on the
-benchmark, the merge of Section 15.4 is worth about +0.02 AMI once Section 15.5
-runs, while the EM prior concentration moves AMI by 0.34 across its swept range;
-EM also selects its own component count by emptying components. Section 15.4
-justifies itself by determinism, by reducing the number of components to fit, and
-by producing an interpretable intermediate - not by accuracy.
+The compiled defaults were selected by nested cross-validation: the configuration
+with the best mean AMI over the inner folds, evaluated once on the independent
+test pools. Selecting on BCubed F1 instead chooses the same configuration. It
+remains a single dataset and a single label universe.
 
 There is no background or outlier component, so contaminant peptides are forced
 into a real motif.

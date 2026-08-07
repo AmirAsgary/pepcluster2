@@ -277,6 +277,7 @@ fn write_config(
             .map(|x| x.to_string())
             .unwrap_or_else(|| "automatic".into())
     )?;
+    writeln!(w, "motif_merge={}", config.motif.merge)?;
     writeln!(w, "motif_em={}", config.motif.em)?;
     writeln!(
         w,

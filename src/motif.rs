@@ -203,6 +203,11 @@ pub struct MotifParams {
     /// EM may still empty a component afterwards, so the final motif count can be
     /// lower.
     pub target_count: Option<usize>,
+    /// Run the agglomerative merge. With it disabled, EM is seeded with one
+    /// component per similarity cluster and finds its own count by emptying the
+    /// ones the data does not support. Ignored when `target_count` is set, which
+    /// bypasses the merge regardless.
+    pub merge: bool,
     /// Merge while the best available log Bayes factor exceeds this. Zero means
     /// "merge whenever the evidence favours one profile over two". A positive
     /// value is a flat per-cluster penalty: requiring `log BF > t` is the same
@@ -799,6 +804,16 @@ pub fn build_motifs(
                 .map(|&c| rank_of[c as usize])
                 .collect();
             (counts, mixing, want, provisional)
+        }
+        None if !params.merge => {
+            // EM alone: one component per similarity cluster, and EM decides how
+            // many survive. Agreement is statistically indistinguishable from
+            // merging first, but the partition is finer and trades recall for
+            // precision, so both are supported rather than one being declared
+            // correct.
+            let assignment: Vec<u32> = clustering.cluster_of.clone();
+            let mixing: Vec<f64> = sizes.iter().map(|&s| s as f64).collect();
+            (profiles.clone(), mixing, cluster_count, assignment)
         }
         None => {
             let (group_of_cluster, merged) =

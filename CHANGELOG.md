@@ -1,5 +1,60 @@
 # Changelog
 
+## 0.7.0
+
+The motif layer settles into three supported variants, and the benchmark is
+completed with GibbsCluster and a cost comparison.
+
+### Added
+
+- `--no-motif-merge`: skip the agglomerative merge and give EM one component per
+  similarity cluster. Statistically indistinguishable from merging first on AMI
+  and BCubed F1 (p = 0.21 and 0.22 paired over 48 independent pools), but finer -
+  precision 0.562 against 0.512, recall 0.652 against 0.716. Neither is declared
+  correct; the choice is the user's.
+
+- `--motif-count K`: return **exactly** K motifs. Seeds are the K similarity
+  clusters farthest apart in profile space, and any component EM empties reclaims
+  the peptide that fits it best. Helps above ~12 alleles, where the automatic
+  count saturates, and costs nothing below: AMI 0.596 -> 0.620, F1 0.568 ->
+  0.600, and +0.043 AMI / +0.057 F1 above twelve alleles.
+
+### Benchmark
+
+GibbsCluster is now included; its parser had never been executed and carried
+three independently fatal defects, all fixed. `compare_tools.py` reports BCubed
+recall and F1 alongside purity: adjusted purity is maximised by total
+fragmentation and cannot compare partitions of different granularity on its own.
+
+Test split, AMI / BCubed F1: merge and refine 0.596 / 0.568, refine only 0.606 /
+0.579, given count 0.620 / 0.600, against MixMHCp 0.392 / 0.392 as documented and
+0.492 / 0.473 given the true count, and GibbsCluster 0.180 / 0.266 and 0.252 /
+0.263.
+
+Cost, serial on an exclusive node: the pipeline is 5x cheaper than MixMHCp and
+296x cheaper than GibbsCluster.
+
+### Changed
+
+- Defaults are now calibrated by nested cross-validation rather than provisional.
+
+### Notes
+
+- `--no-motif-em` is retained but marked diagnostic. Merging without refinement
+  reaches AMI 0.430 against 0.596 and is not a supported variant; the flag exists
+  so the published hyperparameter grid stays reproducible.
+
+- Refinement, not merging, carries the method. The merge is worth about +0.02 AMI
+  on the tuning folds and nothing on the independent test set; what it does
+  significantly is trade precision for recall by returning a coarser partition.
+
+- The deterministic seed is worth +0.017 AMI over ten random restarts and about
+  7.5x less refinement compute, and needs no component count. It is not the
+  source of the method's accuracy.
+
+Full methodology in `ALGORITHM.md` Section 15; measurements, figures and
+per-panel CSVs in `validation/2026-08-06_0.6.0_motif_merge/`.
+
 ## 0.6.0
 
 Adds an optional motif layer above the similarity clustering. It is **off by
