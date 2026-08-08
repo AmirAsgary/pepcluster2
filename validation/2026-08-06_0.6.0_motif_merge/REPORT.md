@@ -586,6 +586,37 @@ implementation also terminates a similarity computation as soon as the remaining
 positions cannot reach the threshold. That idea transfers without touching the
 method, and is where most of the 2x came from.
 
+### The cache is bounded
+
+Memory, not time, became the binding constraint once the optimisations landed.
+Measured at one million peptides on 64 threads, lazy-exact peaked at 20.5 GB of
+resident memory at threshold 0.40 and 79.5 GB at 0.25, against a flat 0.59 GB for
+kmer-degree, which keeps no cache. Low thresholds accept far more pairs, so the
+retained lists grow with exactly the setting a large run is most likely to use.
+
+`--max-memory-gb` now caps the cache as well as the graph memory estimate. Past
+the cap a list is not retained and the next pop recomputes it, so a small budget
+costs time and never accuracy. `run_stats.json` reports `greedy_cache_hits`,
+`greedy_cache_evictions` and `greedy_cache_peak_pairs` so the budget can be sized
+from a pilot run rather than guessed.
+
+Two bugs surfaced while testing this, both found by running the cap at an absurdly
+small budget rather than a plausible one:
+
+- With nothing retained, a wide batch re-evaluated dozens of nodes on every pop,
+  so the implementation got *slower* the tighter memory was. The batch now
+  narrows to one node when the budget is exhausted, degrading to the original
+  serial behaviour.
+- More seriously, the batch path pushed the popped node back and relied on a
+  later cache hit to reach the commit branch. With the cache full that hit never
+  came, the node was re-evaluated and pushed back forever, and the loop made no
+  progress. The popped node is now resolved inline. This would have hit a large
+  run the moment memory filled, and no benchmark-scale test would have found it.
+
+Verified: identical to 0.7.0 on 40 pools at 32 threads (7.48x); identical between
+a 64 GB and a 1 MB budget on 10 pools; identical between 1, 4 and 32 threads; and
+terminating at every budget down to effectively zero.
+
 ### Is there prefiltering headroom left?
 
 No, not meaningfully. Instrumenting the acceptance test on the largest test pool:

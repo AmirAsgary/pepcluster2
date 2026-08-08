@@ -233,7 +233,13 @@ PERFORMANCE AND STORAGE:
       --tmp-dir PATH            Temporary directory [default: OUTPUT_DIR/tmp]
       --kmer-table PATH         Cached binary 2-mer table [default: TMP_DIR/kmer2_similarity_q.bin]
       --candidate-buffer-mb INT Candidate spill buffer [default: 256]
-      --max-memory-gb FLOAT     Maximum estimated graph memory [default: 8]
+      --max-memory-gb FLOAT     Memory ceiling. Caps the estimated graph memory,
+                                and with --greedy-selection lazy-exact also caps
+                                the cache of scored candidate lists. Past the cap
+                                a list is not retained and the next pop recomputes
+                                it, so a small value costs time, never accuracy.
+                                Peak cache use is reported in run_stats.json
+                                [default: 8]
       --keep-tmp                Keep temporary graph files
       --write-edges             Write graph edges.tsv
       --compact-output          Write compact node assignments

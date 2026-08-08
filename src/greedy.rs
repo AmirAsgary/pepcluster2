@@ -17,6 +17,14 @@ pub struct GreedyRunStats {
     pub eligible_pairs: u64,
     pub representative_pair_scores: u64,
     pub merge_pair_scores: u64,
+    /// Reinserted nodes that reused a cached candidate list instead of
+    /// re-retrieving and rescoring it.
+    pub cache_hits: u64,
+    /// Lists not retained because the cache budget was full. Costs time on a
+    /// later pop, never correctness.
+    pub cache_evictions: u64,
+    /// High-water mark of cached pairs, for sizing --max-memory-gb.
+    pub cache_peak_pairs: u64,
 }
 
 /// Index retrieval followed by the sound anchor upper bound. Both greedy
@@ -204,6 +212,7 @@ pub fn initial_clustering_lazy_exact(
     table: &KmerSimilarityTable,
     scorer: &Scorer,
     seed: TerminalSeed,
+    cache_budget_bytes: u64,
 ) -> (Clustering, GreedyRunStats) {
     let mut stats = GreedyRunStats {
         candidate_queries: nodes.len() as u64,
@@ -252,16 +261,29 @@ pub fn initial_clustering_lazy_exact(
     // becomes a representative or is found already assigned, so the cache never
     // grows into the full edge graph that this path exists to avoid.
     let mut cache: Vec<Option<Vec<(u32, u16)>>> = vec![None; nodes.len()];
+    // The cache is bounded. Retained lists grow with how many nodes are waiting
+    // in the heap after reinsertion and with how many candidates each accepts,
+    // and a low acceptance threshold inflates both: measured at one million
+    // peptides, peak resident memory was 20.5 GB at threshold 0.40 and 79.5 GB
+    // at 0.25. Past the budget a list is simply not retained and the next pop
+    // recomputes it, so the budget trades time for memory and never changes the
+    // result.
+    let budget_pairs = cache_budget_bytes / std::mem::size_of::<(u32, u16)>() as u64;
+    let mut cached_pairs: u64 = 0;
 
     while let Some(entry) = heap.pop() {
         let rep = entry.node as usize;
         if assigned[rep] {
-            cache[rep] = None;
+            if let Some(stale) = cache[rep].take() {
+                cached_pairs -= stale.len() as u64;
+            }
             continue;
         }
         // Cached path: reuse the earlier scoring, keeping only candidates that
         // are still unassigned.
         if let Some(previous) = cache[rep].take() {
+            cached_pairs -= previous.len() as u64;
+            stats.cache_hits += 1;
             let accepted: Vec<(u32, u16)> = previous
                 .into_iter()
                 .filter(|(candidate, _)| !assigned[*candidate as usize])
@@ -279,7 +301,13 @@ pub fn initial_clustering_lazy_exact(
                 heap.pop();
             }
             if heap.peek().is_some_and(|upper_bound| exact < *upper_bound) {
-                cache[rep] = Some(accepted);
+                if cached_pairs + accepted.len() as u64 <= budget_pairs {
+                    cached_pairs += accepted.len() as u64;
+                    stats.cache_peak_pairs = stats.cache_peak_pairs.max(cached_pairs);
+                    cache[rep] = Some(accepted);
+                } else {
+                    stats.cache_evictions += 1;
+                }
                 heap.push(exact);
                 continue;
             }
@@ -308,7 +336,17 @@ pub fn initial_clustering_lazy_exact(
         //
         // The main loop stays sequential; only the retrieval and scoring, which
         // is where the time goes, runs in parallel.
-        let batch_size = rayon::current_num_threads().max(1) * 4;
+        // Batch only as far as the cache can still hold the results. Batching
+        // pays for itself by amortising a node's evaluation across the later
+        // pops that reuse it; once the budget is exhausted nothing is retained,
+        // so a wide batch would re-evaluate dozens of nodes on every pop and get
+        // slower the tighter memory is. Falling back to one node per pop makes an
+        // exhausted cache degrade to the original serial behaviour instead.
+        let batch_size = if budget_pairs.saturating_sub(cached_pairs) == 0 {
+            1
+        } else {
+            rayon::current_num_threads().max(1) * 4
+        };
         let mut batch: Vec<LazyEntry> = vec![entry];
         let mut deferred: Vec<LazyEntry> = Vec::new();
         while batch.len() < batch_size {
@@ -316,7 +354,9 @@ pub fn initial_clustering_lazy_exact(
                 None => break,
                 Some(next) => {
                     if assigned[next.node as usize] {
-                        cache[next.node as usize] = None;
+                        if let Some(stale) = cache[next.node as usize].take() {
+                            cached_pairs -= stale.len() as u64;
+                        }
                         continue;
                     }
                     if cache[next.node as usize].is_some() {
@@ -372,19 +412,78 @@ pub fn initial_clustering_lazy_exact(
                 (exact, accepted, retrieved, rejected, scored)
             })
             .collect();
+        // The popped node is resolved here, not by pushing it back and waiting
+        // for a cache hit to take the commit branch. Relying on the cache
+        // deadlocks the moment the budget is exhausted: nothing is retained, so
+        // the node is re-evaluated and pushed back forever and the loop never
+        // makes progress. Every batch member other than the popped one goes back
+        // on the heap carrying its exact value, which is an admissible bound.
+        let mut own: Option<Vec<(u32, u16)>> = None;
         for (exact, accepted, retrieved, rejected, scored) in evaluated {
             stats.candidate_queries += 1;
             stats.index_candidate_occurrences += retrieved;
             stats.anchor_bound_rejected += rejected;
             stats.candidate_pairs_scored += scored;
             stats.eligible_pairs += accepted.len() as u64;
-            cache[exact.node as usize] = Some(accepted);
+            if exact.node as usize == rep {
+                own = Some(accepted);
+                heap.push(exact);
+                continue;
+            }
+            if cached_pairs + accepted.len() as u64 <= budget_pairs {
+                cached_pairs += accepted.len() as u64;
+                stats.cache_peak_pairs = stats.cache_peak_pairs.max(cached_pairs);
+                cache[exact.node as usize] = Some(accepted);
+            } else {
+                stats.cache_evictions += 1;
+            }
             heap.push(exact);
         }
         for entry in deferred {
             heap.push(entry);
         }
-        continue;
+        let Some(accepted) = own else { continue };
+        // Retake the entry just pushed for this node so the commit test below
+        // compares it against the rest of the heap, exactly as the serial code
+        // did before batching.
+        let exact = match heap.pop() {
+            Some(top) if top.node as usize == rep => top,
+            Some(other) => {
+                heap.push(other);
+                if cached_pairs + accepted.len() as u64 <= budget_pairs {
+                    cached_pairs += accepted.len() as u64;
+                    stats.cache_peak_pairs = stats.cache_peak_pairs.max(cached_pairs);
+                    cache[rep] = Some(accepted);
+                }
+                continue;
+            }
+            None => continue,
+        };
+        while heap
+            .peek()
+            .is_some_and(|candidate| assigned[candidate.node as usize])
+        {
+            heap.pop();
+        }
+        if heap.peek().is_some_and(|upper_bound| exact < *upper_bound) {
+            if cached_pairs + accepted.len() as u64 <= budget_pairs {
+                cached_pairs += accepted.len() as u64;
+                stats.cache_peak_pairs = stats.cache_peak_pairs.max(cached_pairs);
+                cache[rep] = Some(accepted);
+            } else {
+                stats.cache_evictions += 1;
+            }
+            heap.push(exact);
+            continue;
+        }
+        let cluster = representatives.len() as u32;
+        representatives.push(entry.node);
+        assigned[rep] = true;
+        cluster_of[rep] = cluster;
+        for (candidate, _) in accepted {
+            assigned[candidate as usize] = true;
+            cluster_of[candidate as usize] = cluster;
+        }
     }
     debug_assert!(assigned.iter().all(|value| *value));
     (

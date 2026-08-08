@@ -459,6 +459,7 @@ fn write_run_reports(
         "  \"index_candidate_hits\": {},\n  \"anchor_bound_rejected\": {},\n  \"alignment_evaluations\": {},\n",
         "  \"candidate_pairs_computed\": {},\n  \"fraction_all_pairs_computed\": {:.12},\n  \"graph_edge_count\": {},\n",
         "  \"greedy_eligible_pairs\": {},\n  \"representative_pair_scores\": {},\n  \"merge_pair_scores\": {},\n",
+        "  \"greedy_cache_hits\": {},\n  \"greedy_cache_evictions\": {},\n  \"greedy_cache_peak_pairs\": {},\n",
         "  \"final_clusters\": {},\n  \"singleton_clusters\": {},\n  \"iterations\": {},\n  \"converged\": {},\n  \"reassignment_moves\": {},\n  \"representative_changes\": {},\n  \"strict_merges\": {},\n  \"validation_failures\": {},\n",
         "  \"largest_cluster_peptides\": {},\n{}  \"elapsed_seconds\": {:.6},\n  \"stage_seconds\": {{\n{}\n  }}\n}}\n"),
         json_escape(VERSION), json_escape(config.mode.name()), json_escape(config.clustering_method.name()), json_escape(config.greedy_selection.name()),
@@ -467,6 +468,7 @@ fn write_run_reports(
         pre.map(|x| x.unique_candidate_pairs).unwrap_or(0), pre.map(|x| x.unique_valid_edges).unwrap_or(0), sensitive.map(|x| x.unique_candidate_pairs).unwrap_or(0),
         index_hits, bound_rejected, alignment_evaluations,
         computed, fraction, edges.final_edges, greedy_stats.eligible_pairs, greedy_stats.representative_pair_scores, greedy_stats.merge_pair_scores,
+        greedy_stats.cache_hits, greedy_stats.cache_evictions, greedy_stats.cache_peak_pairs,
         clustering.representatives.len(), singleton, iteration.iterations, iteration.converged, iteration.reassignment_moves, iteration.representative_changes, iteration.merges, iteration.validation_failures,
         peptide_sizes.iter().max().unwrap_or(&0), motif_json, elapsed, stage_json);
     fs::write(config.output_dir.join("run_stats.json"), json)?;
@@ -711,6 +713,7 @@ fn run(config: Config) -> Result<(), DynError> {
                     &table,
                     &scorer,
                     config.terminal_seed,
+                    (config.max_memory_gb * 1024.0_f64.powi(3)) as u64,
                 ),
             });
             greedy_stats = initial_stats;
