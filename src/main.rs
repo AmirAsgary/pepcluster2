@@ -10,6 +10,7 @@ mod motif;
 mod output;
 mod pair_trace;
 mod scoring;
+mod search;
 
 use cli::{ClusteringMethod, Config, GreedySelection, PrefilterChoice, VERSION};
 use edge_store::{
@@ -537,6 +538,33 @@ fn run(config: Config) -> Result<(), DynError> {
         "[2/6] {} occupied keys; anchor-bound retention {bound_retention:.4}; prefilter={} ({})",
         index_stats.occupied_keys, prefilter_active, decision
     );
+
+    // Search replaces clustering entirely, so it returns before any of the
+    // candidate generation below.
+    if config.easy_search {
+        let query = config.search_query.clone().expect("checked during parsing");
+        let output = config.output_dir.join("easy_search.csv");
+        let started = Instant::now();
+        let (queries, database, hexamers) = pool.install(|| {
+            search::run(
+                &config.input,
+                &query,
+                &output,
+                &table,
+                &scorer,
+                config.terminal_seed,
+                config.strict,
+                config.verify_search,
+            )
+        })?;
+        eprintln!(
+            "[3/3] searched {queries} query peptides against {database} database \
+             peptides ({hexamers} distinct terminal hexamers) in {:.2}s -> {}",
+            started.elapsed().as_secs_f64(),
+            output.display()
+        );
+        return Ok(());
+    }
 
     if config.index_only {
         write_config(

@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.8.0
+
+### Added
+
+- `--easy-search`: search a query FASTA against the input set instead of
+  clustering it. For each query peptide it writes the maximum, 99th, 98th and
+  97th percentile and median of its terminal k-mer similarity to the database,
+  both over the whole database and over the k-mer seed hits alone, plus `n_hits`.
+  Intended for measuring how close a test set sits to a training set.
+
+  The numbers are exact rather than sampled. Terminal k-mer similarity reads only
+  six residues per peptide, so the database is collapsed onto its distinct
+  terminal hexamers with counts and every statistic is recovered from the
+  weighted distribution; the score itself decomposes into a front and an end
+  3-mer contribution, both drawn from alphabets bounded by 20^3 independent of
+  database size. Per-query cost is therefore bounded by the number of distinct
+  hexamers, not by the number of peptides. Section 16 of `ALGORITHM.md` gives the
+  argument.
+
+- `--verify-search`: recompute every search row all-against-all through
+  `retrieve_candidates` and `Scorer::scores` - the same functions the clustering
+  calls - and fail on any difference. Quadratic; for validation, not production.
+  Verified identical on 12,932 queries against 8,478 database peptides, and the
+  whole-database columns match the independent NumPy implementation in
+  `tools/test_train_similarity.py` to the last digit on 64,660 compared values.
+
 ## 0.7.0
 
 The motif layer settles into three supported variants, and the benchmark is

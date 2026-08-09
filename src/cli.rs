@@ -5,7 +5,7 @@ use crate::scoring::{ScoringMode, SimdMode};
 use std::env;
 use std::path::PathBuf;
 
-pub const VERSION: &str = "0.7.0";
+pub const VERSION: &str = "0.8.0";
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PrefilterChoice {
@@ -89,13 +89,18 @@ pub struct Config {
     pub compact_output: bool,
     pub write_cluster_fastas: bool,
     pub write_scored_pairs: bool,
+    /// Search the query set against the input set instead of clustering.
+    pub easy_search: bool,
+    pub search_query: Option<PathBuf>,
+    /// Cross-check every search row against a full all-against-all reference.
+    pub verify_search: bool,
     /// Build the optional motif layer above the similarity clusters.
     pub merge_motifs: bool,
     pub motif: MotifParams,
 }
 
 fn help() -> &'static str {
-    "pepcluster2 0.7.0
+    "pepcluster2 0.8.0
 Experimental shift-aware clustering for MHC-I peptides.
 
 USAGE:
@@ -161,6 +166,33 @@ CLUSTERING:
       --merge-cap INT           Early merge-rejection sample size [default: all]
       --min-cluster-size INT    Minimum size for per-cluster FASTA [default: 2]
       --no-merge                Disable strict representative-covering merge
+
+EASY SEARCH (search instead of cluster):
+      --easy-search             Score every peptide of --search-query against
+                                every peptide of --input and report, per query,
+                                the distribution of terminal k-mer similarity.
+                                No clustering is performed. Writes
+                                easy_search.csv to the output directory.
+                                Similarity reads only the first and last three
+                                residues, so the database is collapsed onto its
+                                distinct terminal hexamers and every statistic is
+                                recovered exactly from the weighted distribution
+      --search-query PATH       Query FASTA. Required with --easy-search
+      --verify-search           Recompute every row the slow all-against-all way,
+                                using the same index and scorer the clustering
+                                uses, and fail if any number differs. Quadratic,
+                                so it is for validation on small sets, not for
+                                production runs
+
+  Output columns. `n_hits` counts database peptides the k-mer seed would
+  retrieve: at least one neighbouring front column pair and one neighbouring end
+  column pair, the same rule the clustering uses. Columns without a prefix are
+  over the WHOLE database; those prefixed `hits_` are over the seed hits alone.
+  Both are given because they answer different questions - a median over the
+  whole database is usually zero, while a median over hits describes the
+  neighbourhood a query actually sits in. Only the k-mer component is reported,
+  not the anchor component, so a high value does not by itself mean the pair
+  would have been clustered together.
 
 MOTIF LAYER (optional, off by default):
       --merge-motifs            Merge similarity clusters into motif-level groups
@@ -319,6 +351,9 @@ pub fn parse() -> Result<Option<Config>, String> {
     let mut compact_output = false;
     let mut write_cluster_fastas = false;
     let mut write_scored_pairs = false;
+    let mut easy_search = false;
+    let mut search_query: Option<PathBuf> = None;
+    let mut verify_search = false;
     let mut merge_motifs = false;
     // Selected by nested cross-validation on the inner folds; see
     // validation/2026-08-06_0.6.0_motif_merge/REPORT.md.
@@ -480,6 +515,11 @@ pub fn parse() -> Result<Option<Config>, String> {
                     value => return Err(format!("invalid --simd mode: {value}")),
                 }
             }
+            "--easy-search" => easy_search = true,
+            "--search-query" => {
+                search_query = Some(PathBuf::from(next_value(&args, &mut i, "--search-query")?))
+            }
+            "--verify-search" => verify_search = true,
             "--merge-motifs" => merge_motifs = true,
             "--no-motif-em" => motif_em = false,
             "--no-motif-merge" => motif_merge = false,
@@ -626,6 +666,20 @@ pub fn parse() -> Result<Option<Config>, String> {
     if motif_em_max_iterations == 0 {
         return Err("--motif-em-max-iterations must be at least 1".into());
     }
+    if easy_search && search_query.is_none() {
+        return Err("--easy-search requires --search-query".into());
+    }
+    if verify_search && !easy_search {
+        return Err("--verify-search requires --easy-search".into());
+    }
+    if search_query.is_some() && !easy_search {
+        return Err("--search-query requires --easy-search".into());
+    }
+    if easy_search && (merge_motifs || index_only) {
+        return Err("--easy-search searches instead of clustering; it cannot be \
+                    combined with --merge-motifs or --index-only"
+            .into());
+    }
     if motif_count == Some(0) {
         return Err("--motif-count must be at least 1".into());
     }
@@ -732,6 +786,9 @@ pub fn parse() -> Result<Option<Config>, String> {
         compact_output,
         write_cluster_fastas,
         write_scored_pairs,
+        easy_search,
+        search_query,
+        verify_search,
         merge_motifs,
         motif: MotifParams {
             merge: motif_merge,

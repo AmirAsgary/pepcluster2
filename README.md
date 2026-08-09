@@ -205,6 +205,41 @@ Cost scales with the number of clusters, not the number of peptides: the peptide
 are read once to build the profiles, after which the merge is `O(K^2)`
 marginal-likelihood evaluations.
 
+## Search instead of clustering
+
+`--easy-search` reports how similar each peptide of one set is to another set,
+without clustering either. The typical use is measuring how close a test set
+sits to a training set.
+
+```bash
+pepcluster2 -i train.fasta -o out --easy-search --search-query test.fasta
+# out/easy_search.csv, one row per test peptide
+```
+
+| column | meaning |
+| --- | --- |
+| `peptide` | the query sequence |
+| `n_hits` | database peptides the k-mer seed would retrieve |
+| `max`, `quantile99`, `quantile98`, `quantile97`, `median` | over the whole database |
+| `hits_max`, `hits_quantile99`, … | over the seed hits alone |
+
+Both populations are given because they answer different questions: over a large
+database the unrestricted median is usually zero, while the median over hits
+describes the neighbourhood the query actually sits in. Queries with no hit
+leave the `hits_` columns empty rather than zero.
+
+The reported similarity is the terminal k-mer component only, not the anchor
+component, so a high value does not by itself mean the pair would cluster
+together.
+
+**The numbers are exact, not sampled.** Terminal k-mer similarity reads only six
+residues per peptide, so the database is collapsed onto its distinct terminal
+hexamers with counts and the statistics are recovered from the weighted
+distribution — identical output, and per-query cost bounded by the number of
+distinct hexamers rather than by database size. `--verify-search` recomputes
+every row all-against-all through the production index and scorer and fails on
+any difference; Section 16 of `ALGORITHM.md` gives the argument in full.
+
 ## Install
 
 From PyPI:

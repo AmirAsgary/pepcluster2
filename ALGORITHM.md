@@ -826,7 +826,97 @@ remains a single dataset and a single label universe.
 There is no background or outlier component, so contaminant peptides are forced
 into a real motif.
 
-## 16. Interpretation and limitations
+## 16. Search instead of clustering
+
+`--easy-search` answers a different question from the rest of this document. It
+does not partition anything. Given a database (`--input`) and a query set
+(`--search-query`), it reports, for every query peptide, the distribution of its
+terminal k-mer similarity (Section 6) to the database. The intended use is to
+quantify how close a test set sits to a training set before a model is trained
+or evaluated on both.
+
+### 16.1 What is reported
+
+One CSV row per query peptide, in input order:
+
+| column | meaning |
+| --- | --- |
+| `peptide` | the query sequence |
+| `n_hits` | database peptides the k-mer seed of Section 5 would retrieve |
+| `max`, `quantile99`, `quantile98`, `quantile97`, `median` | over the whole database |
+| `hits_max`, `hits_quantile99`, … | over the seed hits alone |
+
+Both populations are reported because they answer different questions.
+Restricting to seed hits describes the neighbourhood a query actually sits in;
+over a large database the unrestricted median is usually zero and carries no
+information. Neither can be derived from the other, and `n_hits` gives the
+denominator that separates them. When a query has no seed hit, the `hits_`
+columns are empty rather than zero, since a quantile of an empty set is
+undefined and zero would be a claim about similarity that was never measured.
+
+Quantiles use linear interpolation between order statistics, the same
+convention as `numpy.quantile`, so a value between two attainable similarities
+may be reported.
+
+Only the terminal k-mer component is computed. The anchor-combination component
+of Section 7 is not, so a high value does not by itself imply the pair would
+have been placed in one cluster by `separate_kmer_anchor`.
+
+### 16.2 Why the collapsed database is exact and not an approximation
+
+Terminal k-mer similarity reads only six residues of each peptide: the first
+three and the last three. Two database peptides that share a terminal hexamer
+are therefore indistinguishable to it — every query scores identically against
+both. The database is collapsed onto its distinct terminal hexamers, carrying a
+count of the peptides behind each, and the statistics are read off the resulting
+weighted distribution. A weighted quantile over that distribution equals the
+quantile over the spelled-out multiset by construction, so the numbers are
+exactly those of the full query-by-database comparison. Nothing is sampled,
+approximated, or thresholded away.
+
+The quantity decomposes once more. Writing `f` for the front score and `e` for
+the end score of Section 6,
+
+```
+front = clamp(max(0, s(q1,d1) + s(q2,d2) + s(q3,d3)) / 3, 0, 1000)
+end   = clamp(max(0, s(q-3,d-3) + s(q-2,d-2) + s(q-1,d-1)) / 3, 0, 1000)
+sim   = (front + end + 1) / 2
+```
+
+`front` depends only on the two front 3-mers and `end` only on the two end
+3-mers. For one query it is therefore enough to score its front 3-mer against
+every *distinct* database front 3-mer and its end 3-mer against every distinct
+database end 3-mer; each distinct hexamer is then two array lookups and an
+addition. Both 3-mer alphabets are bounded by 20³ = 8000 regardless of database
+size, so per-query work is bounded by the number of distinct hexamers, not by
+the number of peptides. Because similarity is quantised to thousandths
+(Section 4), the distribution is a 1001-bin histogram and quantiles are read
+directly from its cumulative counts.
+
+The floor at zero is applied per terminus, before the division. A terminus of
+three badly matching residues contributes exactly zero rather than a negative
+amount, and so cannot drag the other terminus down. The quantity is consequently
+**not** the mean of the six positions, and computing it that way gives different
+numbers.
+
+The seed test factorises in the same way. Retrieval enumerates the full cross
+product of front and end keys (`composite_keys`, Section 5.1), so a database
+peptide is retrieved exactly when one of its front keys neighbours one of the
+query's front keys **and** one of its end keys neighbours one of the query's end
+keys. That test also reads only the terminal residues, so seed reachability is
+decided once per distinct terminus rather than once per peptide.
+
+### 16.3 Verification
+
+`--verify-search` recomputes every row the obvious way — every query against
+every database peptide, retrieval through `retrieve_candidates` and scoring
+through `Scorer::scores`, the same functions the clustering itself calls — and
+fails the run if any field differs. It is quadratic and exists to demonstrate
+that the collapsing above changes no number, not for production use. The
+non-`hits_` columns are independently checked against
+`tools/test_train_similarity.py`, an all-against-all NumPy implementation.
+
+## 17. Interpretation and limitations
 
 The existing scoped sensitive stage can omit eligible edges between two
 assigned non-representatives. It therefore does not guarantee that prefilter and
