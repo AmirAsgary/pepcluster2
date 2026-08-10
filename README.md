@@ -244,13 +244,23 @@ pepcluster2 -i train.fasta -o out --easy-search --search-query test.fasta \
 ```
 
 The two answer different questions - their per-query `max` columns correlate at
-only r = 0.61 - and cost very different amounts. The terminal quantity is about
-2 ns per pair because the database collapses onto terminal hexamers; a
-constrained alignment is about 3,800 ns per pair and cannot collapse, because it
-reads the whole peptide. Add `--search-hits-only` to score just the pairs the
-k-mer seed retrieves, roughly a tenth of the work, which leaves the
-whole-database columns empty and inherits the seed's small miss rate.
-`easy_search_config.txt` records which quantity a run produced.
+only r = 0.61 - and cost very different amounts. Measured single-threaded on
+12,932 queries against 8,681 database peptides:
+
+| configuration | wall, 1 thread | ns per nominal pair | vs default |
+| --- | --- | --- | --- |
+| terminal k-mer, collapsed (default) | 3.7 s | 33 | 1.0x |
+| alignment, `--search-hits-only` | 67.5 s | 601 | 18x |
+| alignment, full | 612.1 s | 5,453 | 164x |
+
+The terminal quantity is cheap because the database collapses onto terminal
+hexamers; a constrained alignment cannot collapse, because it reads the whole
+peptide. `--search-hits-only` scores only the pairs the k-mer seed retrieves,
+9.1x faster than the full alignment pass, leaving the whole-database columns
+empty and inheriting the seed's small miss rate. It is rejected in a k-mer mode,
+where skipping pairs costs more than scoring them. It never changes which numbers
+are reported - the seed-restricted statistics are in the `hits_` columns of every
+run. `easy_search_config.txt` records which quantity a run produced.
 
 **The default k-mer numbers are exact, not sampled.** Terminal k-mer similarity reads only six
 residues per peptide, so the database is collapsed onto its distinct terminal

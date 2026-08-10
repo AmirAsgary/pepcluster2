@@ -208,11 +208,16 @@ EASY SEARCH (search instead of cluster):
                                 distinct terminal hexamers and every statistic is
                                 recovered exactly from the weighted distribution
       --search-query PATH       Query FASTA. Required with --easy-search
-      --search-hits-only        Score only the pairs the k-mer seed retrieves and
-                                leave the whole-database columns empty. Roughly a
-                                tenth of the work at the default seed threshold.
+      --search-hits-only        Alignment modes only. Score only the pairs the
+                                k-mer seed retrieves, leaving the whole-database
+                                columns empty. About a tenth of the alignments.
                                 Lossy: the seed misses the true nearest neighbour
-                                for a small fraction of queries
+                                for a small fraction of queries. It is rejected in
+                                a k-mer mode, where skipping pairs costs more than
+                                scoring all of them. NOTE: the seed-restricted
+                                statistics themselves are in the hits_ columns of
+                                every run; this flag only changes what is computed,
+                                never which numbers are reported
       --verify-search           Recompute every row the slow all-against-all way,
                                 using the same index and scorer the clustering
                                 uses, and fail if any number differs. Quadratic,
@@ -732,6 +737,20 @@ pub fn parse() -> Result<Option<Config>, String> {
     }
     if search_hits_only && !easy_search {
         return Err("--search-hits-only requires --easy-search".into());
+    }
+    // In a k-mer mode the flag is strictly worse than the default: it gives up
+    // the whole-database columns AND runs slower, because skipping nine tenths
+    // of the pairs costs more than the collapsed pass over all of them.
+    // Measured at 12,932 x 8,681: 7.3 s against 3.7 s.
+    if search_hits_only && !mode.uses_alignment() {
+        return Err(format!(
+            "--search-hits-only is slower than the default in {}, and returns less: \
+             the collapsed pass scores the whole database for less work than \
+             restricting to seed hits costs. The seed-restricted statistics are \
+             already in the hits_ columns of every run. Use it only with \
+             --mode separate_aln_anchor or combined_full_anchor",
+            mode.name()
+        ));
     }
     if search_query.is_some() && !easy_search {
         return Err("--search-query requires --easy-search".into());

@@ -11,10 +11,14 @@
   correlate at r = 0.61 and their medians differ roughly twofold.
 
   The alignment quantity cannot use the terminal-hexamer collapse, because it
-  reads the whole peptide, so it costs about 3,800 ns per pair against about 2 ns
-  and scales with database size rather than saturating. `--search-hits-only`
-  scores only the pairs the k-mer seed retrieves - about a tenth of them at the
-  default seed threshold - leaving the whole-database columns empty.
+  reads the whole peptide. Measured single-threaded on 12,932 queries against
+  8,681 database peptides: 3.7 s collapsed, 612.1 s aligning every pair, a factor
+  of 164. `--search-hits-only` scores only the pairs the k-mer seed retrieves and
+  takes 67.5 s, 9.1x faster than the full pass, leaving the whole-database columns
+  empty. It is rejected in a k-mer mode, where it measures 7.3 s against 3.7 s for
+  less output - avoiding a pair costs more there than scoring it. It never changes
+  which numbers are reported; the seed-restricted statistics are in the `hits_`
+  columns of every run.
 
 - `easy_search_config.txt`, written beside the CSV, recording which similarity
   the run reported and under what settings.

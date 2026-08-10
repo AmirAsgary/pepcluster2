@@ -900,18 +900,28 @@ the whole peptide and two peptides sharing a terminal hexamer are then no longer
 interchangeable. The alignment mode therefore aligns every query against every
 database peptide:
 
-| reported quantity | per pair | 12,932 x 8,478 |
-| --- | --- | --- |
-| terminal k-mer, collapsed | ~2 ns | 0.3 s |
-| constrained full alignment | ~3,800 ns | proportional to Q x D |
+Measured single-threaded on 12,932 queries against 8,681 database peptides,
+112.3 M nominal pairs. The collapsed path does no per-pair work at all, so its
+"per pair" figure is the total divided by the nominal pair count, quoted only to
+make the columns comparable.
 
-That is roughly three orders of magnitude per pair, and it grows with database
-size rather than saturating with the distinct-hexamer count. `--search-hits-only`
-removes the pairs the k-mer seed does not retrieve, which is about nine tenths of
-them at the default seed threshold; the whole-database columns are then left
-empty, because they were never computed, and the remainder inherits the seed's
-known loss - it misses the true nearest neighbour for a small fraction of
-queries.
+| configuration | wall, 1 thread | ns per nominal pair | vs default |
+| --- | --- | --- | --- |
+| terminal k-mer, collapsed (default) | 3.7 s | 33 | 1.0x |
+| alignment, `--search-hits-only` | 67.5 s | 601 | 18x |
+| alignment, full | 612.1 s | 5,453 | 164x |
+
+`--search-hits-only` drops the pairs the k-mer seed does not retrieve, about nine
+tenths of them at the default seed threshold, and measures 9.1x faster than the
+full alignment pass. The whole-database columns are then left empty, because they
+were never computed, and what remains inherits the seed's known loss - it misses
+the true nearest neighbour for a small fraction of queries.
+
+The flag is rejected in a k-mer mode, where it is strictly worse: 7.3 s against
+3.7 s for less output, because avoiding a pair that costs two array lookups and an
+add is more expensive than performing it. It changes only what gets computed,
+never which numbers are reported - the seed-restricted statistics are in the
+`hits_` columns of every run regardless.
 
 `easy_search_config.txt` is written beside the CSV recording which quantity the
 run produced, since the same filename can now hold either.
