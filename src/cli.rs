@@ -66,6 +66,12 @@ pub struct Config {
     pub terminal_gap_open: f64,
     pub terminal_gap_extension: f64,
     pub minimum_terminal_match_length: usize,
+    /// Alignment column weight of the original first and last three residues.
+    pub terminal_residue_weight: i32,
+    /// Alignment column weight of core residues; zero ignores the core.
+    pub core_residue_weight: i32,
+    /// Weight of the N-terminus when the two terminus scores are combined.
+    pub terminal_balance: f64,
     pub kmer_seed_threshold: f64,
     pub terminal_seed: TerminalSeed,
     pub representative_order: RepresentativeOrder,
@@ -148,6 +154,28 @@ ALIGNMENT:
                                 Terminal-overhang extension penalty [default: -1]
       --minimum-terminal-match-length INT
                                 Required matched columns at each terminus [default: 2]
+      --terminal-residue-weight INT
+                                Alignment column weight of the original first and
+                                last three residues [default: 4]
+      --core-residue-weight INT Alignment column weight of core residues; 0 aligns
+                                the core but scores it as nothing. Only the ratio
+                                to --terminal-residue-weight matters for the
+                                residue term, but gap penalties are absolute, so
+                                raising both weights also weakens the gaps
+                                [default: 1]
+                                Both weights act only on the constrained
+                                alignment of Section 8, so they have NO effect in
+                                separate_kmer_anchor or combined_kmer_anchor,
+                                which never align
+
+WEIGHTING (terminal k-mer similarity):
+      --terminal-balance FLOAT  Weight of the N-terminus when the front and end
+                                terminus scores are combined; the C-terminus gets
+                                the remainder. 0.5 is the plain mean and
+                                reproduces every earlier release exactly. Below
+                                0.5 favours the C-terminal anchor, which for
+                                MHC-I is usually the dominant one
+                                [default: 0.5]
 
 CLUSTERING:
       --clustering-method NAME  graph|greedy [default: graph]
@@ -329,6 +357,9 @@ pub fn parse() -> Result<Option<Config>, String> {
     let mut terminal_gap_open: f64 = -2.0;
     let mut terminal_gap_extension: f64 = -1.0;
     let mut minimum_terminal_match_length = 2usize;
+    let mut terminal_residue_weight = 4i32;
+    let mut core_residue_weight = 1i32;
+    let mut terminal_balance = 0.5f64;
     let mut kmer_seed_threshold = 0.40;
     let mut terminal_seed = TerminalSeed::AllColumnPairs;
     let mut representative_order = RepresentativeOrder::Coverage;
@@ -435,6 +466,24 @@ pub fn parse() -> Result<Option<Config>, String> {
                 terminal_gap_extension = parse_number(
                     next_value(&args, &mut i, "--terminal-overhang-gap-extension")?,
                     "--terminal-overhang-gap-extension",
+                )?
+            }
+            "--terminal-residue-weight" => {
+                terminal_residue_weight = parse_number(
+                    next_value(&args, &mut i, "--terminal-residue-weight")?,
+                    "--terminal-residue-weight",
+                )?
+            }
+            "--core-residue-weight" => {
+                core_residue_weight = parse_number(
+                    next_value(&args, &mut i, "--core-residue-weight")?,
+                    "--core-residue-weight",
+                )?
+            }
+            "--terminal-balance" => {
+                terminal_balance = parse_number(
+                    next_value(&args, &mut i, "--terminal-balance")?,
+                    "--terminal-balance",
                 )?
             }
             "--minimum-terminal-match-length" => {
@@ -764,6 +813,9 @@ pub fn parse() -> Result<Option<Config>, String> {
         terminal_gap_open,
         terminal_gap_extension,
         minimum_terminal_match_length,
+        terminal_residue_weight,
+        core_residue_weight,
+        terminal_balance,
         kmer_seed_threshold,
         terminal_seed,
         representative_order,

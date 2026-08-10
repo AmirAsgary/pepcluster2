@@ -211,6 +211,9 @@ fn write_config(
         "minimum_terminal_match_length={}",
         config.minimum_terminal_match_length
     )?;
+    writeln!(w, "terminal_residue_weight={}", config.terminal_residue_weight)?;
+    writeln!(w, "core_residue_weight={}", config.core_residue_weight)?;
+    writeln!(w, "terminal_balance={}", config.terminal_balance)?;
     writeln!(w, "kmer_seed_threshold={}", config.kmer_seed_threshold)?;
     writeln!(w, "terminal_seed={}", config.terminal_seed.name())?;
     writeln!(w, "reassignment_margin={}", config.reassignment_margin)?;
@@ -488,6 +491,9 @@ fn make_scorer(config: &Config) -> Result<Scorer, DynError> {
         config.terminal_gap_open,
         config.terminal_gap_extension,
         config.minimum_terminal_match_length,
+        config.terminal_residue_weight,
+        config.core_residue_weight,
+        config.terminal_balance,
         config.simd_mode,
     )
     .map_err(|error| error.into())

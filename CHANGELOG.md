@@ -1,5 +1,28 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- `--terminal-balance` (default 0.5), the weight of the N-terminus when the two
+  terminus scores are combined into terminal k-mer similarity. The default is the
+  plain mean and reproduces every earlier release byte-for-byte. Values below 0.5
+  favour the C-terminal anchor. This acts on `separate_kmer_anchor`, whose
+  primary component it is.
+
+- `--terminal-residue-weight` (default 4) and `--core-residue-weight` (default 1),
+  the alignment column weights of terminal and core residues. Both were
+  hard-coded from the first release and had never appeared in any sweep. They act
+  only on the constrained alignment, so they are inert in `separate_kmer_anchor`
+  and `combined_kmer_anchor` - verified byte-identical output.
+
+  Only the ratio matters for the residue term, since the symmetric normalization
+  divides by the same weights, but gap penalties are absolute, so raising both
+  together weakens the gaps instead of leaving the score unchanged.
+
+Defaults are unchanged and verified to reproduce the previous release exactly on
+both scoring modes across three pools.
+
 ## 0.8.0
 
 ### Added

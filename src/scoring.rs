@@ -124,6 +124,9 @@ pub struct Scorer {
     terminal_gap_open_q: i32,
     terminal_gap_extension_q: i32,
     minimum_terminal_match_length: usize,
+    terminal_residue_weight: i32,
+    core_residue_weight: i32,
+    terminal_balance_q: i32,
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -148,6 +151,9 @@ impl Scorer {
         terminal_gap_open: f64,
         terminal_gap_extension: f64,
         minimum_terminal_match_length: usize,
+        terminal_residue_weight: i32,
+        core_residue_weight: i32,
+        terminal_balance: f64,
         _simd_mode: SimdMode,
     ) -> Result<Self, String> {
         for value in [threshold, alignment_threshold, anchor_threshold, kmer_threshold] {
@@ -157,6 +163,15 @@ impl Scorer {
         }
         if minimum_terminal_match_length == 0 || minimum_terminal_match_length > 3 {
             return Err("minimum terminal match length must be between 1 and 3".into());
+        }
+        if terminal_residue_weight < 1 || terminal_residue_weight > 64 {
+            return Err("terminal residue weight must be between 1 and 64".into());
+        }
+        if !(0..=64).contains(&core_residue_weight) {
+            return Err("core residue weight must be between 0 and 64".into());
+        }
+        if !(0.0..=1.0).contains(&terminal_balance) {
+            return Err("terminal balance must be between 0 and 1".into());
         }
         let residue = normalized_residue_scores();
         let residue_similarity = residue.map(|value| value as i16);
@@ -190,6 +205,9 @@ impl Scorer {
             terminal_gap_open_q: gap_q(terminal_gap_open),
             terminal_gap_extension_q: gap_q(terminal_gap_extension),
             minimum_terminal_match_length,
+            terminal_residue_weight,
+            core_residue_weight,
+            terminal_balance_q: (terminal_balance * 1000.0).round() as i32,
         })
     }
 
@@ -319,13 +337,31 @@ impl Scorer {
         self.best_assignment_mean(left, n_left, right, n_right)
     }
 
+    /// Alignment column weight of one residue. Terminal residues - the original
+    /// first and last three - outweigh core residues, which bulge out of the
+    /// binding groove and contribute little allele-specific information. Used
+    /// only by the constrained alignment of Section 8, so it has no effect in
+    /// `separate_kmer_anchor` or `combined_kmer_anchor`, which never align.
     #[inline]
-    fn residue_weight(index: usize, length: usize) -> i32 {
+    fn residue_weight(&self, index: usize, length: usize) -> i32 {
         if index < 3 || index >= length - 3 {
-            4
+            self.terminal_residue_weight
         } else {
-            1
+            self.core_residue_weight
         }
+    }
+
+    /// Combine the two terminus scores of Section 6 into one similarity.
+    ///
+    /// `terminal_balance_q` is the weight of the N-terminus in thousandths. The
+    /// default 500 is the plain mean: the expression below then reduces exactly
+    /// to `(front + end + 1) / 2`, the pre-0.9.0 formula, for every input.
+    #[inline]
+    fn combine_termini(&self, front: u16, end: u16) -> u16 {
+        let front = front as i64;
+        let end = end as i64;
+        let balance = self.terminal_balance_q as i64;
+        (((balance * front + (1000 - balance) * end + 500) / 1000) as u16).min(1000)
     }
 
     #[inline]
@@ -388,8 +424,8 @@ impl Scorer {
                                     } else {
                                         c_match
                                     };
-                                    let wa = Self::residue_weight(i, m);
-                                    let wb = Self::residue_weight(j, n);
+                                    let wa = self.residue_weight(i, m);
+                                    let wb = self.residue_weight(j, n);
                                     let substitution = (wa + wb)
                                         * BLOSUM62[a.sequence_codes[i] as usize * 20
                                             + b.sequence_codes[j] as usize]
@@ -477,7 +513,7 @@ impl Scorer {
                 .enumerate()
                 .map(|(i, _)| {
                     let code = node.sequence_codes[i] as usize;
-                    2i64 * Self::residue_weight(i, node.sequence.len()) as i64
+                    2i64 * self.residue_weight(i, node.sequence.len()) as i64
                         * BLOSUM62[code * 20 + code] as i64
                         * RAW_SCALE as i64
                 })
@@ -492,7 +528,7 @@ impl Scorer {
     pub fn scores(&self, a: &Node, b: &Node) -> SimilarityScores {
         let front = self.aligned_three_mer_mean(a, b, 0);
         let end = self.aligned_three_mer_mean(a, b, 3);
-        let terminal_kmer = ((front as u32 + end as u32 + 1) / 2) as u16;
+        let terminal_kmer = self.combine_termini(front, end);
         let anchor_combination = self.anchor_combination_q(a, b);
         let alignment = if self.mode.uses_alignment() {
             self.constrained_alignment_q(a, b)
@@ -601,7 +637,7 @@ impl Scorer {
             // short-circuits this way; this mode did not.
             let front = self.aligned_three_mer_mean(a, b, 0);
             let end = self.aligned_three_mer_mean(a, b, 3);
-            let terminal_kmer = ((front as u32 + end as u32 + 1) / 2) as u16;
+            let terminal_kmer = self.combine_termini(front, end);
             if (terminal_kmer as i32) < self.kmer_threshold_q {
                 return None;
             }
@@ -764,6 +800,9 @@ mod tests {
             -2.0,
             -1.0,
             2,
+            4,
+            1,
+            0.5,
             SimdMode::Off,
         )
         .unwrap()
@@ -869,9 +908,9 @@ mod tests {
     fn separate_kmer_mode_thresholds_both_components() {
         let nodes = sample_nodes(24);
         let strict = Scorer::new(ScoringMode::SeparateKmerAnchor, 0.60, 0.50, 0.60, 0.60,
-                                 -4.0, -1.0, -2.0, -1.0, 2, SimdMode::Auto).unwrap();
+                                 -4.0, -1.0, -2.0, -1.0, 2, 4, 1, 0.5, SimdMode::Auto).unwrap();
         let kmer_only = Scorer::new(ScoringMode::SeparateKmerAnchor, 0.60, 0.50, 0.0, 0.60,
-                                    -4.0, -1.0, -2.0, -1.0, 2, SimdMode::Auto).unwrap();
+                                    -4.0, -1.0, -2.0, -1.0, 2, 4, 1, 0.5, SimdMode::Auto).unwrap();
         let mut both = 0usize;
         let mut relaxed = 0usize;
         for (index, a) in nodes.iter().enumerate() {
@@ -896,9 +935,9 @@ mod tests {
         let a = node(b"AWDKKKKLMN");
         let b = node(b"APDKKKKLMN");
         let shared = Scorer::new(ScoringMode::SeparateKmerAnchor, 0.30, 0.30, 0.30, 0.30,
-                                 -4.0, -1.0, -2.0, -1.0, 2, SimdMode::Auto).unwrap();
+                                 -4.0, -1.0, -2.0, -1.0, 2, 4, 1, 0.5, SimdMode::Auto).unwrap();
         let split = Scorer::new(ScoringMode::SeparateKmerAnchor, 0.99, 0.50, 0.30, 0.30,
-                                -4.0, -1.0, -2.0, -1.0, 2, SimdMode::Auto).unwrap();
+                                -4.0, -1.0, -2.0, -1.0, 2, 4, 1, 0.5, SimdMode::Auto).unwrap();
         assert_eq!(shared.eligible_pair_scores(&a, &b).is_some(),
                    split.eligible_pair_scores(&a, &b).is_some());
     }

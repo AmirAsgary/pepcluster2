@@ -190,6 +190,13 @@ highest-scoring one-to-one assignment of two dimers, and it is not the average
 of all four dimer cross-comparisons. Those experimental definitions are not
 algorithm modes.
 
+The two terminus scores are combined with weight `--terminal-balance` on the
+N-terminus and the remainder on the C-terminus. The default 0.5 is the plain
+mean and reproduces every release before 0.9.0 exactly. Values below 0.5 favour
+the C-terminal anchor, which for MHC-I is usually the dominant one. Unlike the
+alignment weights above, this one does act on `separate_kmer_anchor`, because
+terminal k-mer similarity is that mode's primary component.
+
 ## 7. Anchor-combination similarity
 
 For every valid anchor hypothesis of peptide A and every valid anchor hypothesis
@@ -236,8 +243,11 @@ peptide order.
 
 ### 8.2 Column weights and gaps
 
-A residue has weight 4 when it belongs to the original first or last three
-positions of its peptide and weight 1 when it belongs to the core. For a
+A residue has weight `--terminal-residue-weight` (default 4) when it belongs to
+the original first or last three positions of its peptide and
+`--core-residue-weight` (default 1) when it belongs to the core. A core weight of
+zero still aligns the core but scores it as nothing, which is the closest this
+mode comes to the terminal-only view of Sections 6 and 7. For a
 residue-to-residue column containing residues `a` from A and `b` from B, use
 
 ```text
@@ -246,6 +256,14 @@ column_score = w_column * B(a,b).
 ```
 
 Gap penalties are added separately and are not multiplied by residue weights.
+Only the ratio of the two residue weights affects the residue term, because the
+symmetric normalization of Section 8.3 divides by the same weights, but the gap
+penalties are absolute: raising both weights together therefore weakens the gaps
+relative to the residues rather than leaving the score unchanged.
+
+These weights act only on this alignment. `separate_kmer_anchor` and
+`combined_kmer_anchor` never align, so both weights are inert there - changing
+them leaves their output byte-identical.
 For a gap of length `L >= 1`:
 
 ```text

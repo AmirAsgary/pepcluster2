@@ -19,7 +19,8 @@ anchor-combination similarity >= 0.60
 ```
 
 The first and last three residues have alignment weight 4; core residues have
-weight 1. The exact alignment is global and affine-gap, requires at least two
+weight 1 (`--terminal-residue-weight`, `--core-residue-weight`). Both are inert
+in `separate_kmer_anchor`, which never aligns. The exact alignment is global and affine-gap, requires at least two
 matched residue columns within each pair of terminal 3-mers, and gives terminal
 overhangs lower penalties than internal gaps.
 
