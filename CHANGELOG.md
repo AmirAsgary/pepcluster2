@@ -4,6 +4,21 @@
 
 ### Added
 
+- `--easy-search` now honours `--mode`. With `separate_aln_anchor` or
+  `combined_full_anchor` it reports the constrained full-alignment similarity,
+  which scores every residue including the core, instead of the terminal k-mer
+  similarity. The two are not interchangeable: their per-query `max` columns
+  correlate at r = 0.61 and their medians differ roughly twofold.
+
+  The alignment quantity cannot use the terminal-hexamer collapse, because it
+  reads the whole peptide, so it costs about 3,800 ns per pair against about 2 ns
+  and scales with database size rather than saturating. `--search-hits-only`
+  scores only the pairs the k-mer seed retrieves - about a tenth of them at the
+  default seed threshold - leaving the whole-database columns empty.
+
+- `easy_search_config.txt`, written beside the CSV, recording which similarity
+  the run reported and under what settings.
+
 - `--terminal-balance` (default 0.5), the weight of the N-terminus when the two
   terminus scores are combined into terminal k-mer similarity. The default is the
   plain mean and reproduces every earlier release byte-for-byte. Values below 0.5

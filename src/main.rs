@@ -561,12 +561,48 @@ fn run(config: Config) -> Result<(), DynError> {
                 config.terminal_seed,
                 config.strict,
                 config.verify_search,
+                config.search_hits_only,
             )
         })?;
+        // The same filename now holds one of two different quantities depending
+        // on the mode, so the run records which one it wrote.
+        let mut w = BufWriter::new(File::create(
+            config.output_dir.join("easy_search_config.txt"),
+        )?);
+        writeln!(w, "pepcluster2_version={VERSION}")?;
+        writeln!(w, "database={}", config.input.display())?;
+        writeln!(w, "query={}", query.display())?;
+        writeln!(w, "mode={}", config.mode.name())?;
+        writeln!(
+            w,
+            "reported_similarity={}",
+            if config.mode.uses_alignment() {
+                "constrained_full_alignment (ALGORITHM.md section 8; reads the core)"
+            } else {
+                "terminal_kmer (ALGORITHM.md section 6; reads six terminal residues)"
+            }
+        )?;
+        writeln!(w, "kmer_seed_threshold={}", config.kmer_seed_threshold)?;
+        writeln!(w, "terminal_seed={}", config.terminal_seed.name())?;
+        writeln!(w, "terminal_balance={}", config.terminal_balance)?;
+        writeln!(w, "terminal_residue_weight={}", config.terminal_residue_weight)?;
+        writeln!(w, "core_residue_weight={}", config.core_residue_weight)?;
+        writeln!(w, "search_hits_only={}", config.search_hits_only)?;
+        writeln!(w, "verify_search={}", config.verify_search)?;
+        writeln!(w, "query_peptides={queries}")?;
+        writeln!(w, "database_peptides={database}")?;
+        writeln!(w, "distinct_terminal_hexamers={hexamers}")?;
+        w.flush()?;
+
         eprintln!(
             "[3/3] searched {queries} query peptides against {database} database \
-             peptides ({hexamers} distinct terminal hexamers) in {:.2}s -> {}",
+             peptides in {:.2}s ({}) -> {}",
             started.elapsed().as_secs_f64(),
+            if config.mode.uses_alignment() {
+                "constrained full alignment, core included"
+            } else {
+                "terminal k-mer"
+            },
             output.display()
         );
         return Ok(());

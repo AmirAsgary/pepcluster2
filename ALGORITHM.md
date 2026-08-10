@@ -880,7 +880,43 @@ Only the terminal k-mer component is computed. The anchor-combination component
 of Section 7 is not, so a high value does not by itself imply the pair would
 have been placed in one cluster by `separate_kmer_anchor`.
 
-### 16.2 Why the collapsed database is exact and not an approximation
+### 16.2 Choosing what similarity is reported
+
+The scoring mode selects the quantity. `separate_kmer_anchor` and
+`combined_kmer_anchor` report terminal k-mer similarity (Section 6), which reads
+six residues. `separate_aln_anchor` and `combined_full_anchor` report the
+constrained full-alignment similarity (Section 8), which aligns and scores every
+residue, so the core contributes at `--core-residue-weight` against
+`--terminal-residue-weight` for the termini.
+
+The two are not interchangeable. Measured over 500 queries against 1,000
+database peptides, their per-query `max` columns correlate at only r = 0.61, and
+the medians differ by a factor of two - so the alignment mode is answering a
+materially different question, not refining the same one.
+
+The choice has a large cost. The collapsed representation of Section 16.3 is
+available only to the terminal quantity, because a constrained alignment reads
+the whole peptide and two peptides sharing a terminal hexamer are then no longer
+interchangeable. The alignment mode therefore aligns every query against every
+database peptide:
+
+| reported quantity | per pair | 12,932 x 8,478 |
+| --- | --- | --- |
+| terminal k-mer, collapsed | ~2 ns | 0.3 s |
+| constrained full alignment | ~3,800 ns | proportional to Q x D |
+
+That is roughly three orders of magnitude per pair, and it grows with database
+size rather than saturating with the distinct-hexamer count. `--search-hits-only`
+removes the pairs the k-mer seed does not retrieve, which is about nine tenths of
+them at the default seed threshold; the whole-database columns are then left
+empty, because they were never computed, and the remainder inherits the seed's
+known loss - it misses the true nearest neighbour for a small fraction of
+queries.
+
+`easy_search_config.txt` is written beside the CSV recording which quantity the
+run produced, since the same filename can now hold either.
+
+### 16.3 Why the collapsed database is exact and not an approximation
 
 Terminal k-mer similarity reads only six residues of each peptide: the first
 three and the last three. Two database peptides that share a terminal hexamer
@@ -924,9 +960,12 @@ query's front keys **and** one of its end keys neighbours one of the query's end
 keys. That test also reads only the terminal residues, so seed reachability is
 decided once per distinct terminus rather than once per peptide.
 
-### 16.3 Verification
+### 16.4 Verification
 
-`--verify-search` recomputes every row the obvious way — every query against
+`--verify-search` exists to show that the collapse of Section 16.3 changes no
+number, so it applies only where there is a collapsed path to check: it is
+refused in an alignment mode and under `--search-hits-only`, which have no fast
+path to verify. It recomputes every row the obvious way — every query against
 every database peptide, retrieval through `retrieve_candidates` and scoring
 through `Scorer::scores`, the same functions the clustering itself calls — and
 fails the run if any field differs. It is quadratic and exists to demonstrate

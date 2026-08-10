@@ -233,7 +233,26 @@ The reported similarity is the terminal k-mer component only, not the anchor
 component, so a high value does not by itself mean the pair would cluster
 together.
 
-**The numbers are exact, not sampled.** Terminal k-mer similarity reads only six
+**The reported similarity follows `--mode`.** By default the terminal k-mer
+similarity is reported, which reads only the six terminal residues. Pass
+`--mode separate_aln_anchor` to report the constrained full alignment instead,
+which scores every residue including the core:
+
+```bash
+pepcluster2 -i train.fasta -o out --easy-search --search-query test.fasta \
+  --mode separate_aln_anchor
+```
+
+The two answer different questions - their per-query `max` columns correlate at
+only r = 0.61 - and cost very different amounts. The terminal quantity is about
+2 ns per pair because the database collapses onto terminal hexamers; a
+constrained alignment is about 3,800 ns per pair and cannot collapse, because it
+reads the whole peptide. Add `--search-hits-only` to score just the pairs the
+k-mer seed retrieves, roughly a tenth of the work, which leaves the
+whole-database columns empty and inherits the seed's small miss rate.
+`easy_search_config.txt` records which quantity a run produced.
+
+**The default k-mer numbers are exact, not sampled.** Terminal k-mer similarity reads only six
 residues per peptide, so the database is collapsed onto its distinct terminal
 hexamers with counts and the statistics are recovered from the weighted
 distribution — identical output, and per-query cost bounded by the number of

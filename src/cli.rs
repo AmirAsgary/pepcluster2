@@ -100,6 +100,8 @@ pub struct Config {
     pub search_query: Option<PathBuf>,
     /// Cross-check every search row against a full all-against-all reference.
     pub verify_search: bool,
+    /// Score only the pairs the k-mer seed retrieves.
+    pub search_hits_only: bool,
     /// Build the optional motif layer above the similarity clusters.
     pub merge_motifs: bool,
     pub motif: MotifParams,
@@ -206,6 +208,11 @@ EASY SEARCH (search instead of cluster):
                                 distinct terminal hexamers and every statistic is
                                 recovered exactly from the weighted distribution
       --search-query PATH       Query FASTA. Required with --easy-search
+      --search-hits-only        Score only the pairs the k-mer seed retrieves and
+                                leave the whole-database columns empty. Roughly a
+                                tenth of the work at the default seed threshold.
+                                Lossy: the seed misses the true nearest neighbour
+                                for a small fraction of queries
       --verify-search           Recompute every row the slow all-against-all way,
                                 using the same index and scorer the clustering
                                 uses, and fail if any number differs. Quadratic,
@@ -385,6 +392,7 @@ pub fn parse() -> Result<Option<Config>, String> {
     let mut easy_search = false;
     let mut search_query: Option<PathBuf> = None;
     let mut verify_search = false;
+    let mut search_hits_only = false;
     let mut merge_motifs = false;
     // Selected by nested cross-validation on the inner folds; see
     // validation/2026-08-06_0.6.0_motif_merge/REPORT.md.
@@ -569,6 +577,7 @@ pub fn parse() -> Result<Option<Config>, String> {
                 search_query = Some(PathBuf::from(next_value(&args, &mut i, "--search-query")?))
             }
             "--verify-search" => verify_search = true,
+            "--search-hits-only" => search_hits_only = true,
             "--merge-motifs" => merge_motifs = true,
             "--no-motif-em" => motif_em = false,
             "--no-motif-merge" => motif_merge = false,
@@ -721,6 +730,9 @@ pub fn parse() -> Result<Option<Config>, String> {
     if verify_search && !easy_search {
         return Err("--verify-search requires --easy-search".into());
     }
+    if search_hits_only && !easy_search {
+        return Err("--search-hits-only requires --easy-search".into());
+    }
     if search_query.is_some() && !easy_search {
         return Err("--search-query requires --easy-search".into());
     }
@@ -841,6 +853,7 @@ pub fn parse() -> Result<Option<Config>, String> {
         easy_search,
         search_query,
         verify_search,
+        search_hits_only,
         merge_motifs,
         motif: MotifParams {
             merge: motif_merge,

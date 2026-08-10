@@ -294,34 +294,77 @@ fn search_one(
     }
 }
 
-/// The same row computed the slow, obvious way: every query against every
-/// database peptide, retrieval by the production index, similarity by the
-/// production scorer. Used only by `--verify-search`, which exists to prove that
-/// collapsing the database onto hexamers changes no number.
-fn brute_force_row(
+/// The similarity this run reports, taken from the scoring mode.
+///
+/// Modes that align report the constrained full-alignment similarity of
+/// Section 8, which reads every residue including the core. Modes that do not
+/// align report the terminal k-mer similarity of Section 6, which reads only the
+/// six terminal residues. Either way it is one component, not the mode's
+/// eligibility rule: the anchor-combination component is not folded in, so a
+/// high value does not by itself mean the pair would be clustered together.
+#[inline]
+fn reported_similarity(scorer: &Scorer, a: &Node, b: &Node) -> usize {
+    let scores = scorer.scores(a, b);
+    if scorer.mode().uses_alignment() {
+        scores.alignment as usize
+    } else {
+        scores.terminal_kmer as usize
+    }
+}
+
+/// One row computed pair by pair: every query against every database peptide,
+/// retrieval by the production index, similarity by the production scorer.
+///
+/// This is the only way to compute an alignment-mode row, because the
+/// constrained alignment reads the whole peptide and so cannot be answered from
+/// a database collapsed onto terminal hexamers. In a k-mer mode it is instead the
+/// reference `--verify-search` checks the collapsed path against.
+///
+/// When `hits_only` is set, pairs the seed does not retrieve are never scored and
+/// the whole-database columns are left undefined. That is the difference between
+/// roughly one tenth of the work and all of it.
+fn exhaustive_row(
     query: &Node,
     database_nodes: &[Node],
     buckets: &[Vec<u32>],
     table: &KmerSimilarityTable,
     scorer: &Scorer,
     seed: TerminalSeed,
+    hits_only: bool,
 ) -> Row {
     let mut all = [0u64; BINS];
     let mut hits = [0u64; BINS];
     let mut total: u64 = 0;
     let mut n_hits: u64 = 0;
-    for node in database_nodes {
-        let similarity = scorer.scores(query, node).terminal_kmer as usize;
-        all[similarity] += node.frequency;
-        total += node.frequency;
-    }
-    // `None` because the query is not a member of the database index; a query
+
+    // `None` because the query is not a member of the database index: a query
     // that also occurs in the database must count as its own hit.
-    for id in retrieve_candidates(None, query, buckets, table, seed) {
-        let node = &database_nodes[id as usize];
-        let similarity = scorer.scores(query, node).terminal_kmer as usize;
-        hits[similarity] += node.frequency;
-        n_hits += node.frequency;
+    let retrieved = retrieve_candidates(None, query, buckets, table, seed);
+
+    if hits_only {
+        for id in &retrieved {
+            let node = &database_nodes[*id as usize];
+            let similarity = reported_similarity(scorer, query, node);
+            hits[similarity] += node.frequency;
+            n_hits += node.frequency;
+        }
+    } else {
+        // One pass over the database, with a membership mask, so no pair is
+        // aligned twice. At roughly 3.8 microseconds per constrained alignment
+        // that second pass would be a straight doubling of the run.
+        let mut is_hit = vec![false; database_nodes.len()];
+        for id in &retrieved {
+            is_hit[*id as usize] = true;
+        }
+        for (index, node) in database_nodes.iter().enumerate() {
+            let similarity = reported_similarity(scorer, query, node);
+            all[similarity] += node.frequency;
+            total += node.frequency;
+            if is_hit[index] {
+                hits[similarity] += node.frequency;
+                n_hits += node.frequency;
+            }
+        }
     }
     let scale = 1000.0;
     Row {
@@ -375,6 +418,7 @@ pub fn run(
     seed: TerminalSeed,
     strict: bool,
     verify: bool,
+    hits_only: bool,
 ) -> Result<(usize, usize, usize), DynError> {
     let (database_nodes, database_stats) = load_nodes(database_path, strict)?;
     let (query_nodes, query_stats) = load_nodes(query_path, strict)?;
@@ -384,19 +428,59 @@ pub fn run(
     let database = build_database(&database_nodes, seed);
     let residue = normalized_residue_scores();
 
-    let rows: Vec<Row> = query_nodes
-        .par_iter()
-        .map(|query| search_one(query, &database, &residue, table, seed))
-        .collect();
+    // The collapsed path is available only when the reported similarity reads
+    // nothing but the terminal residues. A constrained alignment reads the whole
+    // peptide, core included, so two peptides sharing a terminal hexamer are no
+    // longer interchangeable and the collapse would be wrong, not merely slow.
+    let collapsible = !scorer.mode().uses_alignment() && !hits_only;
+    let buckets = if collapsible && !verify {
+        Vec::new()
+    } else {
+        build_exact_index(&database_nodes, seed)
+    };
+
+    let rows: Vec<Row> = if collapsible {
+        query_nodes
+            .par_iter()
+            .map(|query| search_one(query, &database, &residue, table, seed))
+            .collect()
+    } else {
+        query_nodes
+            .par_iter()
+            .map(|query| {
+                exhaustive_row(
+                    query,
+                    &database_nodes,
+                    &buckets,
+                    table,
+                    scorer,
+                    seed,
+                    hits_only,
+                )
+            })
+            .collect()
+    };
 
     if verify {
-        let buckets = build_exact_index(&database_nodes, seed);
+        if !collapsible {
+            return Err("--verify-search checks the collapsed path against an \
+                        all-against-all reference; there is no collapsed path to check \
+                        in an alignment mode or under --search-hits-only"
+                .into());
+        }
         let disagreements: usize = query_nodes
             .par_iter()
             .zip(&rows)
             .filter(|(query, fast)| {
-                let slow =
-                    brute_force_row(query, &database_nodes, &buckets, table, scorer, seed);
+                let slow = exhaustive_row(
+                    query,
+                    &database_nodes,
+                    &buckets,
+                    table,
+                    scorer,
+                    seed,
+                    false,
+                );
                 !rows_agree(fast, &slow)
             })
             .count();
