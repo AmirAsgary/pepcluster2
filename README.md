@@ -262,6 +262,23 @@ where skipping pairs costs more than scoring them. It never changes which number
 are reported - the seed-restricted statistics are in the `hits_` columns of every
 run. `easy_search_config.txt` records which quantity a run produced.
 
+**`--store-search` names the top matches.** The quantile columns summarise a
+distribution; this writes `search_hits.tsv` saying which database peptides a
+query actually matched:
+
+```bash
+pepcluster2 -i train.fasta -o out --easy-search --search-query test.fasta \
+  --store-search --search-max-hits 100
+# query  target  similarity  rank  seed_hit
+```
+
+It is capped per query because storing every pair is impossible - 500k queries
+against 12M peptides is 6x10^12 pairs, 36 TB at six bytes each. The cap costs
+little, because in a k-mer mode the similarity value never needed storing: it is
+a function of six residues, recomputable from the two FASTA files in O(1). Only
+the ranking required the scan. At 31.6 bytes per row, 500k queries at 100 hits is
+1.6 GB. Add `--search-min-similarity` to drop weak hits.
+
 **The default k-mer numbers are exact, not sampled.** Terminal k-mer similarity reads only six
 residues per peptide, so the database is collapsed onto its distinct terminal
 hexamers with counts and the statistics are recovered from the weighted

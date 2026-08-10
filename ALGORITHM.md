@@ -970,7 +970,51 @@ query's front keys **and** one of its end keys neighbours one of the query's end
 keys. That test also reads only the terminal residues, so seed reachability is
 decided once per distinct terminus rather than once per peptide.
 
-### 16.4 Verification
+### 16.5 Storing which targets matched
+
+`--store-search` writes `search_hits.tsv`, naming for each query its most similar
+database peptides: `query`, `target`, `similarity`, `rank`, `seed_hit`.
+
+Storing every pair is not an option at scale. 500,000 queries against 12,000,000
+database peptides is 6x10^12 pairs, which is 36 TB at six bytes each and still
+600 GB at a physically impossible one byte. Restricting to seed hits only divides
+that by ten.
+
+What makes the cap acceptable rather than merely necessary is that in a k-mer
+mode the similarity *value* never needed storing in the first place. It is a
+function of six residues, so any pair's value is two array lookups from the two
+FASTA files, and the two 8000x8000 lookup tables are a function of BLOSUM62 alone
+- identical for every dataset, and cheaper to recompute than to read. What
+genuinely needs storing is the *ranking*, because only that required the scan.
+
+| stored per query | rows | size |
+| --- | --- | --- |
+| every seed hit | 1.2 M | 3.6 TB total |
+| `--search-max-hits 1000` | 1,000 | 15.8 GB total |
+| `--search-max-hits 100` (default) | 100 | 1.6 GB total |
+
+Measured at 31.6 bytes per row with the target peptide written inline, which
+needs no dictionary and no reader.
+
+Selection avoids sorting the database. Similarity is quantised to 1001 values, so
+the collapsed path makes two passes over the distinct hexamers: the first counts
+targets per similarity, from which the cut-off bin is read directly; the second
+collects the hexamers at or above it and expands them through a compressed member
+list. Sorting ~10 M distinct hexamers per query would otherwise dominate the run.
+Measured cost of the whole feature on 12,932 queries against 8,681 peptides:
+3.26 s without, 6.87 s with, so a little over twice the base search.
+
+An alignment mode cannot use that structure, so it keeps a bounded heap of the
+best `--search-max-hits` targets while scoring, costing O(D) plus a log N factor
+paid only when a candidate displaces the current worst - negligible against a
+constrained alignment.
+
+`--search-min-similarity` drops weak hits even when that leaves a query short of
+the cap, and `seed_hit` records whether the k-mer seed would have retrieved each
+row, which is not implied by rank: the highest-scoring target is sometimes one
+the seed misses.
+
+### 16.6 Verification
 
 `--verify-search` exists to show that the collapse of Section 16.3 changes no
 number, so it applies only where there is a collapsed path to check: it is

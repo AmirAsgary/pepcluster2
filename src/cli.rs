@@ -102,6 +102,10 @@ pub struct Config {
     pub verify_search: bool,
     /// Score only the pairs the k-mer seed retrieves.
     pub search_hits_only: bool,
+    /// Write the per-query hit table naming each target.
+    pub store_search: bool,
+    pub search_max_hits: usize,
+    pub search_min_similarity: f64,
     /// Build the optional motif layer above the similarity clusters.
     pub merge_motifs: bool,
     pub motif: MotifParams,
@@ -218,6 +222,23 @@ EASY SEARCH (search instead of cluster):
                                 statistics themselves are in the hits_ columns of
                                 every run; this flag only changes what is computed,
                                 never which numbers are reported
+      --store-search            Also write search_hits.tsv naming, for every
+                                query, its most similar database peptides:
+                                query, target, similarity, rank, seed_hit.
+                                Storing every pair is not possible at scale -
+                                500k queries against 12M peptides is 6e12 pairs,
+                                36 TB even at six bytes each - so the table is
+                                capped per query by --search-max-hits. The
+                                similarity VALUE never needs storing in a k-mer
+                                mode: it is a function of six residues, so any
+                                pair can be recomputed from the two FASTA files.
+                                What needs storing is which targets rank highest,
+                                because only that required the scan
+      --search-max-hits INT     Rows kept per query, best first [default: 100].
+                                500k queries at 100 is about 1.5 GB
+      --search-min-similarity F Drop hits below this similarity even if that
+                                leaves a query with fewer than the cap
+                                [default: 0]
       --verify-search           Recompute every row the slow all-against-all way,
                                 using the same index and scorer the clustering
                                 uses, and fail if any number differs. Quadratic,
@@ -398,6 +419,9 @@ pub fn parse() -> Result<Option<Config>, String> {
     let mut search_query: Option<PathBuf> = None;
     let mut verify_search = false;
     let mut search_hits_only = false;
+    let mut store_search = false;
+    let mut search_max_hits = 100usize;
+    let mut search_min_similarity = 0.0f64;
     let mut merge_motifs = false;
     // Selected by nested cross-validation on the inner folds; see
     // validation/2026-08-06_0.6.0_motif_merge/REPORT.md.
@@ -583,6 +607,21 @@ pub fn parse() -> Result<Option<Config>, String> {
             }
             "--verify-search" => verify_search = true,
             "--search-hits-only" => search_hits_only = true,
+            // The underscore spelling is accepted because it is what the flag
+            // was asked for as, and a silent "unknown option" would be unkind.
+            "--store-search" | "--store_search" => store_search = true,
+            "--search-max-hits" => {
+                search_max_hits = parse_number(
+                    next_value(&args, &mut i, "--search-max-hits")?,
+                    "--search-max-hits",
+                )?
+            }
+            "--search-min-similarity" => {
+                search_min_similarity = parse_number(
+                    next_value(&args, &mut i, "--search-min-similarity")?,
+                    "--search-min-similarity",
+                )?
+            }
             "--merge-motifs" => merge_motifs = true,
             "--no-motif-em" => motif_em = false,
             "--no-motif-merge" => motif_merge = false,
@@ -735,6 +774,15 @@ pub fn parse() -> Result<Option<Config>, String> {
     if verify_search && !easy_search {
         return Err("--verify-search requires --easy-search".into());
     }
+    if store_search && !easy_search {
+        return Err("--store-search requires --easy-search".into());
+    }
+    if store_search && search_max_hits == 0 {
+        return Err("--search-max-hits must be at least 1".into());
+    }
+    if !(0.0..=1.0).contains(&search_min_similarity) {
+        return Err("--search-min-similarity must be between 0 and 1".into());
+    }
     if search_hits_only && !easy_search {
         return Err("--search-hits-only requires --easy-search".into());
     }
@@ -873,6 +921,9 @@ pub fn parse() -> Result<Option<Config>, String> {
         search_query,
         verify_search,
         search_hits_only,
+        store_search,
+        search_max_hits,
+        search_min_similarity,
         merge_motifs,
         motif: MotifParams {
             merge: motif_merge,

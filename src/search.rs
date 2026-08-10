@@ -57,7 +57,7 @@ use rayon::prelude::*;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufWriter, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 /// Similarity is quantised to thousandths, so the distribution needs 1001 bins.
 const BINS: usize = 1001;
@@ -94,9 +94,15 @@ struct Database {
     end_keys: Vec<([u32; 3], usize)>,
     /// Database peptides represented, counting duplicates.
     total: u64,
+    /// Members of each distinct hexamer as database node indices, in compressed
+    /// row form: `members[offsets[h]..offsets[h + 1]]`. Only built for
+    /// `--store-search`, which is the one thing that needs to name the target
+    /// rather than only count it. Two u32 arrays, so 12M peptides cost ~96 MB.
+    hexamer_offsets: Vec<u32>,
+    hexamer_members: Vec<u32>,
 }
 
-fn build_database(nodes: &[Node], seed: TerminalSeed) -> Database {
+fn build_database(nodes: &[Node], seed: TerminalSeed, with_members: bool) -> Database {
     let mut front_map: HashMap<usize, u32> = HashMap::new();
     let mut end_map: HashMap<usize, u32> = HashMap::new();
     let mut front_trimers: Vec<usize> = Vec::new();
@@ -104,6 +110,11 @@ fn build_database(nodes: &[Node], seed: TerminalSeed) -> Database {
     let mut hexamer_map: HashMap<(u32, u32), usize> = HashMap::new();
     let mut hexamers: Vec<(u32, u32, u64)> = Vec::new();
     let mut total: u64 = 0;
+    let mut node_hexamer: Vec<u32> = if with_members {
+        Vec::with_capacity(nodes.len())
+    } else {
+        Vec::new()
+    };
 
     for node in nodes {
         let front = trimer_index(&node.codes[0..3]);
@@ -120,14 +131,21 @@ fn build_database(nodes: &[Node], seed: TerminalSeed) -> Database {
         // collapsed, so the count is a peptide count, not a node count.
         let weight = node.frequency;
         total += weight;
-        match hexamer_map.entry((front_id, end_id)) {
+        let hexamer_id = match hexamer_map.entry((front_id, end_id)) {
             std::collections::hash_map::Entry::Occupied(entry) => {
-                hexamers[*entry.get()].2 += weight;
+                let id = *entry.get();
+                hexamers[id].2 += weight;
+                id
             }
             std::collections::hash_map::Entry::Vacant(entry) => {
-                entry.insert(hexamers.len());
+                let id = hexamers.len();
+                entry.insert(id);
                 hexamers.push((front_id, end_id, weight));
+                id
             }
+        };
+        if with_members {
+            node_hexamer.push(hexamer_id as u32);
         }
     }
 
@@ -156,6 +174,28 @@ fn build_database(nodes: &[Node], seed: TerminalSeed) -> Database {
     let front_keys = keys_of(&front_trimers, 0);
     let end_keys = keys_of(&end_trimers, 3);
 
+    // Compressed row form, built by counting then placing, so no per-hexamer
+    // Vec is ever allocated.
+    let (hexamer_offsets, hexamer_members) = if with_members {
+        let mut offsets = vec![0u32; hexamers.len() + 1];
+        for &hexamer in &node_hexamer {
+            offsets[hexamer as usize + 1] += 1;
+        }
+        for index in 1..offsets.len() {
+            offsets[index] += offsets[index - 1];
+        }
+        let mut cursor = offsets.clone();
+        let mut members = vec![0u32; node_hexamer.len()];
+        for (node_index, &hexamer) in node_hexamer.iter().enumerate() {
+            let slot = &mut cursor[hexamer as usize];
+            members[*slot as usize] = node_index as u32;
+            *slot += 1;
+        }
+        (offsets, members)
+    } else {
+        (Vec::new(), Vec::new())
+    };
+
     Database {
         front_trimers,
         end_trimers,
@@ -163,6 +203,8 @@ fn build_database(nodes: &[Node], seed: TerminalSeed) -> Database {
         front_keys,
         end_keys,
         total,
+        hexamer_offsets,
+        hexamer_members,
     }
 }
 
@@ -217,15 +259,18 @@ struct Row {
     median_hit: f64,
 }
 
-fn search_one(
+/// Everything about one query that the collapsed pass needs: its terminus
+/// scores against every distinct database terminus, and its seed reachability.
+/// Computed once per query and reused for every hexamer.
+type QueryTables = (Vec<i32>, Vec<i32>, Vec<bool>, Vec<bool>);
+
+fn query_tables(
     query: &Node,
     database: &Database,
     residue: &[i32; 400],
     table: &KmerSimilarityTable,
     seed: TerminalSeed,
-) -> Row {
-    // Score this query's own termini against every distinct database terminus
-    // once, then reuse the two tables for every hexamer.
+) -> QueryTables {
     let query_front = trimer_index(&query.codes[0..3]);
     let query_end = trimer_index(&query.codes[3..6]);
     let front_scores: Vec<i32> = database
@@ -263,6 +308,18 @@ fn search_one(
         .iter()
         .map(|keys| reachable(keys, &query_end_keys, n_query_end))
         .collect();
+    (front_scores, end_scores, front_reachable, end_reachable)
+}
+
+fn search_one(
+    query: &Node,
+    database: &Database,
+    residue: &[i32; 400],
+    table: &KmerSimilarityTable,
+    seed: TerminalSeed,
+) -> Row {
+    let (front_scores, end_scores, front_reachable, end_reachable) =
+        query_tables(query, database, residue, table, seed);
 
     let mut all = [0u64; BINS];
     let mut hits = [0u64; BINS];
@@ -292,6 +349,150 @@ fn search_one(
         q97_hit: quantile(&hits, n_hits, 0.97) / scale,
         median_hit: quantile(&hits, n_hits, 0.5) / scale,
     }
+}
+
+/// One stored hit: which database peptide, how similar, and whether the k-mer
+/// seed would have retrieved it.
+pub struct Hit {
+    pub target: u32,
+    pub similarity: u16,
+    pub seed_hit: bool,
+}
+
+/// Highest bin such that at least `wanted` targets score at or above it.
+///
+/// Similarity is quantised to 1001 values, so the top-N cut is read straight off
+/// a counting histogram instead of sorting. Sorting the ~10 M distinct hexamers
+/// of a 12 M database, per query, would dominate everything else in the run.
+fn cutoff_for(counts: &[u64; BINS], wanted: u64, floor: u16) -> u16 {
+    let mut seen = 0u64;
+    for value in (floor as usize..BINS).rev() {
+        seen += counts[value];
+        if seen >= wanted {
+            return value as u16;
+        }
+    }
+    floor
+}
+
+/// Top hits of one query, via the collapsed database.
+///
+/// Two passes over the distinct hexamers rather than one pass plus a sort: the
+/// first counts targets per similarity to find the cut, the second collects the
+/// ones above it. Each pass is two array lookups per hexamer, so this stays far
+/// cheaper than sorting and needs no per-query allocation proportional to the
+/// database.
+fn top_hits_collapsed(
+    query: &Node,
+    database: &Database,
+    residue: &[i32; 400],
+    scorer: &Scorer,
+    table: &KmerSimilarityTable,
+    seed: TerminalSeed,
+    wanted: usize,
+    floor: u16,
+) -> Vec<Hit> {
+    let (front_scores, end_scores, front_reachable, end_reachable) =
+        query_tables(query, database, residue, table, seed);
+
+    let mut counts = [0u64; BINS];
+    for (index, &(front_id, end_id, _)) in database.hexamers.iter().enumerate() {
+        let similarity = scorer.combine_termini(
+            front_scores[front_id as usize] as u16,
+            end_scores[end_id as usize] as u16,
+        );
+        if similarity >= floor {
+            let start = database.hexamer_offsets[index] as usize;
+            let end = database.hexamer_offsets[index + 1] as usize;
+            counts[similarity as usize] += (end - start) as u64;
+        }
+    }
+    let cut = cutoff_for(&counts, wanted as u64, floor);
+
+    let mut hits: Vec<Hit> = Vec::with_capacity(wanted.min(1 << 16));
+    for (index, &(front_id, end_id, _)) in database.hexamers.iter().enumerate() {
+        let similarity = scorer.combine_termini(
+            front_scores[front_id as usize] as u16,
+            end_scores[end_id as usize] as u16,
+        );
+        if similarity < cut {
+            continue;
+        }
+        let seed_hit =
+            front_reachable[front_id as usize] && end_reachable[end_id as usize];
+        let start = database.hexamer_offsets[index] as usize;
+        let end = database.hexamer_offsets[index + 1] as usize;
+        for &member in &database.hexamer_members[start..end] {
+            hits.push(Hit { target: member, similarity, seed_hit });
+        }
+    }
+    // Ties at the cut can overshoot `wanted`; rank first, then truncate, so the
+    // kept rows are the best ones rather than whichever came first.
+    hits.sort_unstable_by(|a, b| b.similarity.cmp(&a.similarity).then(a.target.cmp(&b.target)));
+    hits.truncate(wanted);
+    hits
+}
+
+/// Top hits of one query, scoring every pair. The only route in an alignment
+/// mode, where similarity reads the whole peptide and the collapse does not
+/// apply. A bounded heap keeps the cost at O(D) plus a log N factor paid only
+/// when a candidate beats the current worst kept hit - negligible beside a
+/// constrained alignment at roughly 5.5 microseconds.
+fn top_hits_exhaustive(
+    query: &Node,
+    database_nodes: &[Node],
+    buckets: &[Vec<u32>],
+    table: &KmerSimilarityTable,
+    scorer: &Scorer,
+    seed: TerminalSeed,
+    wanted: usize,
+    floor: u16,
+    hits_only: bool,
+) -> Vec<Hit> {
+    use std::cmp::Reverse;
+    use std::collections::BinaryHeap;
+
+    let retrieved = retrieve_candidates(None, query, buckets, table, seed);
+    let mut is_hit = vec![false; database_nodes.len()];
+    for id in &retrieved {
+        is_hit[*id as usize] = true;
+    }
+
+    let mut heap: BinaryHeap<Reverse<(u16, u32)>> = BinaryHeap::with_capacity(wanted + 1);
+    let mut consider = |index: usize, heap: &mut BinaryHeap<Reverse<(u16, u32)>>| {
+        let similarity = reported_similarity(scorer, query, &database_nodes[index]) as u16;
+        if similarity < floor {
+            return;
+        }
+        if heap.len() < wanted {
+            heap.push(Reverse((similarity, index as u32)));
+        } else if let Some(Reverse((worst, _))) = heap.peek() {
+            if similarity > *worst {
+                heap.pop();
+                heap.push(Reverse((similarity, index as u32)));
+            }
+        }
+    };
+    if hits_only {
+        for id in &retrieved {
+            consider(*id as usize, &mut heap);
+        }
+    } else {
+        for index in 0..database_nodes.len() {
+            consider(index, &mut heap);
+        }
+    }
+
+    let mut hits: Vec<Hit> = heap
+        .into_iter()
+        .map(|Reverse((similarity, target))| Hit {
+            target,
+            similarity,
+            seed_hit: is_hit[target as usize],
+        })
+        .collect();
+    hits.sort_unstable_by(|a, b| b.similarity.cmp(&a.similarity).then(a.target.cmp(&b.target)));
+    hits
 }
 
 /// The similarity this run reports, taken from the scoring mode.
@@ -407,6 +608,84 @@ fn field(value: f64) -> String {
     }
 }
 
+/// Settings for `--store-search`.
+pub struct StoreParams {
+    pub path: PathBuf,
+    /// Rows kept per query, best first.
+    pub max_hits: usize,
+    /// Quantised similarity floor; hits below it are never written.
+    pub floor: u16,
+}
+
+/// Queries per parallel batch. Bounds peak memory at `chunk * max_hits` rows
+/// rather than `queries * max_hits`: at 500k queries and 100 hits the whole
+/// result would be 50 M rows held at once, which is gigabytes for no reason.
+const STORE_CHUNK: usize = 8192;
+
+/// Write the per-query hit table.
+///
+/// Rows carry the target peptide inline, so the file needs no dictionary and no
+/// reader. That costs roughly five times what a target index would, which at
+/// this scale is the right trade: 1.5 GB against 0.3 GB for 500k queries at 100
+/// hits, and the text form goes straight into pandas or awk.
+#[allow(clippy::too_many_arguments)]
+fn write_hits(
+    query_nodes: &[Node],
+    database_nodes: &[Node],
+    database: &Database,
+    buckets: &[Vec<u32>],
+    residue: &[i32; 400],
+    table: &KmerSimilarityTable,
+    scorer: &Scorer,
+    seed: TerminalSeed,
+    collapsible: bool,
+    hits_only: bool,
+    params: &StoreParams,
+) -> Result<(), DynError> {
+    let mut writer = BufWriter::with_capacity(8 * 1024 * 1024, File::create(&params.path)?);
+    writeln!(writer, "query\ttarget\tsimilarity\trank\tseed_hit")?;
+    let mut written: u64 = 0;
+    for chunk in query_nodes.chunks(STORE_CHUNK) {
+        let batch: Vec<Vec<Hit>> = chunk
+            .par_iter()
+            .map(|query| {
+                if collapsible {
+                    top_hits_collapsed(
+                        query, database, residue, scorer, table, seed,
+                        params.max_hits, params.floor,
+                    )
+                } else {
+                    top_hits_exhaustive(
+                        query, database_nodes, buckets, table, scorer, seed,
+                        params.max_hits, params.floor, hits_only,
+                    )
+                }
+            })
+            .collect();
+        for (query, hits) in chunk.iter().zip(&batch) {
+            let name = String::from_utf8_lossy(&query.sequence);
+            for (rank, hit) in hits.iter().enumerate() {
+                writeln!(
+                    writer,
+                    "{}\t{}\t{:.3}\t{}\t{}",
+                    name,
+                    String::from_utf8_lossy(&database_nodes[hit.target as usize].sequence),
+                    hit.similarity as f64 / 1000.0,
+                    rank + 1,
+                    if hit.seed_hit { 1 } else { 0 }
+                )?;
+                written += 1;
+            }
+        }
+    }
+    writer.flush()?;
+    eprintln!(
+        "[store] wrote {written} hit rows to {}",
+        params.path.display()
+    );
+    Ok(())
+}
+
 /// Run the search and write one CSV row per query peptide.
 #[allow(clippy::too_many_arguments)]
 pub fn run(
@@ -419,13 +698,14 @@ pub fn run(
     strict: bool,
     verify: bool,
     hits_only: bool,
+    store: Option<StoreParams>,
 ) -> Result<(usize, usize, usize), DynError> {
     let (database_nodes, database_stats) = load_nodes(database_path, strict)?;
     let (query_nodes, query_stats) = load_nodes(query_path, strict)?;
     if database_nodes.is_empty() || query_nodes.is_empty() {
         return Err("both the database and the query set must contain usable peptides".into());
     }
-    let database = build_database(&database_nodes, seed);
+    let database = build_database(&database_nodes, seed, store.is_some());
     let residue = normalized_residue_scores();
 
     // The collapsed path is available only when the reported similarity reads
@@ -496,6 +776,22 @@ pub fn run(
             "[verify] all {} query rows reproduce the all-against-all reference exactly",
             query_nodes.len()
         );
+    }
+
+    if let Some(params) = store {
+        write_hits(
+            &query_nodes,
+            &database_nodes,
+            &database,
+            &buckets,
+            &residue,
+            table,
+            scorer,
+            seed,
+            collapsible,
+            hits_only,
+            &params,
+        )?;
     }
 
     let mut writer = BufWriter::with_capacity(4 * 1024 * 1024, File::create(output)?);
@@ -573,6 +869,25 @@ mod tests {
         let left = w * 400 + w * 20 + w;
         let right = d * 400 + d * 20 + d;
         assert_eq!(terminus_score(&residue, left, right), 0);
+    }
+
+    #[test]
+    fn cutoff_keeps_at_least_the_requested_number() {
+        // 5 targets at 900, 10 at 800, 100 at 100.
+        let mut counts = [0u64; BINS];
+        counts[900] = 5;
+        counts[800] = 10;
+        counts[100] = 100;
+        // 3 wanted: 900 alone already supplies 5, so the cut is 900.
+        assert_eq!(cutoff_for(&counts, 3, 0), 900);
+        // 5 wanted: still 900, exactly enough.
+        assert_eq!(cutoff_for(&counts, 5, 0), 900);
+        // 6 wanted: must drop to 800, which brings the total to 15.
+        assert_eq!(cutoff_for(&counts, 6, 0), 800);
+        // More than exist: the cut falls to the floor and everything is kept.
+        assert_eq!(cutoff_for(&counts, 10_000, 0), 0);
+        // The floor is never crossed, however many are wanted.
+        assert_eq!(cutoff_for(&counts, 10_000, 500), 500);
     }
 
     #[test]

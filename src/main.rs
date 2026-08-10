@@ -562,6 +562,11 @@ fn run(config: Config) -> Result<(), DynError> {
                 config.strict,
                 config.verify_search,
                 config.search_hits_only,
+                config.store_search.then(|| search::StoreParams {
+                    path: config.output_dir.join("search_hits.tsv"),
+                    max_hits: config.search_max_hits,
+                    floor: (config.search_min_similarity * 1000.0).round() as u16,
+                }),
             )
         })?;
         // The same filename now holds one of two different quantities depending
@@ -588,6 +593,15 @@ fn run(config: Config) -> Result<(), DynError> {
         writeln!(w, "terminal_residue_weight={}", config.terminal_residue_weight)?;
         writeln!(w, "core_residue_weight={}", config.core_residue_weight)?;
         writeln!(w, "search_hits_only={}", config.search_hits_only)?;
+        writeln!(w, "store_search={}", config.store_search)?;
+        if config.store_search {
+            writeln!(w, "search_max_hits={}", config.search_max_hits)?;
+            writeln!(
+                w,
+                "search_min_similarity={}",
+                config.search_min_similarity
+            )?;
+        }
         writeln!(w, "verify_search={}", config.verify_search)?;
         writeln!(w, "query_peptides={queries}")?;
         writeln!(w, "database_peptides={database}")?;

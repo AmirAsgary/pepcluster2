@@ -357,7 +357,7 @@ impl Scorer {
     /// default 500 is the plain mean: the expression below then reduces exactly
     /// to `(front + end + 1) / 2`, the pre-0.9.0 formula, for every input.
     #[inline]
-    fn combine_termini(&self, front: u16, end: u16) -> u16 {
+    pub fn combine_termini(&self, front: u16, end: u16) -> u16 {
         let front = front as i64;
         let end = end as i64;
         let balance = self.terminal_balance_q as i64;

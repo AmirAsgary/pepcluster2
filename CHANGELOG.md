@@ -1,5 +1,30 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- `--store-search` writes `search_hits.tsv` naming, per query, its most similar
+  database peptides: `query`, `target`, `similarity`, `rank`, `seed_hit`. Capped
+  by `--search-max-hits` (default 100) with an optional `--search-min-similarity`
+  floor.
+
+  Storing every pair is impossible at scale - 500k queries against 12M peptides
+  is 6e12 pairs, 36 TB at six bytes each. The cap costs little, because in a
+  k-mer mode the similarity value never needed storing: it is a function of six
+  residues and recomputable in O(1) from the two FASTA files. Only the ranking
+  required the scan. Measured 31.6 bytes per row, so 500k queries at 100 hits is
+  1.6 GB.
+
+  Selection does not sort. Similarity is quantised to 1001 values, so the
+  collapsed path counts targets per similarity, reads the cut-off bin off the
+  histogram and expands only the hexamers above it through a compressed member
+  list. Alignment modes keep a bounded heap instead. Measured 3.26 s without the
+  flag and 6.87 s with, on 12,932 queries against 8,681 peptides.
+
+  Verified against the independent NumPy implementation: the top-20 similarity
+  vector and every stored pair value match exactly on 40 sampled queries.
+
 ## 0.9.0
 
 ### Added
