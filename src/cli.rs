@@ -5,7 +5,7 @@ use crate::scoring::{ScoringMode, SimdMode};
 use std::env;
 use std::path::PathBuf;
 
-pub const VERSION: &str = "0.8.0";
+pub const VERSION: &str = "0.9.0";
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PrefilterChoice {
@@ -108,7 +108,7 @@ pub struct Config {
 }
 
 fn help() -> &'static str {
-    "pepcluster2 0.8.0
+    "pepcluster2 0.9.0
 Experimental shift-aware clustering for MHC-I peptides.
 
 USAGE:
