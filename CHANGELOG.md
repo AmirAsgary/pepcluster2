@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.10.0
+
+### Changed
+
+- Defaults are now the configuration selected by nested cross-validation on the
+  peptide-MHC benchmark, so a bare run reproduces the best clustering settings:
+  `--mode` defaults to `separate_kmer_anchor` (was `separate_aln_anchor`),
+  `--kmer-similarity-threshold` to 0.25 and
+  `--anchor-combination-similarity-threshold` to 0.35 (both were 0.60).
+
+  `-t X` still sets both component thresholds to X, opting out of the
+  mode-specific defaults; explicit `--kmer-similarity-threshold` /
+  `--anchor-combination-similarity-threshold` still win. `--mode
+  separate_aln_anchor` is unchanged (alignment 0.50, anchor 0.60). The motif
+  hyperparameters were already at their selected values (10 / 25 / 3); the motif
+  layer remains opt-in via `--merge-motifs` / `--no-motif-merge` /
+  `--motif-count`.
+
 ## Unreleased
 
 ### Added

@@ -9,23 +9,32 @@ The academic algorithm specification is in [ALGORITHM.md](ALGORITHM.md).
 
 ## Current recommended model
 
-The default scoring mode is `separate_aln_anchor`. A peptide pair is eligible
+The default scoring mode is `separate_kmer_anchor`, with the thresholds chosen by
+nested cross-validation on the peptide-MHC benchmark. A peptide pair is eligible
 only when both conditions pass:
 
 ```text
-constrained full-alignment similarity >= 0.50
+terminal k-mer similarity      >= 0.25
 AND
-anchor-combination similarity >= 0.60
+anchor-combination similarity  >= 0.35
 ```
 
-The first and last three residues have alignment weight 4; core residues have
-weight 1 (`--terminal-residue-weight`, `--core-residue-weight`). Both are inert
-in `separate_kmer_anchor`, which never aligns. The exact alignment is global and affine-gap, requires at least two
-matched residue columns within each pair of terminal 3-mers, and gives terminal
-overhangs lower penalties than internal gaps.
+Terminal k-mer similarity compares the first three and last three residues
+position by position with BLOSUM62; the core contributes nothing. These defaults
+reproduce the selected configuration with no flags. Running the alternative
+`--mode separate_aln_anchor` instead defaults to alignment >= 0.50 and anchor
+>= 0.60, and aligns the whole peptide (terminal residues weight 4, core weight 1
+via `--terminal-residue-weight`/`--core-residue-weight`).
 
-The k-mer seed threshold defaults to 0.40. It retrieves candidate pairs only;
-it never accepts a clustering relationship.
+Passing `-t X` sets both component thresholds to X, opting out of the
+mode-specific defaults. The k-mer seed threshold defaults to 0.40; it retrieves
+candidate pairs only and never accepts a clustering relationship.
+
+For motif deconvolution, add `--merge-motifs` (or `--no-motif-merge`, or
+`--motif-count K` when the number of motifs is known). The motif
+hyperparameters are already at their selected values by default
+(`--motif-prior-concentration 10`, `--motif-merge-threshold 25`,
+`--motif-em-prior-concentration 3`).
 
 ## Candidate retrieval
 

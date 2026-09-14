@@ -5,7 +5,7 @@ use crate::scoring::{ScoringMode, SimdMode};
 use std::env;
 use std::path::PathBuf;
 
-pub const VERSION: &str = "0.9.0";
+pub const VERSION: &str = "0.10.0";
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum PrefilterChoice {
@@ -112,7 +112,7 @@ pub struct Config {
 }
 
 fn help() -> &'static str {
-    "pepcluster2 0.9.0
+    "pepcluster2 0.10.0
 Experimental shift-aware clustering for MHC-I peptides.
 
 USAGE:
@@ -125,7 +125,7 @@ REQUIRED:
 SCORING:
       --mode NAME               combined_kmer_anchor|combined_full_anchor|
                                 separate_aln_anchor|separate_kmer_anchor
-                                [default: separate_aln_anchor]
+                                [default: separate_kmer_anchor]
   -t, --threshold FLOAT         Combined-mode threshold; when explicitly supplied in
                                 separate mode, sets both component thresholds
                                 [default combined threshold: 0.60]
@@ -134,7 +134,7 @@ SCORING:
                                 [default: 0.50]
       --anchor-combination-similarity-threshold FLOAT
                                 Override the anchor threshold in either separate mode
-                                [default: 0.60]
+                                [default: 0.35 in separate_kmer_anchor, else 0.60]
       --kmer-similarity-threshold FLOAT
                                 Terminal k-mer similarity threshold, used by
                                 separate_kmer_anchor. This is the similarity of the
@@ -143,7 +143,7 @@ SCORING:
                                 contributes nothing. Distinct from
                                 --kmer-seed-threshold, which only retrieves
                                 candidates and never accepts a relationship
-                                [default: 0.60]
+                                [default: 0.25]
       --kmer-seed-threshold F   Similar 2-mer retrieval threshold [default: 0.40]
       --terminal-seed NAME      Indexed terminal column pairs:
                                 all-column-pairs indexes (1,2), (1,3) and (2,3);
@@ -377,7 +377,7 @@ pub fn parse() -> Result<Option<Config>, String> {
     let mut input = None;
     let mut output_dir = None;
     let mut tmp_dir = None;
-    let mut mode = ScoringMode::SeparateAlnAnchor;
+    let mut mode = ScoringMode::SeparateKmerAnchor;
     let mut clustering_method = ClusteringMethod::Graph;
     let mut greedy_selection = GreedySelection::KmerDegree;
     let mut threshold = 0.60;
@@ -701,9 +701,23 @@ pub fn parse() -> Result<Option<Config>, String> {
             threshold
         }
     });
-    let anchor_threshold = anchor_threshold.unwrap_or(threshold);
-    // With neither component threshold supplied, --threshold governs both.
-    let kmer_threshold = kmer_threshold.unwrap_or(threshold);
+    // Nested-CV selected defaults for the default mode: kmer 0.25, anchor 0.35
+    // (validation/2026-08-06_0.6.0_motif_merge/REPORT.md). Explicit -t opts out
+    // and makes --threshold govern both, mirroring the alignment special-case.
+    let anchor_threshold = anchor_threshold.unwrap_or_else(|| {
+        if mode == ScoringMode::SeparateKmerAnchor && !threshold_explicit {
+            0.35
+        } else {
+            threshold
+        }
+    });
+    let kmer_threshold = kmer_threshold.unwrap_or_else(|| {
+        if mode == ScoringMode::SeparateKmerAnchor && !threshold_explicit {
+            0.25
+        } else {
+            threshold
+        }
+    });
 
     for (flag, value) in [
         ("--threshold", threshold),
