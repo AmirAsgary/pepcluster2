@@ -627,13 +627,13 @@ waits.
 | PepCluster2 + EM | 2.23 | 2.38x | 0.487 | 0.547 |
 | **PepCluster2 + EM (given K)** | **0.96** | **1.02x** | **0.528** | **0.577** |
 | MixMHCp | 8.93 | 9.56x | 0.307 | 0.326 |
-| GibbsCluster | 570.77 | 610.65x | 0.177 | 0.105 |
+| GibbsCluster | 569.74 | 609.50x | 0.177 | 0.105 |
 
 Paired over the nine pools against clustering alone, every arm is now more
 expensive and every comparison is significant at the floor n = 9 allows
 (Wilcoxon p = 0.0039 throughout): + EM (given K) 1.12x, + merge 1.28x, + merge
 (given K) 1.34x, + merge + EM (given K) 1.36x, + merge + EM 2.03x, + EM 2.54x,
-MixMHCp 11.2x, GibbsCluster 656x.
+MixMHCp 11.2x, GibbsCluster 657x.
 
 **Supplying K is where the cost goes.** Both EM arms roughly halve when told how
 many motifs to find - 2.54x to 1.12x without the merge, 2.03x to 1.36x with it -
@@ -662,13 +662,16 @@ KLD, and the count it settles on does rise with pool size (2, 2, 3, 3, 5, 4, 6,
 pools - cost per 1,000 peptides against allele count gives rho +0.47, p = 0.21.
 It is recorded here as an observation, not attributed.
 
-**GibbsCluster is at one repeat.** A scoping bug in `speed_benchmark.py` kept the
+**A scoping bug, found by this run and fixed.** `speed_benchmark.py` kept the
 GibbsCluster result block outside its repeat loop, so only the last of three runs
 was written, and in the task that did not run GibbsCluster at all the block
 recorded the preceding MixMHCp run as a GibbsCluster row at wall x 16. The nine
-fabricated rows were discarded, the bug is fixed, and the three-repeat
-GibbsCluster run is pending; its position on the cost axis is two and a half
-orders of magnitude from everything else and is not in question.
+fabricated rows were discarded and the arm was re-timed. It made almost no
+difference to the number - the median pool moved from 570.77 to 569.74 CPU
+seconds - because GibbsCluster is the one tool here whose runtime is long enough
+to be stable: its spread across repeats is at most 1.2% of the median, against a
+cold-start factor of two on the smallest PepCluster2 pool. The bug mattered for
+what it fabricated, not for what it measured.
 
 `figures/fig6_speed_vs_pool_size` and `fig7_speed_vs_performance`.
 

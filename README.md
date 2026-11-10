@@ -192,7 +192,7 @@ repeats each. Median CPU seconds per pool:
 | refine only | 2.23 | 2.38× |
 | **refine only, given count** | **0.96** | **1.02×** |
 | MixMHCp | 8.93 | 9.56× |
-| GibbsCluster | 570.77 | 611× |
+| GibbsCluster | 569.74 | 610× |
 
 Supplying the count is where the cost goes: refinement started from 175
 components spends its iterations emptying them, so telling it how many motifs to
