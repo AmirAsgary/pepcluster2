@@ -594,14 +594,23 @@ never performed.
 ## Cost
 
 Serial runs on an **exclusive** node, nine test pools log-spaced from 995 to
-11,656 peptides. The elapsed times recorded during the sweeps are not usable for
-this: those ran 40-64 jobs at once, so their wall clocks include contention.
+11,656 peptides, **three repeats of every arm on every pool**, reduced to their
+median. The elapsed times recorded during the sweeps are not usable for this:
+those ran 40-64 jobs at once, so their wall clocks include contention.
 
-A first attempt at this table was itself contaminated. It ran on a shared login
-node while a GibbsCluster sweep was using about 48 cores, and one pool came out
-at 13.5 s against 2.2 s on a clean re-run - a spike that looked like a scaling
-cliff and was not. The numbers below come from a job holding a whole node. Cost
-is now monotone in pool size for every PepCluster2 arm, Spearman rho = 1.000.
+Two earlier attempts at this table were wrong, in instructive ways.
+
+The first ran on a shared login node while a GibbsCluster sweep was using about
+48 cores, and one pool came out at 13.5 s against 2.2 s on a clean re-run - a
+spike that looked like a scaling cliff and was not.
+
+The second held a whole node but timed each arm once. At one repeat the cheap
+arms are not separated: the first run of the first pool costs 0.257 s against
+0.127 and 0.128 for the two after it, a clean cold-start factor of two on a pool
+whose true cost is an eighth of a second. That single measurement was enough to
+put a given-K arm *below* clustering alone on the median pool, which is
+impossible - the arm runs the clustering and then does more. Three repeats and a
+median fix it, and the ordering below is now what the pipeline implies.
 
 PepCluster2 and MixMHCp are single-threaded here, so wall time is also CPU cost.
 GibbsCluster is impractical single-threaded and is run at `-k 16`, so its cost is
@@ -610,40 +619,58 @@ waits.
 
 | Arm | Median CPU s | Relative | Mean F1 | Mean AMI |
 |---|---:|---:|---:|---:|
-| PepCluster2 | 0.88 | 0.57x | 0.099 | 0.316 |
-| **PepCluster2 + merge + EM** | **1.55** | **1.00x** | **0.519** | **0.560** |
-| PepCluster2 + merge + EM (given K) | 0.85 | 0.55x | 0.570 | 0.599 |
-| MixMHCp | 7.87 | 5.06x | 0.335 | 0.332 |
-| GibbsCluster | 459.52 | 296x | 0.229 | 0.173 |
+| PepCluster2 | 0.93 | 1.00x | 0.106 | 0.324 |
+| PepCluster2 + merge | 1.22 | 1.31x | 0.286 | 0.360 |
+| PepCluster2 + merge (given K) | 1.25 | 1.34x | 0.344 | 0.379 |
+| PepCluster2 + merge + EM | 1.60 | 1.71x | 0.479 | 0.538 |
+| PepCluster2 + merge + EM (given K) | 1.27 | 1.36x | 0.482 | 0.535 |
+| PepCluster2 + EM | 2.23 | 2.38x | 0.487 | 0.547 |
+| **PepCluster2 + EM (given K)** | **0.96** | **1.02x** | **0.528** | **0.577** |
+| MixMHCp | 8.93 | 9.56x | 0.307 | 0.326 |
+| GibbsCluster | 570.77 | 610.65x | 0.177 | 0.105 |
 
-The motif layer roughly doubles the cost of clustering alone and takes F1 from
-0.099 to 0.519. Against the external tools the pipeline is 5x cheaper than
-MixMHCp and 296x cheaper than GibbsCluster while scoring above both. Supplying K
-appears *cheaper* than the automatic count - it skips the agglomeration entirely,
-and EM converges faster from diverse seeds than from merged groups - but at one
-repeat per pool that ordering is not established; see the note below.
+Paired over the nine pools against clustering alone, every arm is now more
+expensive and every comparison is significant at the floor n = 9 allows
+(Wilcoxon p = 0.0039 throughout): + EM (given K) 1.12x, + merge 1.28x, + merge
+(given K) 1.34x, + merge + EM (given K) 1.36x, + merge + EM 2.03x, + EM 2.54x,
+MixMHCp 11.2x, GibbsCluster 656x.
+
+**Supplying K is where the cost goes.** Both EM arms roughly halve when told how
+many motifs to find - 2.54x to 1.12x without the merge, 2.03x to 1.36x with it -
+because EM started from 175 or 112 components spends its iterations emptying
+them. The merge stage costs a flat +0.3x whether or not K is known.
+
+**The best arm is also nearly the cheapest.** `+ EM (given K)` is 1.12x the cost
+of clustering alone and scores the highest F1 and AMI in the study. Against the
+external tools it is 9.3x cheaper than MixMHCp and 596x cheaper than
+GibbsCluster, at F1 0.528 against 0.307 and 0.177.
 
 These F1 and AMI means are over the nine timing pools only, so they differ from
 the 48-pool benchmark figures elsewhere in this report; they are here to place
 each arm on the cost axis, not to restate accuracy.
 
-Cost rises with pool size for every tool (Spearman rho 0.90 to 1.00, all
+Cost rises with pool size for every arm (Spearman rho 0.92 to 1.00, all
 significant). Nine pools is too few to separate the scaling exponents, so no
-claim is made about asymptotic complexity - only about cost in this range. The
-MixMHCp curve is not monotone because it selects its own motif count, and how
-many it settles on changes its runtime.
+claim is made about asymptotic complexity - only about cost in this range.
+
+**The MixMHCp kink is real and unexplained.** Its cost flattens between 2,505 and
+4,399 peptides (8.93, 8.60, 9.18 s) and again above 6,737 (22.8 s to 22.4 s at
+11,656). The repeat spread on those pools is under 4% of the median, so this is
+reproducible and not a timing artefact. MixMHCp scans 1-6 motifs and selects by
+KLD, and the count it settles on does rise with pool size (2, 2, 3, 3, 5, 4, 6,
+7, 7), but neither that nor the pools' allele counts separates the kink at nine
+pools - cost per 1,000 peptides against allele count gives rho +0.47, p = 0.21.
+It is recorded here as an observation, not attributed.
+
+**GibbsCluster is at one repeat.** A scoping bug in `speed_benchmark.py` kept the
+GibbsCluster result block outside its repeat loop, so only the last of three runs
+was written, and in the task that did not run GibbsCluster at all the block
+recorded the preceding MixMHCp run as a GibbsCluster row at wall x 16. The nine
+fabricated rows were discarded, the bug is fixed, and the three-repeat
+GibbsCluster run is pending; its position on the cost axis is two and a half
+orders of magnitude from everything else and is not in question.
 
 `figures/fig6_speed_vs_pool_size` and `fig7_speed_vs_performance`.
-
-**This table and figures 6-7 are from the three-arm timing run and are being
-re-measured.** The re-run (`code/speed_v2.sbatch`) times all seven PepCluster2
-modes over three repeats per pool rather than one, because at a single repeat the
-arms are separated by less than the run-to-run spread: the `given K` row above is
-*faster* than clustering alone in only some pools, and the median pool happened to
-be one of them. The MixMHCp dip near 5,000 peptides has the same status - it is
-partly allele-count driven and partly unexplained at n = 1. Until that job lands,
-read the ordering of the cheap arms as unresolved; the 5x and 296x gaps to the
-external tools are far larger than the noise and are not in question.
 
 ## Representative selection, and two speed fixes
 

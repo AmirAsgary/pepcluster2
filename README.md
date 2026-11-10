@@ -180,16 +180,25 @@ saturates, and costs nothing below.
 
 ### Cost
 
-Serial runs on an exclusive node, nine pools from 995 to 11,656 peptides. Median
-CPU seconds per pool:
+Serial runs on an exclusive node, nine pools from 995 to 11,656 peptides, three
+repeats each. Median CPU seconds per pool:
 
 | | CPU s | Relative |
 |---|---:|---:|
-| similarity clustering alone | 0.88 | 0.57× |
-| merge and refine | 1.55 | 1.00× |
-| given count | 0.85 | 0.55× |
-| MixMHCp | 7.87 | 5.06× |
-| GibbsCluster | 459.52 | 296× |
+| clustering alone | 0.93 | 1.00× |
+| merge, no refine | 1.22 | 1.31× |
+| merge and refine | 1.60 | 1.71× |
+| merge and refine, given count | 1.27 | 1.36× |
+| refine only | 2.23 | 2.38× |
+| **refine only, given count** | **0.96** | **1.02×** |
+| MixMHCp | 8.93 | 9.56× |
+| GibbsCluster | 570.77 | 611× |
+
+Supplying the count is where the cost goes: refinement started from 175
+components spends its iterations emptying them, so telling it how many motifs to
+find roughly halves the work. The arm that scores best is also the cheapest of
+the motif arms — 9× cheaper than MixMHCp and ~600× cheaper than GibbsCluster, at
+1.02× the cost of clustering alone.
 
 The frame is nine columns. For `L >= 9` it takes peptide positions 1–4 and
 `L-4..L`, so a 9-mer maps identically and the centre of a longer peptide is

@@ -146,8 +146,14 @@ def main() -> None:
             err = sub[metric].std(ddof=1) / max(np.sqrt(len(sub)), 1)
             style = dict(STYLE[tool])
             # A point, not a line: drop the line properties and keep the mark.
-            style.pop("ls")
+            # A scatter cannot show a dash, so the given-K arms are drawn hollow
+            # instead; colour still means the pipeline.
+            given_k = style.pop("ls") != "-"
             style.pop("lw")
+            if given_k:
+                style["markerfacecolor"] = "white"
+                style["markeredgecolor"] = style["color"]
+                style["markeredgewidth"] = 2.0
             axis.errorbar([x], [y], yerr=[err], markersize=13, capsize=3,
                           lw=0, elinewidth=1.4, label=tool, **style)
             if metric == metrics[0]:
@@ -163,7 +169,7 @@ def main() -> None:
         axis.set_title(f"{titles.get(metric, metric)} against cost")
         axis.grid(alpha=0.25, lw=0.5, which="both")
     outside_legend(figure, axes[0])
-    figure.suptitle("Accuracy against cost: up and to the left is better")
+    figure.suptitle("Accuracy against cost: up and to the left is better; hollow = given the true motif count")
     for suffix in ("png", "pdf"):
         figure.savefig(args.out / f"fig7_speed_vs_performance.{suffix}",
                        bbox_inches="tight")

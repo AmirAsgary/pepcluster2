@@ -173,21 +173,28 @@ def main() -> None:
               print(f"{record.pool:10s} {record.peptides:6d} {'mixmhcp':14s} "
                     f"{wall:8.2f}s  F1 {s['bcubed_f1_macro']:.3f}", flush=True)
 
+        # `a` is rebound by the MixMHCp block above, so it is cleared here: an
+        # earlier version left the result block dedented out of this loop, which
+        # recorded MixMHCp's assignment and timing as a GibbsCluster row
+        # whenever GibbsCluster had not been run at all.
+        a = None
         for repeat in range(args.repeats if do_gibbs else 0):
-          with tempfile.TemporaryDirectory(dir=args.tmp_root) as tmp:
-            work = Path(tmp)
-            peptides = work / "peptides.txt"
-            peptides.write_text("\n".join(labels.peptide.astype(str)) + "\n")
-            out = work / "out"
-            out.mkdir()
-            started = time.time()
-            subprocess.run([str(args.gibbscluster), "-f", str(peptides), "-P", "gibbs",
-                            "-g", "1-6", "-l", "9", "-S", "5", "-T", "-j", "2",
-                            "-k", str(GIBBS_THREADS), "-R", str(out)],
-                           capture_output=True, text=True, cwd=work)
-            wall = time.time() - started
-            a = gibbs_read(out)
-        if a is not None:
+            with tempfile.TemporaryDirectory(dir=args.tmp_root) as tmp:
+                work = Path(tmp)
+                peptides = work / "peptides.txt"
+                peptides.write_text("\n".join(labels.peptide.astype(str)) + "\n")
+                out = work / "out"
+                out.mkdir()
+                started = time.time()
+                subprocess.run([str(args.gibbscluster), "-f", str(peptides),
+                                "-P", "gibbs", "-g", "1-6", "-l", "9", "-S", "5",
+                                "-T", "-j", "2", "-k", str(GIBBS_THREADS),
+                                "-R", str(out)],
+                               capture_output=True, text=True, cwd=work)
+                wall = time.time() - started
+                a = gibbs_read(out)
+            if a is None:
+                continue
             merged = labels.merge(a.drop_duplicates("peptide"), on="peptide",
                                   how="left")
             merged["cluster"] = merged["cluster"].fillna("unassigned")
@@ -199,8 +206,9 @@ def main() -> None:
                              cpu_seconds=wall * GIBBS_THREADS, ami=s["ami"],
                              bcubed_f1_macro=s["bcubed_f1_macro"],
                              clusters=s["clusters"]))
-            print(f"{record.pool:10s} {record.peptides:6d} {'gibbscluster':14s} "
-                  f"{wall:8.2f}s wall ({wall * GIBBS_THREADS:.0f} cpu-s)  "
+            print(f"{record.pool:10s} {record.peptides:6d} r{repeat} "
+                  f"{'gibbscluster':14s} {wall:8.2f}s wall "
+                  f"({wall * GIBBS_THREADS:.0f} cpu-s)  "
                   f"F1 {s['bcubed_f1_macro']:.3f}", flush=True)
 
         pd.DataFrame(rows).to_csv(args.out, index=False)

@@ -159,8 +159,9 @@ Test split, AMI / BCubed F1: merge and refine 0.596 / 0.568, refine only 0.606 /
 0.492 / 0.473 given the true count, and GibbsCluster 0.180 / 0.266 and 0.252 /
 0.263.
 
-Cost, serial on an exclusive node: the pipeline is 5x cheaper than MixMHCp and
-296x cheaper than GibbsCluster.
+Cost, serial on an exclusive node, three repeats per pool: the given-count arm is
+9x cheaper than MixMHCp and ~600x cheaper than GibbsCluster while scoring highest
+on both metrics, at 1.02x the cost of clustering alone.
 
 ### Changed
 
