@@ -1,337 +1,505 @@
 split,tool,response,predictor,n,spearman_rho,p_raw,p_bh,significant_bh_0.05
-inner,PepCluster2 + motif,clusters,peptides,120,0.8665261290046875,2.067730757124837e-37,1.6945305716925495e-36,True
-inner,PepCluster2 + motif,clusters,allele_count,120,0.5877282060534023,1.7018403088911494e-12,5.8950344720353224e-12,True
-inner,PepCluster2 + motif,mean_cluster_size,peptides,120,0.708810870219261,1.3375630617412718e-19,7.490353145751122e-19,True
-inner,PepCluster2 + motif,mean_cluster_size,allele_count,120,-0.34986204778035085,8.967028814135645e-05,0.00016554514733788884,True
-inner,PepCluster2 + motif,ami,peptides,120,-0.0546913929638177,0.5529886880945155,0.6032603870121988,False
-inner,PepCluster2 + motif,ami,allele_count,120,-0.6659185156500245,1.0521804060798521e-16,4.979332625955357e-16,True
-inner,PepCluster2 + motif,adjusted_purity_macro,peptides,120,0.03811035160494598,0.6794172599508345,0.7201394301056164,False
-inner,PepCluster2 + motif,adjusted_purity_macro,allele_count,120,-0.9028766628267547,4.425412211589392e-45,3.912996060773778e-44,True
-inner,PepCluster2 + motif,bcubed_precision_macro,peptides,120,-0.0010834104510927696,0.9906299021528504,0.9906299021528504,False
-inner,PepCluster2 + motif,bcubed_precision_macro,allele_count,120,-0.9249823566645181,2.0613740008697294e-51,2.3087388809740966e-50,True
-inner,PepCluster2 + motif,bcubed_recall_macro,peptides,120,-0.6559043265242307,4.2728846860921384e-16,1.9142523393692784e-15,True
-inner,PepCluster2 + motif,bcubed_recall_macro,allele_count,120,-0.4912533982615061,1.2194774476632487e-08,3.25193986043533e-08,True
-inner,PepCluster2 + motif,bcubed_f1_macro,peptides,120,-0.19469788648179648,0.03309564407153494,0.0429348896063156,True
-inner,PepCluster2 + motif,bcubed_f1_macro,allele_count,120,-0.8548362215273653,2.048983707539978e-35,1.6391869660319825e-34,True
-inner,PepCluster2 + motif (given k),clusters,peptides,120,0.27095919563697163,0.002759350017035494,0.004233523313807881,True
-inner,PepCluster2 + motif (given k),clusters,allele_count,120,1.0,0.0,0.0,True
-inner,PepCluster2 + motif (given k),mean_cluster_size,peptides,120,0.5659187546344293,1.6331499648026856e-11,5.2763306555163686e-11,True
-inner,PepCluster2 + motif (given k),mean_cluster_size,allele_count,120,-0.6241534677897433,2.611600631824607e-14,1.0323503674036095e-13,True
-inner,PepCluster2 + motif (given k),ami,peptides,120,0.030891087733722043,0.7376756961616949,0.7745594809697797,False
-inner,PepCluster2 + motif (given k),ami,allele_count,120,-0.8259587754474002,3.740186503110299e-31,2.7926725889890234e-30,True
-inner,PepCluster2 + motif (given k),adjusted_purity_macro,peptides,120,-0.027168600542787913,0.7683328103477126,0.8042362127004093,False
-inner,PepCluster2 + motif (given k),adjusted_purity_macro,allele_count,120,-0.9086202432625489,1.4405791985201387e-46,1.4236312079493137e-45,True
-inner,PepCluster2 + motif (given k),bcubed_precision_macro,peptides,120,-0.058153444950162225,0.528102326039167,0.5817783001611807,False
-inner,PepCluster2 + motif (given k),bcubed_precision_macro,allele_count,120,-0.9373913267418512,6.917021038830175e-56,9.296476276187755e-55,True
-inner,PepCluster2 + motif (given k),bcubed_recall_macro,peptides,120,-0.233495787026859,0.010269298556652507,0.014317362303050796,True
-inner,PepCluster2 + motif (given k),bcubed_recall_macro,allele_count,120,-0.9487721250127766,6.987038987741225e-61,1.235602684147922e-59,True
-inner,PepCluster2 + motif (given k),bcubed_f1_macro,peptides,120,-0.07670337645573137,0.4050273293908714,0.45667510964876773,False
-inner,PepCluster2 + motif (given k),bcubed_f1_macro,allele_count,120,-0.9431880884779767,2.656641284611907e-58,4.2506260553790514e-57,True
-inner,PepCluster2 + EM only,clusters,peptides,120,0.9059524827676806,7.26593425586929e-46,6.781538638811338e-45,True
-inner,PepCluster2 + EM only,clusters,allele_count,120,0.5364993248747796,2.6875125899899995e-10,7.78451922617793e-10,True
-inner,PepCluster2 + EM only,mean_cluster_size,peptides,120,0.7746141652455685,3.114699669731339e-25,1.9380353500550553e-24,True
-inner,PepCluster2 + EM only,mean_cluster_size,allele_count,120,-0.2532138979780367,0.005264087881044059,0.007623851413925878,True
-inner,PepCluster2 + EM only,ami,peptides,120,-0.09123913334122603,0.3216454455282159,0.3651110462752721,False
-inner,PepCluster2 + EM only,ami,allele_count,120,-0.48965795925156325,1.3813405955794518e-08,3.626019063396061e-08,True
-inner,PepCluster2 + EM only,adjusted_purity_macro,peptides,120,-0.017768625891800328,0.8472539152502555,0.8786336898891538,False
-inner,PepCluster2 + EM only,adjusted_purity_macro,allele_count,120,-0.9215964805434171,2.5221208627241266e-50,2.7336535802429243e-49,True
-inner,PepCluster2 + EM only,bcubed_precision_macro,peptides,120,-0.04521155151675596,0.6238971065298167,0.6654902469651378,False
-inner,PepCluster2 + EM only,bcubed_precision_macro,allele_count,120,-0.9384017714481482,2.72841226897569e-56,3.819777176565966e-55,True
-inner,PepCluster2 + EM only,bcubed_recall_macro,peptides,120,-0.6834444812922331,7.917925101376775e-18,4.092958206250149e-17,True
-inner,PepCluster2 + EM only,bcubed_recall_macro,allele_count,120,-0.22550644050536298,0.013270403987136069,0.01834920057480543,True
-inner,PepCluster2 + EM only,bcubed_f1_macro,peptides,120,-0.2764606508453553,0.002238777895377796,0.0035541891660244014,True
-inner,PepCluster2 + EM only,bcubed_f1_macro,allele_count,120,-0.7616094020463728,5.616812462766353e-24,3.310963135946482e-23,True
-inner,PepCluster2 (similarity),clusters,peptides,120,0.9011735833027493,1.1728203621651555e-44,1.0104298504807494e-43,True
-inner,PepCluster2 (similarity),clusters,allele_count,120,0.5931796674211904,9.415368117140478e-13,3.2953788409991672e-12,True
-inner,PepCluster2 (similarity),mean_cluster_size,peptides,120,0.9252985021517212,1.6218355346443775e-51,1.879092205656934e-50,True
-inner,PepCluster2 (similarity),mean_cluster_size,allele_count,120,-0.02620065396328327,0.7763656256550426,0.8101206528574357,False
-inner,PepCluster2 (similarity),ami,peptides,120,-0.005059387907827452,0.9562634970589817,0.9591180149606503,False
-inner,PepCluster2 (similarity),ami,allele_count,120,0.19441310691158836,0.03335837045381028,0.042944109089962657,True
-inner,PepCluster2 (similarity),adjusted_purity_macro,peptides,120,-0.40335509992959595,4.9264853518172674e-06,1.0217895544509888e-05,True
-inner,PepCluster2 (similarity),adjusted_purity_macro,allele_count,120,-0.9582561235718813,5.230577570225489e-66,9.763744797754248e-65,True
-inner,PepCluster2 (similarity),bcubed_precision_macro,peptides,120,-0.3903472295776937,1.046012464944247e-05,2.067412871889806e-05,True
-inner,PepCluster2 (similarity),bcubed_precision_macro,allele_count,120,-0.974671418274182,1.328212033989335e-78,3.187708881574404e-77,True
-inner,PepCluster2 (similarity),bcubed_recall_macro,peptides,120,-0.7433549957560266,2.41768283885313e-22,1.3768498878892401e-21,True
-inner,PepCluster2 (similarity),bcubed_recall_macro,allele_count,120,0.2681401162710574,0.0030663607488497055,0.004620166868221977,True
-inner,PepCluster2 (similarity),bcubed_f1_macro,peptides,120,-0.8001680675199009,5.788762857668439e-28,3.740431384954992e-27,True
-inner,PepCluster2 (similarity),bcubed_f1_macro,allele_count,120,0.10783394997202445,0.24106880967700187,0.27930731052231944,False
-inner,MixMHCp (default),clusters,peptides,120,0.6694849448482885,6.304360283552992e-17,3.026092936105436e-16,True
-inner,MixMHCp (default),clusters,allele_count,120,0.27220114835007375,0.002633116808513616,0.0041150104542352324,True
-inner,MixMHCp (default),mean_cluster_size,peptides,120,0.9471019537931167,4.417115491452914e-60,7.420754025640896e-59,True
-inner,MixMHCp (default),mean_cluster_size,allele_count,120,0.2163511445710302,0.01762596335160263,0.023689294744553935,True
-inner,MixMHCp (default),ami,peptides,120,0.07322396212241422,0.42672971400447596,0.47953573212543116,False
-inner,MixMHCp (default),ami,allele_count,120,-0.8312237241802114,7.192372918979653e-32,5.620086745993403e-31,True
-inner,MixMHCp (default),adjusted_purity_macro,peptides,120,-0.006760897911146225,0.941577293290762,0.9500599716086967,False
-inner,MixMHCp (default),adjusted_purity_macro,allele_count,120,-0.9118820296828765,1.8595979638376298e-47,1.893408835907405e-46,True
-inner,MixMHCp (default),bcubed_precision_macro,peptides,120,-0.04989244026057985,0.5883967065472108,0.6336579916662269,False
-inner,MixMHCp (default),bcubed_precision_macro,allele_count,120,-0.9403340253601902,4.404689427612318e-57,6.727162034898814e-56,True
-inner,MixMHCp (default),bcubed_recall_macro,peptides,120,-0.35662607928743123,6.38715460493758e-05,0.00011856817388171418,True
-inner,MixMHCp (default),bcubed_recall_macro,allele_count,120,-0.5425024446808917,1.5511446845096968e-10,4.571794859607527e-10,True
-inner,MixMHCp (default),bcubed_f1_macro,peptides,120,-0.05518101114844616,0.5494349703898971,0.6013359936514835,False
-inner,MixMHCp (default),bcubed_f1_macro,allele_count,120,-0.935778160631798,2.959068043129206e-55,3.8240263941977434e-54,True
-inner,MixMHCp (forced k),clusters,peptides,120,0.27095919563697163,0.002759350017035494,0.004233523313807881,True
-inner,MixMHCp (forced k),clusters,allele_count,120,1.0,0.0,0.0,True
-inner,MixMHCp (forced k),mean_cluster_size,peptides,120,0.6572794244044639,3.535993190654052e-16,1.605532043324002e-15,True
-inner,MixMHCp (forced k),mean_cluster_size,allele_count,120,-0.5341707076289681,3.316545426673058e-10,9.443722570865657e-10,True
-inner,MixMHCp (forced k),ami,peptides,120,0.10417408183584323,0.2575044476557174,0.2973247230663953,False
-inner,MixMHCp (forced k),ami,allele_count,120,-0.8234415272317126,8.068411726337782e-31,5.893448565324988e-30,True
-inner,MixMHCp (forced k),adjusted_purity_macro,peptides,120,0.0156156948671929,0.8655754684320667,0.8921268631692467,False
-inner,MixMHCp (forced k),adjusted_purity_macro,allele_count,120,-0.9032134777288537,3.641799847583731e-45,3.3071479696976584e-44,True
-inner,MixMHCp (forced k),bcubed_precision_macro,peptides,120,-0.02482815617087597,0.7877961434192406,0.819503108943854,False
-inner,MixMHCp (forced k),bcubed_precision_macro,allele_count,120,-0.9299459446954512,4.205177923834495e-53,5.0462135086013944e-52,True
-inner,MixMHCp (forced k),bcubed_recall_macro,peptides,120,0.013681529414440743,0.882096654459311,0.9036112070070991,False
-inner,MixMHCp (forced k),bcubed_recall_macro,allele_count,120,-0.9079466134583508,2.177731071100956e-46,2.0906218282569177e-45,True
-inner,MixMHCp (forced k),bcubed_f1_macro,peptides,120,-0.014212817231803544,0.8775531611747712,0.9017060004731595,False
-inner,MixMHCp (forced k),bcubed_f1_macro,allele_count,120,-0.9210823946402135,3.652663261096947e-50,3.835296424151794e-49,True
-inner,GibbsCluster (default),clusters,peptides,120,0.42612516714419857,1.219073741427571e-06,2.6947945863135784e-06,True
-inner,GibbsCluster (default),clusters,allele_count,120,0.033840521278352124,0.7136717331240399,0.7517043960177975,False
-inner,GibbsCluster (default),mean_cluster_size,peptides,120,0.9621795995910044,1.7336483609268528e-68,3.42650499571425e-67,True
-inner,GibbsCluster (default),mean_cluster_size,allele_count,120,0.2776063877300514,0.00214224890232832,0.003427598243725312,True
-inner,GibbsCluster (default),ami,peptides,120,-0.07278990344809819,0.429483258293383,0.481021249288589,False
-inner,GibbsCluster (default),ami,allele_count,120,-0.8986930672006824,4.700583056476934e-44,3.9484897674406244e-43,True
-inner,GibbsCluster (default),adjusted_purity_macro,peptides,120,-0.11711250279985497,0.20271175898107788,0.23732108368516433,False
-inner,GibbsCluster (default),adjusted_purity_macro,allele_count,120,-0.9388094947506893,1.8661523835357348e-56,2.726205221165247e-55,True
-inner,GibbsCluster (default),bcubed_precision_macro,peptides,120,-0.17397766160464725,0.057380486430427154,0.07193971433068479,False
-inner,GibbsCluster (default),bcubed_precision_macro,allele_count,120,-0.9741573323709779,4.282354239911988e-78,9.592473497402852e-77,True
-inner,GibbsCluster (default),bcubed_recall_macro,peptides,120,-0.38414539923906643,1.4813093546231291e-05,2.8604594434101805e-05,True
-inner,GibbsCluster (default),bcubed_recall_macro,allele_count,120,-0.7694270531950927,1.0098837370058337e-24,6.1694715569810936e-24,True
-inner,GibbsCluster (default),bcubed_f1_macro,peptides,120,-0.180926072863098,0.04797915001820469,0.06060524212825855,False
-inner,GibbsCluster (default),bcubed_f1_macro,allele_count,120,-0.9757527713809209,1.0443473327250545e-79,2.6992361830432177e-78,True
-inner,GibbsCluster (forced k),clusters,peptides,120,0.27095919563697163,0.002759350017035494,0.004233523313807881,True
-inner,GibbsCluster (forced k),clusters,allele_count,120,1.0,0.0,0.0,True
-inner,GibbsCluster (forced k),mean_cluster_size,peptides,120,0.6572794244044639,3.535993190654052e-16,1.605532043324002e-15,True
-inner,GibbsCluster (forced k),mean_cluster_size,allele_count,120,-0.5341707076289681,3.316545426673058e-10,9.443722570865657e-10,True
-inner,GibbsCluster (forced k),ami,peptides,120,-0.19547571962617075,0.03238693995131542,0.04217834040171311,True
-inner,GibbsCluster (forced k),ami,allele_count,120,-0.9332609124161104,2.6553069960265785e-54,3.3043820394997423e-53,True
-inner,GibbsCluster (forced k),adjusted_purity_macro,peptides,120,-0.27278677822594455,0.0025754207986838865,0.004043651347466289,True
-inner,GibbsCluster (forced k),adjusted_purity_macro,allele_count,120,-0.9723137139594887,2.3673627505127805e-76,4.971461776076839e-75,True
-inner,GibbsCluster (forced k),bcubed_precision_macro,peptides,120,-0.2673905607868479,0.003153006197447194,0.004729509296170791,True
-inner,GibbsCluster (forced k),bcubed_precision_macro,allele_count,120,-0.9789436494008065,2.775488081980781e-83,9.325639955455426e-82,True
-inner,GibbsCluster (forced k),bcubed_recall_macro,peptides,120,-0.28398201955390323,0.0016706402827290487,0.0027117639371833837,True
-inner,GibbsCluster (forced k),bcubed_recall_macro,allele_count,120,-0.9758768610816941,7.74338546065011e-80,2.168147928982031e-78,True
-inner,GibbsCluster (forced k),bcubed_f1_macro,peptides,120,-0.27110610303899296,0.002744138851303889,0.004233523313807881,True
-inner,GibbsCluster (forced k),bcubed_f1_macro,allele_count,120,-0.9783054737968294,1.5863906857523772e-82,4.84570245829817e-81,True
-outer,PepCluster2 + motif,clusters,peptides,25,0.9789549964061207,2.239076625608073e-17,1.1063672738298715e-16,True
-outer,PepCluster2 + motif,clusters,allele_count,25,0.8606794030063992,3.412076737485095e-08,8.751586135839633e-08,True
-outer,PepCluster2 + motif,mean_cluster_size,peptides,25,0.6738461538461539,0.0002217790889652633,0.0003963711377251514,True
-outer,PepCluster2 + motif,mean_cluster_size,allele_count,25,0.46479493840181657,0.019234265545415668,0.025747861447249658,True
-outer,PepCluster2 + motif,ami,peptides,25,-0.33230769230769236,0.10459374936681606,0.12506583554181563,False
-outer,PepCluster2 + motif,ami,allele_count,25,-0.5988704014023406,0.0015615347717008762,0.002584609277298002,True
-outer,PepCluster2 + motif,adjusted_purity_macro,peptides,25,-0.2915384615384616,0.15736225008219265,0.18487313296369487,False
-outer,PepCluster2 + motif,adjusted_purity_macro,allele_count,25,-0.6403119081479571,0.0005655177279254266,0.0009694589621578742,True
-outer,PepCluster2 + motif,bcubed_precision_macro,peptides,25,-0.3769230769230769,0.06326742530511403,0.07844226901298272,False
-outer,PepCluster2 + motif,bcubed_precision_macro,allele_count,25,-0.7227886323573705,4.4834698777179435e-05,8.369143771740161e-05,True
-outer,PepCluster2 + motif,bcubed_recall_macro,peptides,25,-0.8046153846153845,1.2456660325798915e-06,2.7178167983561267e-06,True
-outer,PepCluster2 + motif,bcubed_recall_macro,allele_count,25,-0.783732024630336,3.585477246450585e-06,7.529502217546229e-06,True
-outer,PepCluster2 + motif,bcubed_f1_macro,peptides,25,-0.5346153846153846,0.005900861073159652,0.008436975832262312,True
-outer,PepCluster2 + motif,bcubed_f1_macro,allele_count,25,-0.8007961744667662,1.5252362005257822e-06,3.306318473397825e-06,True
-outer,PepCluster2 + motif (given k),clusters,peptides,25,0.8552389382306154,5.1544915249384564e-08,1.2734626120436187e-07,True
-outer,PepCluster2 + motif (given k),clusters,allele_count,25,1.0,0.0,0.0,True
-outer,PepCluster2 + motif (given k),mean_cluster_size,peptides,25,0.45999999999999996,0.02068619290858635,0.0275815905447818,True
-outer,PepCluster2 + motif (given k),mean_cluster_size,allele_count,25,0.10969810609133784,0.6016774962084849,0.6458902195720476,False
-outer,PepCluster2 + motif (given k),ami,peptides,25,-0.26153846153846155,0.2066383432021531,0.24107806706917864,False
-outer,PepCluster2 + motif (given k),ami,allele_count,25,-0.5159873879111077,0.008283231286406649,0.011645044821057045,True
-outer,PepCluster2 + motif (given k),adjusted_purity_macro,peptides,25,-0.4476923076923077,0.02482425890186222,0.03283838972844766,True
-outer,PepCluster2 + motif (given k),adjusted_purity_macro,allele_count,25,-0.7662615855120857,7.979894601256564e-06,1.6249967188013367e-05,True
-outer,PepCluster2 + motif (given k),bcubed_precision_macro,peptides,25,-0.5169230769230769,0.008146925263943533,0.011501541549096753,True
-outer,PepCluster2 + motif (given k),bcubed_precision_macro,allele_count,25,-0.8194854814304755,5.419618137948172e-07,1.2303997934801255e-06,True
-outer,PepCluster2 + motif (given k),bcubed_recall_macro,peptides,25,-0.5969230769230769,0.0016323865683266158,0.0026625334318337033,True
-outer,PepCluster2 + motif (given k),bcubed_recall_macro,allele_count,25,-0.8125785636395396,8.049625422871267e-07,1.803116094723164e-06,True
-outer,PepCluster2 + motif (given k),bcubed_f1_macro,peptides,25,-0.553076923076923,0.004136262434112801,0.00609554463974518,True
-outer,PepCluster2 + motif (given k),bcubed_f1_macro,allele_count,25,-0.8446754169033014,1.0971656628725797e-07,2.6521414584545813e-07,True
-outer,PepCluster2 + EM only,clusters,peptides,25,0.9801326115733995,1.1613593447705599e-17,5.82413044541654e-17,True
-outer,PepCluster2 + EM only,clusters,allele_count,25,0.8580486978436256,4.174198968938962e-08,1.0545344763635271e-07,True
-outer,PepCluster2 + EM only,mean_cluster_size,peptides,25,0.5976923076923077,0.001604076235161365,0.002629120073240091,True
-outer,PepCluster2 + EM only,mean_cluster_size,allele_count,25,0.3993823640288337,0.04794391712252639,0.06060524212825855,False
-outer,PepCluster2 + EM only,ami,peptides,25,-0.4823076923076923,0.014619098711298685,0.020049049661209625,True
-outer,PepCluster2 + EM only,ami,allele_count,25,-0.6220288904660676,0.0009008581941052032,0.0015364891026362856,True
-outer,PepCluster2 + EM only,adjusted_purity_macro,peptides,25,-0.4976923076923077,0.011355430955701394,0.01576621818642838,True
-outer,PepCluster2 + EM only,adjusted_purity_macro,allele_count,25,-0.7877949174485335,2.9458311852561052e-06,6.304454001567206e-06,True
-outer,PepCluster2 + EM only,bcubed_precision_macro,peptides,25,-0.576923076923077,0.0025346957885217284,0.0039983933565413176,True
-outer,PepCluster2 + EM only,bcubed_precision_macro,allele_count,25,-0.8519886239760572,6.543497289003811e-08,1.5931993399313628e-07,True
-outer,PepCluster2 + EM only,bcubed_recall_macro,peptides,25,-0.7592307692307693,1.0804535988650981e-05,2.1229965451384382e-05,True
-outer,PepCluster2 + EM only,bcubed_recall_macro,allele_count,25,-0.7853571817576148,3.3161084761958304e-06,7.051977518998727e-06,True
-outer,PepCluster2 + EM only,bcubed_f1_macro,peptides,25,-0.7407692307692308,2.286930943900592e-05,4.341292639268921e-05,True
-outer,PepCluster2 + EM only,bcubed_f1_macro,allele_count,25,-0.8718967987852259,1.3763967937958552e-08,3.626019063396061e-08,True
-outer,PepCluster2 (similarity),clusters,peptides,25,0.9828813415129832,2.1235462194454115e-18,1.1508250479575133e-17,True
-outer,PepCluster2 (similarity),clusters,allele_count,25,0.863733987172246,2.6860186959147552e-08,6.942325244825829e-08,True
-outer,PepCluster2 (similarity),mean_cluster_size,peptides,25,0.8530769230769231,6.044888882239667e-08,1.4825420908266628e-07,True
-outer,PepCluster2 (similarity),mean_cluster_size,allele_count,25,0.6919106469390679,0.00012738399139682757,0.00023261424515942425,True
-outer,PepCluster2 (similarity),ami,peptides,25,0.5215384615384615,0.007501651897720945,0.010680317956077278,True
-outer,PepCluster2 (similarity),ami,allele_count,25,0.3396578396013275,0.09668321367881126,0.1160198564145735,False
-outer,PepCluster2 (similarity),adjusted_purity_macro,peptides,25,-0.7623076923076924,9.474478504307564e-06,1.8948957008615128e-05,True
-outer,PepCluster2 (similarity),adjusted_purity_macro,allele_count,25,-0.9466540266400636,8.446238643567059e-13,3.019081047062268e-12,True
-outer,PepCluster2 (similarity),bcubed_precision_macro,peptides,25,-0.7623076923076924,9.474478504307564e-06,1.8948957008615128e-05,True
-outer,PepCluster2 (similarity),bcubed_precision_macro,allele_count,25,-0.9466540266400636,8.446238643567059e-13,3.019081047062268e-12,True
-outer,PepCluster2 (similarity),bcubed_recall_macro,peptides,25,-0.666923076923077,0.00027161189098863904,0.0004803241861693827,True
-outer,PepCluster2 (similarity),bcubed_recall_macro,allele_count,25,-0.5826188301295498,0.002242524116658253,0.0035541891660244014,True
-outer,PepCluster2 (similarity),bcubed_f1_macro,peptides,25,-0.693076923076923,0.00012273987658660736,0.0002253584619295086,True
-outer,PepCluster2 (similarity),bcubed_f1_macro,allele_count,25,-0.6464062473752537,0.0004810037179948553,0.0008288064063911353,True
-outer,MixMHCp (default),clusters,peptides,25,0.7747757749175995,5.450931180017188e-06,1.1167761441986434e-05,True
-outer,MixMHCp (default),clusters,allele_count,25,0.7338851432043904,2.9778071046872522e-05,5.5896267439939486e-05,True
-outer,MixMHCp (default),mean_cluster_size,peptides,25,0.9484615384615385,5.733043815027239e-13,2.093807306357774e-12,True
-outer,MixMHCp (default),mean_cluster_size,allele_count,25,0.7971395709303883,1.8441350142396883e-06,3.971983107593175e-06,True
-outer,MixMHCp (default),ami,peptides,25,-0.45076923076923076,0.023731952637414816,0.03151753393743628,True
-outer,MixMHCp (default),ami,allele_count,25,-0.6695647364389805,0.000251550818264278,0.0004472014546920498,True
-outer,MixMHCp (default),adjusted_purity_macro,peptides,25,-0.5607692307692308,0.003545757774304545,0.005271569080381979,True
-outer,MixMHCp (default),adjusted_purity_macro,allele_count,25,-0.7573232213120509,1.1710051960228085e-05,2.2743222304258015e-05,True
-outer,MixMHCp (default),bcubed_precision_macro,peptides,25,-0.6499999999999999,0.00043649761327614454,0.000755995866292704,True
-outer,MixMHCp (default),bcubed_precision_macro,allele_count,25,-0.8353307634214465,2.046492468122058e-07,4.808541743279801e-07,True
-outer,MixMHCp (default),bcubed_recall_macro,peptides,25,-0.36,0.0771175664335246,0.09456752672140244,False
-outer,MixMHCp (default),bcubed_recall_macro,allele_count,25,-0.5623043660385614,0.003436905355901659,0.005132445331479811,True
-outer,MixMHCp (default),bcubed_f1_macro,peptides,25,-0.6661538461538461,0.00027770990911767964,0.0004885368034740333,True
-outer,MixMHCp (default),bcubed_f1_macro,allele_count,25,-0.8601144096124527,3.564275074319592e-08,9.072700189177143e-08,True
-outer,MixMHCp (forced k),clusters,peptides,25,0.8552389382306154,5.1544915249384564e-08,1.2734626120436187e-07,True
-outer,MixMHCp (forced k),clusters,allele_count,25,1.0,0.0,0.0,True
-outer,MixMHCp (forced k),mean_cluster_size,peptides,25,0.653076923076923,0.00040128161079623604,0.0006986042550649498,True
-outer,MixMHCp (forced k),mean_cluster_size,allele_count,25,0.34697104667408335,0.08926418157848304,0.10788764392219533,False
-outer,MixMHCp (forced k),ami,peptides,25,-0.2276923076923077,0.27367701498103636,0.3127737314068987,False
-outer,MixMHCp (forced k),ami,allele_count,25,-0.5176125450383866,0.008047689136681562,0.011409382067194114,True
-outer,MixMHCp (forced k),adjusted_purity_macro,peptides,25,-0.4707692307692308,0.017542529366882283,0.02367184685651585,True
-outer,MixMHCp (forced k),adjusted_purity_macro,allele_count,25,-0.7751999497121207,5.3461342770332554e-06,1.1020252252044012e-05,True
-outer,MixMHCp (forced k),bcubed_precision_macro,peptides,25,-0.5507692307692308,0.004328847742847896,0.006351497124877263,True
-outer,MixMHCp (forced k),bcubed_precision_macro,allele_count,25,-0.8332993170123477,2.3316325255751025e-07,5.402955369608514e-07,True
-outer,MixMHCp (forced k),bcubed_recall_macro,peptides,25,-0.48307692307692307,0.014439400973032788,0.019883765274340232,True
-outer,MixMHCp (forced k),bcubed_recall_macro,allele_count,25,-0.7796691318121381,4.3461573754314405e-06,9.070241479161267e-06,True
-outer,MixMHCp (forced k),bcubed_f1_macro,peptides,25,-0.5353846153846153,0.00581642313938255,0.008351787071933918,True
-outer,MixMHCp (forced k),bcubed_f1_macro,allele_count,25,-0.8207043492759348,5.045464020388761e-07,1.1532489189460026e-06,True
-outer,GibbsCluster (default),clusters,peptides,25,0.2968003404160951,0.1496621418907924,0.17706506927924737,False
-outer,GibbsCluster (default),clusters,allele_count,25,0.3128743034680603,0.12780668827215252,0.1522803094306498,False
-outer,GibbsCluster (default),mean_cluster_size,peptides,25,0.9546153846153845,1.3693264288999668e-13,5.112152001226542e-13,True
-outer,GibbsCluster (default),mean_cluster_size,allele_count,25,0.8397999455214642,1.5263798450379438e-07,3.637330694558504e-07,True
-outer,GibbsCluster (default),ami,peptides,25,-0.6838461538461539,0.00016393483341953748,0.0002977411028592681,True
-outer,GibbsCluster (default),ami,allele_count,25,-0.8186729028668361,5.68267540562146e-07,1.281462373348195e-06,True
-outer,GibbsCluster (default),adjusted_purity_macro,peptides,25,-0.7838461538461537,3.56594268217995e-06,7.529502217546229e-06,True
-outer,GibbsCluster (default),adjusted_purity_macro,allele_count,25,-0.8775848487307027,8.404607544154021e-09,2.259158507868601e-08,True
-outer,GibbsCluster (default),bcubed_precision_macro,peptides,25,-0.8092307692307691,9.69527378096671e-07,2.1573589340429236e-06,True
-outer,GibbsCluster (default),bcubed_precision_macro,allele_count,25,-0.9344653481854704,8.47562665836947e-12,2.7919711345217076e-11,True
-outer,GibbsCluster (default),bcubed_recall_macro,peptides,25,-0.6176923076923077,0.001001847182993298,0.001691561072792704,True
-outer,GibbsCluster (default),bcubed_recall_macro,allele_count,25,-0.7378213357847018,2.5631410370296842e-05,4.8382886991122124e-05,True
-outer,GibbsCluster (default),bcubed_f1_macro,peptides,25,-0.8046153846153845,1.2456660325798915e-06,2.7178167983561267e-06,True
-outer,GibbsCluster (default),bcubed_f1_macro,allele_count,25,-0.9344653481854704,8.47562665836947e-12,2.7919711345217076e-11,True
-outer,GibbsCluster (forced k),clusters,peptides,25,0.8552389382306154,5.1544915249384564e-08,1.2734626120436187e-07,True
-outer,GibbsCluster (forced k),clusters,allele_count,25,1.0,0.0,0.0,True
-outer,GibbsCluster (forced k),mean_cluster_size,peptides,25,0.653076923076923,0.00040128161079623604,0.0006986042550649498,True
-outer,GibbsCluster (forced k),mean_cluster_size,allele_count,25,0.34697104667408335,0.08926418157848304,0.10788764392219533,False
-outer,GibbsCluster (forced k),ami,peptides,25,-0.606923076923077,0.001295829148196553,0.0021661621581793122,True
-outer,GibbsCluster (forced k),ami,allele_count,25,-0.8337056062941676,2.2719060736902363e-07,5.301114171943885e-07,True
-outer,GibbsCluster (forced k),adjusted_purity_macro,peptides,25,-0.7407692307692308,2.286930943900592e-05,4.341292639268921e-05,True
-outer,GibbsCluster (forced k),adjusted_purity_macro,allele_count,25,-0.9039936520489877,5.874688774145178e-10,1.6449128567606497e-09,True
-outer,GibbsCluster (forced k),bcubed_precision_macro,peptides,25,-0.7615384615384616,9.792568235371881e-06,1.9469248089260072e-05,True
-outer,GibbsCluster (forced k),bcubed_precision_macro,allele_count,25,-0.9283710089581739,2.2861483512543702e-11,7.246658924730834e-11,True
-outer,GibbsCluster (forced k),bcubed_recall_macro,peptides,25,-0.7576923076923077,1.1529764999561723e-05,2.2523261859608945e-05,True
-outer,GibbsCluster (forced k),bcubed_recall_macro,allele_count,25,-0.9161823305035808,1.3106601585762926e-10,3.897184188333047e-10,True
-outer,GibbsCluster (forced k),bcubed_f1_macro,peptides,25,-0.763076923076923,9.16560361677088e-06,1.8552065152018164e-05,True
-outer,GibbsCluster (forced k),bcubed_f1_macro,allele_count,25,-0.9283710089581739,2.2861483512543702e-11,7.246658924730834e-11,True
-test,PepCluster2 + motif,clusters,peptides,48,0.7656732749675711,2.305800990538185e-10,6.736948981050697e-10,True
-test,PepCluster2 + motif,clusters,allele_count,48,0.44378324598369245,0.0015806644478169598,0.002603447325816169,True
-test,PepCluster2 + motif,mean_cluster_size,peptides,48,0.7794273309968004,6.743596847423337e-11,2.078760129113983e-10,True
-test,PepCluster2 + motif,mean_cluster_size,allele_count,48,-0.2726744603586148,0.060785712095871795,0.07564444171930712,False
-test,PepCluster2 + motif,ami,peptides,48,0.42235249478709447,0.0027869454377176567,0.00425642575942333,True
-test,PepCluster2 + motif,ami,allele_count,48,-0.7529663286629725,6.682563652472459e-10,1.8556540390336747e-09,True
-test,PepCluster2 + motif,adjusted_purity_macro,peptides,48,0.39765510561756257,0.005128431399334653,0.007491969348593233,True
-test,PepCluster2 + motif,adjusted_purity_macro,allele_count,48,-0.8031314030769336,6.505074996942499e-12,2.207783029265333e-11,True
-test,PepCluster2 + motif,bcubed_precision_macro,peptides,48,0.3434294093969858,0.016856762550189443,0.02283819442283731,True
-test,PepCluster2 + motif,bcubed_precision_macro,allele_count,48,-0.8476318002497958,2.9870305455052335e-14,1.1670258875462307e-13,True
-test,PepCluster2 + motif,bcubed_recall_macro,peptides,48,-0.015741193097064312,0.9154316464138884,0.9320758581668681,False
-test,PepCluster2 + motif,bcubed_recall_macro,allele_count,48,-0.9006292132843065,2.9051130789604837e-18,1.549393642112258e-17,True
-test,PepCluster2 + motif,bcubed_f1_macro,peptides,48,0.2901264727717543,0.04546527420999038,0.05786489444907866,False
-test,PepCluster2 + motif,bcubed_f1_macro,allele_count,48,-0.87154327437328,7.710750605345206e-16,3.279509118222771e-15,True
-test,PepCluster2 + motif (given k),clusters,peptides,48,0.10292296772630968,0.4863493104530873,0.5393180472351068,False
-test,PepCluster2 + motif (given k),clusters,allele_count,48,0.9999999999999999,0.0,0.0,True
-test,PepCluster2 + motif (given k),mean_cluster_size,peptides,48,0.724854802131713,5.693098321568267e-09,1.5551878341845024e-08,True
-test,PepCluster2 + motif (given k),mean_cluster_size,allele_count,48,-0.577306866138516,1.7412922145120397e-05,3.343281051863116e-05,True
-test,PepCluster2 + motif (given k),ami,peptides,48,0.40959670038085266,0.0038403700057409993,0.005684424325678307,True
-test,PepCluster2 + motif (given k),ami,allele_count,48,-0.7418003783319606,1.617110334149579e-09,4.453680920280808e-09,True
-test,PepCluster2 + motif (given k),adjusted_purity_macro,peptides,48,0.30727894524993465,0.033630836944521,0.04312962295175212,True
-test,PepCluster2 + motif (given k),adjusted_purity_macro,allele_count,48,-0.837990955329849,1.097749450844772e-13,4.1443125335263305e-13,True
-test,PepCluster2 + motif (given k),bcubed_precision_macro,peptides,48,0.2437713730997097,0.09498416411522827,0.11438953097747921,False
-test,PepCluster2 + motif (given k),bcubed_precision_macro,allele_count,48,-0.8810207151420415,1.47074003803846e-16,6.863453510846148e-16,True
-test,PepCluster2 + motif (given k),bcubed_recall_macro,peptides,48,0.08299408360486665,0.5749256806838582,0.6231452539025044,False
-test,PepCluster2 + motif (given k),bcubed_recall_macro,allele_count,48,-0.8865219882319545,5.263468079235413e-17,2.5630801081494186e-16,True
-test,PepCluster2 + motif (given k),bcubed_f1_macro,peptides,48,0.21972534364453905,0.13346413901735546,0.15845918978739024,False
-test,PepCluster2 + motif (given k),bcubed_f1_macro,allele_count,48,-0.895400280446369,8.918603116592985e-18,4.540379768447338e-17,True
-test,PepCluster2 + EM only,clusters,peptides,48,0.8343358760624546,1.7589807972284977e-13,6.4946983282283e-13,True
-test,PepCluster2 + EM only,clusters,allele_count,48,0.4466905223770889,0.0014594513658470578,0.0024276022719040167,True
-test,PepCluster2 + EM only,mean_cluster_size,peptides,48,0.7827715367336705,4.935174599748595e-11,1.5497370705752598e-10,True
-test,PepCluster2 + EM only,mean_cluster_size,allele_count,48,-0.32168830563393486,0.02577357038685147,0.03396046921561605,True
-test,PepCluster2 + EM only,ami,peptides,48,0.3164522612271894,0.028429389552547524,0.03716838478465357,True
-test,PepCluster2 + EM only,ami,allele_count,48,-0.7581952615009099,4.3470276640594847e-10,1.2273960463226781e-09,True
-test,PepCluster2 + EM only,adjusted_purity_macro,peptides,48,0.3077674650357057,0.03333527835049962,0.042944109089962657,True
-test,PepCluster2 + EM only,adjusted_purity_macro,allele_count,48,-0.8429475479158104,5.683471718024188e-14,2.1949959738576176e-13,True
-test,PepCluster2 + EM only,bcubed_precision_macro,peptides,48,0.25918688633959336,0.07525572069342877,0.09262242546883541,False
-test,PepCluster2 + EM only,bcubed_precision_macro,allele_count,48,-0.8743756129938294,4.766077570555312e-16,2.107107978561296e-15,True
-test,PepCluster2 + EM only,bcubed_recall_macro,peptides,48,-0.2495250505765677,0.08719894239202948,0.10615523421638372,False
-test,PepCluster2 + EM only,bcubed_recall_macro,allele_count,48,-0.7826514161283459,4.9913014930695416e-11,1.552849353399413e-10,True
-test,PepCluster2 + EM only,bcubed_f1_macro,peptides,48,0.14916137458873355,0.31160767954268803,0.35491586551302773,False
-test,PepCluster2 + EM only,bcubed_f1_macro,allele_count,48,-0.8961083651015063,7.68870583028642e-18,4.0365705609003706e-17,True
-test,PepCluster2 (similarity),clusters,peptides,48,0.9057249194420431,9.157103458874186e-19,5.043912724888076e-18,True
-test,PepCluster2 (similarity),clusters,allele_count,48,0.43688953376107703,0.0019045869989072518,0.00307664053669633,True
-test,PepCluster2 (similarity),mean_cluster_size,peptides,48,0.9466427848717296,2.9512010936890586e-24,1.7707206562134352e-23,True
-test,PepCluster2 (similarity),mean_cluster_size,allele_count,48,-0.12707396157195563,0.38941208845705905,0.44054700916354156,False
-test,PepCluster2 (similarity),ami,peptides,48,0.16544536744776558,0.2611019838040825,0.30044611834990315,False
-test,PepCluster2 (similarity),ami,allele_count,48,-0.45633332621082057,0.0011144664073067714,0.0018723035642753758,True
-test,PepCluster2 (similarity),adjusted_purity_macro,peptides,48,-0.20789230883364243,0.1562203097328637,0.1841755230534814,False
-test,PepCluster2 (similarity),adjusted_purity_macro,allele_count,48,-0.9619057699788842,1.4986475243727171e-27,9.50085977715534e-27,True
-test,PepCluster2 (similarity),bcubed_precision_macro,peptides,48,-0.18352059952129116,0.21181538760617794,0.2462628727878055,False
-test,PepCluster2 (similarity),bcubed_precision_macro,allele_count,48,-0.9736708688642431,3.4725875731548205e-31,2.651794146772772e-30,True
-test,PepCluster2 (similarity),bcubed_recall_macro,peptides,48,-0.795093091330338,1.4875276554613797e-11,4.8525174003400344e-11,True
-test,PepCluster2 (similarity),bcubed_recall_macro,allele_count,48,0.09286802592378242,0.5301300388709014,0.5821035720935388,False
-test,PepCluster2 (similarity),bcubed_f1_macro,peptides,48,-0.8011724486643766,7.985324398011762e-12,2.683068997731952e-11,True
-test,PepCluster2 (similarity),bcubed_f1_macro,allele_count,48,-0.05610209190703572,0.7048812761662338,0.7447802163265866,False
-test,MixMHCp (default),clusters,peptides,48,0.6783863678026464,1.1691667661409275e-07,2.806000238738226e-07,True
-test,MixMHCp (default),clusters,allele_count,48,-0.29782762017377146,0.0397889578750424,0.05083304123959789,False
-test,MixMHCp (default),mean_cluster_size,peptides,48,0.8124626837133054,2.3716898003472457e-12,8.131507886904842e-12,True
-test,MixMHCp (default),mean_cluster_size,allele_count,48,0.34837765032757323,0.015242626334650577,0.020819196944888593,True
-test,MixMHCp (default),ami,peptides,48,0.43375128978841687,0.0020706419412021217,0.003328878910257956,True
-test,MixMHCp (default),ami,allele_count,48,-0.6724080821285009,1.658567794006666e-07,3.924498442156618e-07,True
-test,MixMHCp (default),adjusted_purity_macro,peptides,48,0.39238994792647547,0.005807004275302422,0.008351787071933918,True
-test,MixMHCp (default),adjusted_purity_macro,allele_count,48,-0.7109714618082885,1.4931788798107368e-08,3.8892101055535475e-08,True
-test,MixMHCp (default),bcubed_precision_macro,peptides,48,0.2756879991034125,0.05787927262577686,0.0722952996366581,False
-test,MixMHCp (default),bcubed_precision_macro,allele_count,48,-0.8598871115887116,4.986688089356059e-15,2.0187074674983564e-14,True
-test,MixMHCp (default),bcubed_recall_macro,peptides,48,-0.4202898556916171,0.002937700290741872,0.004446249088690402,True
-test,MixMHCp (default),bcubed_recall_macro,allele_count,48,-0.25343983848877394,0.08219307238694427,0.10042499026186646,False
-test,MixMHCp (default),bcubed_f1_macro,peptides,48,0.2593497262681837,0.07506611026418578,0.09262242546883541,False
-test,MixMHCp (default),bcubed_f1_macro,allele_count,48,-0.870944125818933,8.524374347502025e-16,3.580237225950851e-15,True
-test,MixMHCp (forced k),clusters,peptides,48,0.10292296772630968,0.4863493104530873,0.5393180472351068,False
-test,MixMHCp (forced k),clusters,allele_count,48,0.9999999999999999,0.0,0.0,True
-test,MixMHCp (forced k),mean_cluster_size,peptides,48,0.7748466602089416,1.0253041885280308e-10,3.103623489598364e-10,True
-test,MixMHCp (forced k),mean_cluster_size,allele_count,48,-0.5171196704518418,0.00016761271320466788,0.000301165088966676,True
-test,MixMHCp (forced k),ami,peptides,48,0.4619225974345423,0.000949737415824763,0.0016116756147329311,True
-test,MixMHCp (forced k),ami,allele_count,48,-0.7744812085690688,1.0597102966985563e-10,3.179130890095669e-10,True
-test,MixMHCp (forced k),adjusted_purity_macro,peptides,48,0.39738370573657866,0.005161635293603406,0.007507833154332227,True
-test,MixMHCp (forced k),adjusted_purity_macro,allele_count,48,-0.8207790514049719,9.194991367869658e-13,3.2521232627412685e-12,True
-test,MixMHCp (forced k),bcubed_precision_macro,peptides,48,0.3209574992515216,0.0261312963495155,0.0342973264587391,True
-test,MixMHCp (forced k),bcubed_precision_macro,allele_count,48,-0.8687109357527306,1.2335477073825265e-15,5.0545369473235236e-15,True
-test,MixMHCp (forced k),bcubed_recall_macro,peptides,48,0.3701351576857984,0.009612636347628553,0.013457690886679974,True
-test,MixMHCp (forced k),bcubed_recall_macro,allele_count,48,-0.8428386118150201,5.767695359893391e-14,2.2022109555956583e-13,True
-test,MixMHCp (forced k),bcubed_f1_macro,peptides,48,0.3436465293017729,0.016783011375672688,0.022830331264072967,True
-test,MixMHCp (forced k),bcubed_f1_macro,allele_count,48,-0.8579262617744849,6.714823460630939e-15,2.6859293842523755e-14,True
-test,GibbsCluster (default),clusters,peptides,48,0.16298965546332483,0.2683453391850118,0.30772707838281216,False
-test,GibbsCluster (default),clusters,allele_count,48,-0.6637534444432475,2.7135075436541106e-07,6.244784484025898e-07,True
-test,GibbsCluster (default),mean_cluster_size,peptides,48,0.8731476971012982,5.879690318713741e-16,2.565683048165996e-15,True
-test,GibbsCluster (default),mean_cluster_size,allele_count,48,0.42131036980671965,0.0028622366218972275,0.004351635769038319,True
-test,GibbsCluster (default),ami,peptides,48,0.08581664236709888,0.5619453687840463,0.6110473912991572,False
-test,GibbsCluster (default),ami,allele_count,48,-0.7230089009456233,6.4933487845044175e-09,1.7594880577366808e-08,True
-test,GibbsCluster (default),adjusted_purity_macro,peptides,48,0.012267274620470808,0.934048014778317,0.9453016053178147,False
-test,GibbsCluster (default),adjusted_purity_macro,allele_count,48,-0.8729594436835547,6.070883659360742e-16,2.6151498840323192e-15,True
-test,GibbsCluster (default),bcubed_precision_macro,peptides,48,-0.027954187741338343,0.8504032620877614,0.8791861417276549,False
-test,GibbsCluster (default),bcubed_precision_macro,allele_count,48,-0.9689321484798624,1.485201492154335e-29,9.980554027277132e-29,True
-test,GibbsCluster (default),bcubed_recall_macro,peptides,48,-0.28193019636604144,0.052214104061220686,0.06570763657142378,False
-test,GibbsCluster (default),bcubed_recall_macro,allele_count,48,-0.009749781020737274,0.9475614033768858,0.953235423756388,False
-test,GibbsCluster (default),bcubed_f1_macro,peptides,48,-0.015849753049457856,0.9148505550901282,0.9320758581668681,False
-test,GibbsCluster (default),bcubed_f1_macro,allele_count,48,-0.9713287426972504,2.4045155976418103e-30,1.683160918349267e-29,True
-test,GibbsCluster (forced k),clusters,peptides,48,0.10292296772630968,0.4863493104530873,0.5393180472351068,False
-test,GibbsCluster (forced k),clusters,allele_count,48,0.9999999999999999,0.0,0.0,True
-test,GibbsCluster (forced k),mean_cluster_size,peptides,48,0.7748466602089416,1.0253041885280308e-10,3.103623489598364e-10,True
-test,GibbsCluster (forced k),mean_cluster_size,allele_count,48,-0.5171196704518418,0.00016761271320466788,0.000301165088966676,True
-test,GibbsCluster (forced k),ami,peptides,48,0.01481843350171916,0.9203726571229647,0.9342755673514083,False
-test,GibbsCluster (forced k),ami,allele_count,48,-0.870018168962215,9.94413786526397e-16,4.124975707072462e-15,True
-test,GibbsCluster (forced k),adjusted_purity_macro,peptides,48,-0.06519025141232494,0.659781614471633,0.701539944501483,False
-test,GibbsCluster (forced k),adjusted_purity_macro,allele_count,48,-0.9438223772476844,9.35980499166841e-24,5.42223185724239e-23,True
-test,GibbsCluster (forced k),bcubed_precision_macro,peptides,48,-0.07278944807987325,0.6229597669489092,0.6654902469651378,False
-test,GibbsCluster (forced k),bcubed_precision_macro,allele_count,48,-0.971818955150807,1.6256977921364392e-30,1.1622009748039224e-29,True
-test,GibbsCluster (forced k),bcubed_recall_macro,peptides,48,-0.10063507586881804,0.4961419832657261,0.5483674551884342,False
-test,GibbsCluster (forced k),bcubed_recall_macro,allele_count,48,-0.9637576836923202,4.858821209482352e-28,3.2011057380119024e-27,True
-test,GibbsCluster (forced k),bcubed_f1_macro,peptides,48,-0.08179992412853763,0.580458306231937,0.627118941781128,False
-test,GibbsCluster (forced k),bcubed_f1_macro,allele_count,48,-0.9706751260925082,4.010063074999742e-30,2.74975753714268e-29,True
+inner,PepCluster2,clusters,peptides,120,0.9011735833027493,1.1728203621651555e-44,1.0018668856461667e-43,True
+inner,PepCluster2,clusters,allele_count,120,0.5931796674211904,9.415368117140478e-13,3.2726520903715868e-12,True
+inner,PepCluster2,mean_cluster_size,peptides,120,0.9252985021517212,1.6218355346443775e-51,1.7029273113765964e-50,True
+inner,PepCluster2,mean_cluster_size,allele_count,120,-0.02620065396328327,0.7763656256550426,0.8051199080867109,False
+inner,PepCluster2,ami,peptides,120,-0.005059387907827452,0.9562634970589817,0.9600733117883004,False
+inner,PepCluster2,ami,allele_count,120,0.19441310691158836,0.03335837045381028,0.04322009950827861,True
+inner,PepCluster2,adjusted_purity_macro,peptides,120,-0.40335509992959595,4.9264853518172674e-06,1.0302691358157274e-05,True
+inner,PepCluster2,adjusted_purity_macro,allele_count,120,-0.9582561235718813,5.230577570225489e-66,8.787370317978823e-65,True
+inner,PepCluster2,bcubed_precision_macro,peptides,120,-0.3903472295776937,1.046012464944247e-05,2.092024929888494e-05,True
+inner,PepCluster2,bcubed_precision_macro,allele_count,120,-0.974671418274182,1.328212033989335e-78,2.9105168049157603e-77,True
+inner,PepCluster2,bcubed_recall_macro,peptides,120,-0.7433549957560266,2.41768283885313e-22,1.3539023897577528e-21,True
+inner,PepCluster2,bcubed_recall_macro,allele_count,120,0.2681401162710574,0.0030663607488497055,0.0046409784306914465,True
+inner,PepCluster2,bcubed_f1_macro,peptides,120,-0.8001680675199009,5.788762857668439e-28,3.601896889215918e-27,True
+inner,PepCluster2,bcubed_f1_macro,allele_count,120,0.10783394997202445,0.24106880967700187,0.27930731052231944,False
+inner,PepCluster2 + merge,clusters,peptides,120,0.44057675725060264,4.7585208504845215e-07,1.0852011351331216e-06,True
+inner,PepCluster2 + merge,clusters,allele_count,120,0.8536753355863892,3.1635200235127023e-35,2.3797225251498536e-34,True
+inner,PepCluster2 + merge,mean_cluster_size,peptides,120,0.8679749773868513,1.1350260613449146e-37,8.938330233091201e-37,True
+inner,PepCluster2 + merge,mean_cluster_size,allele_count,120,-0.13181871642149823,0.15124207093650943,0.17935530294588412,False
+inner,PepCluster2 + merge,ami,peptides,120,-0.0942115671429421,0.30606567562828313,0.3474259020645376,False
+inner,PepCluster2 + merge,ami,allele_count,120,-0.6228416623815681,3.0644771612257367e-14,1.1972841001998227e-13,True
+inner,PepCluster2 + merge,adjusted_purity_macro,peptides,120,-0.4464449726462953,3.2070748717525123e-07,7.347116978923938e-07,True
+inner,PepCluster2 + merge,adjusted_purity_macro,allele_count,120,-0.935334983129036,4.382304499517036e-55,5.387027970138015e-54,True
+inner,PepCluster2 + merge,bcubed_precision_macro,peptides,120,-0.41756097222261046,2.0862734400675336e-06,4.493512024760841e-06,True
+inner,PepCluster2 + merge,bcubed_precision_macro,allele_count,120,-0.9593552037787308,1.1188098897360801e-66,1.944414429058567e-65,True
+inner,PepCluster2 + merge,bcubed_recall_macro,peptides,120,-0.1283841384544932,0.16227901920058535,0.19064947710278557,False
+inner,PepCluster2 + merge,bcubed_recall_macro,allele_count,120,-0.746488185652137,1.2968603115597294e-22,7.344017944113523e-22,True
+inner,PepCluster2 + merge,bcubed_f1_macro,peptides,120,-0.12672082561451423,0.16783489564810444,0.1967181102480108,False
+inner,PepCluster2 + merge,bcubed_f1_macro,allele_count,120,-0.8709501555277878,3.2381992451139804e-38,2.5905593960911843e-37,True
+inner,PepCluster2 + merge (given K),clusters,peptides,120,0.27095919563697163,0.002759350017035494,0.004227089387799055,True
+inner,PepCluster2 + merge (given K),clusters,allele_count,120,1.0,0.0,0.0,True
+inner,PepCluster2 + merge (given K),mean_cluster_size,peptides,120,0.5659187546344293,1.6331499648026856e-11,5.209541659876921e-11,True
+inner,PepCluster2 + merge (given K),mean_cluster_size,allele_count,120,-0.6241534677897433,2.611600631824607e-14,1.0364147389288205e-13,True
+inner,PepCluster2 + merge (given K),ami,peptides,120,-0.17666535291601201,0.05357877045650627,0.06784849324140492,False
+inner,PepCluster2 + merge (given K),ami,allele_count,120,-0.850688080101514,9.509814088958443e-35,6.9462989867174705e-34,True
+inner,PepCluster2 + merge (given K),adjusted_purity_macro,peptides,120,-0.10644854928925913,0.2472023830515274,0.2857568831604812,False
+inner,PepCluster2 + merge (given K),adjusted_purity_macro,allele_count,120,-0.9370722389398625,9.249167277579896e-56,1.1952770020257097e-54,True
+inner,PepCluster2 + merge (given K),bcubed_precision_macro,peptides,120,-0.1404787493556346,0.12592772099472718,0.1511132651936726,False
+inner,PepCluster2 + merge (given K),bcubed_precision_macro,allele_count,120,-0.9633438013035879,2.834657153925622e-69,5.2913600206611616e-68,True
+inner,PepCluster2 + merge (given K),bcubed_recall_macro,peptides,120,-0.6087030500444102,1.6393951092604723e-13,6.031059380053125e-13,True
+inner,PepCluster2 + merge (given K),bcubed_recall_macro,allele_count,120,-0.8517871603083633,6.361011039590464e-35,4.714631711696462e-34,True
+inner,PepCluster2 + merge (given K),bcubed_f1_macro,peptides,120,-0.2619596186538059,0.0038495030559121384,0.0057400873969814135,True
+inner,PepCluster2 + merge (given K),bcubed_f1_macro,allele_count,120,-0.9740155155700941,5.890238997170279e-78,1.1874721818295282e-76,True
+inner,PepCluster2 + merge + EM,clusters,peptides,120,0.8665261290046875,2.067730757124837e-37,1.6032866178321812e-36,True
+inner,PepCluster2 + merge + EM,clusters,allele_count,120,0.5877282060534023,1.7018403088911494e-12,5.834881059055369e-12,True
+inner,PepCluster2 + merge + EM,mean_cluster_size,peptides,120,0.708810870219261,1.3375630617412718e-19,7.096124032816852e-19,True
+inner,PepCluster2 + merge + EM,mean_cluster_size,allele_count,120,-0.34986204778035085,8.967028814135645e-05,0.0001667668827425965,True
+inner,PepCluster2 + merge + EM,ami,peptides,120,-0.0546913929638177,0.5529886880945155,0.599204285953497,False
+inner,PepCluster2 + merge + EM,ami,allele_count,120,-0.6659185156500245,1.0521804060798521e-16,4.910175228372644e-16,True
+inner,PepCluster2 + merge + EM,adjusted_purity_macro,peptides,120,0.03811035160494598,0.6794172599508345,0.7133881229483762,False
+inner,PepCluster2 + merge + EM,adjusted_purity_macro,allele_count,120,-0.9028766628267547,4.425412211589392e-45,3.8455306114500923e-44,True
+inner,PepCluster2 + merge + EM,bcubed_precision_macro,peptides,120,-0.0010834104510927696,0.9906299021528504,0.9906299021528504,False
+inner,PepCluster2 + merge + EM,bcubed_precision_macro,allele_count,120,-0.9249823566645181,2.0613740008697294e-51,2.120270400894579e-50,True
+inner,PepCluster2 + merge + EM,bcubed_recall_macro,peptides,120,-0.6559043265242307,4.2728846860921384e-16,1.9057821962747235e-15,True
+inner,PepCluster2 + merge + EM,bcubed_recall_macro,allele_count,120,-0.4912533982615061,1.2194774476632487e-08,3.201128300116028e-08,True
+inner,PepCluster2 + merge + EM,bcubed_f1_macro,peptides,120,-0.19469788648179648,0.03309564407153494,0.04310130390711527,True
+inner,PepCluster2 + merge + EM,bcubed_f1_macro,allele_count,120,-0.8548362215273653,2.048983707539978e-35,1.5646784675759834e-34,True
+inner,PepCluster2 + merge + EM (given K),clusters,peptides,120,0.27095919563697163,0.002759350017035494,0.004227089387799055,True
+inner,PepCluster2 + merge + EM (given K),clusters,allele_count,120,1.0,0.0,0.0,True
+inner,PepCluster2 + merge + EM (given K),mean_cluster_size,peptides,120,0.5659187546344293,1.6331499648026856e-11,5.209541659876921e-11,True
+inner,PepCluster2 + merge + EM (given K),mean_cluster_size,allele_count,120,-0.6241534677897433,2.611600631824607e-14,1.0364147389288205e-13,True
+inner,PepCluster2 + merge + EM (given K),ami,peptides,120,0.09781251790506774,0.2878643872499537,0.32750259858685477,False
+inner,PepCluster2 + merge + EM (given K),ami,allele_count,120,-0.8009635642916293,4.691155722381611e-28,2.992838587443458e-27,True
+inner,PepCluster2 + merge + EM (given K),adjusted_purity_macro,peptides,120,0.07588040120922822,0.41010082259447367,0.4603358899501442,False
+inner,PepCluster2 + merge + EM (given K),adjusted_purity_macro,allele_count,120,-0.8750451156533078,5.471173680447079e-39,4.4475347337827865e-38,True
+inner,PepCluster2 + merge + EM (given K),bcubed_precision_macro,peptides,120,0.015806680683891947,0.86394713429899,0.884888511338259,False
+inner,PepCluster2 + merge + EM (given K),bcubed_precision_macro,allele_count,120,-0.9144524591988955,3.500149934068244e-48,3.39245301301999e-47,True
+inner,PepCluster2 + merge + EM (given K),bcubed_recall_macro,peptides,120,-0.33505857187801713,0.00018351658898981465,0.0003268281302150763,True
+inner,PepCluster2 + merge + EM (given K),bcubed_recall_macro,allele_count,120,-0.9338104525195351,1.6568613582965895e-54,1.9882336299559075e-53,True
+inner,PepCluster2 + merge + EM (given K),bcubed_f1_macro,peptides,120,-0.024862880864821253,0.7875063787908247,0.8136255251706912,False
+inner,PepCluster2 + merge + EM (given K),bcubed_f1_macro,allele_count,120,-0.9273046067789903,3.453397181826488e-52,3.703217403490532e-51,True
+inner,PepCluster2 + EM,clusters,peptides,120,0.9059524827676806,7.26593425586929e-46,6.53934083028236e-45,True
+inner,PepCluster2 + EM,clusters,allele_count,120,0.5364993248747796,2.6875125899899995e-10,7.78451922617793e-10,True
+inner,PepCluster2 + EM,mean_cluster_size,peptides,120,0.7746141652455685,3.114699669731339e-25,1.8688198018388035e-24,True
+inner,PepCluster2 + EM,mean_cluster_size,allele_count,120,-0.2532138979780367,0.005264087881044059,0.007690145774046973,True
+inner,PepCluster2 + EM,ami,peptides,120,-0.09123913334122603,0.3216454455282159,0.36347377700946365,False
+inner,PepCluster2 + EM,ami,allele_count,120,-0.48965795925156325,1.3813405955794518e-08,3.588637423567236e-08,True
+inner,PepCluster2 + EM,adjusted_purity_macro,peptides,120,-0.017768625891800328,0.8472539152502555,0.8714611699716913,False
+inner,PepCluster2 + EM,adjusted_purity_macro,allele_count,120,-0.9215964805434171,2.5221208627241266e-50,2.5422978296259197e-49,True
+inner,PepCluster2 + EM,bcubed_precision_macro,peptides,120,-0.04521155151675596,0.6238971065298167,0.6592120370881082,False
+inner,PepCluster2 + EM,bcubed_precision_macro,allele_count,120,-0.9384017714481482,2.72841226897569e-56,3.716539955577696e-55,True
+inner,PepCluster2 + EM,bcubed_recall_macro,peptides,120,-0.6834444812922331,7.917925101376775e-18,3.9511230208850444e-17,True
+inner,PepCluster2 + EM,bcubed_recall_macro,allele_count,120,-0.22550644050536298,0.013270403987136069,0.018475921573250217,True
+inner,PepCluster2 + EM,bcubed_f1_macro,peptides,120,-0.2764606508453553,0.002238777895377796,0.0035497441977073996,True
+inner,PepCluster2 + EM,bcubed_f1_macro,allele_count,120,-0.7616094020463728,5.616812462766353e-24,3.2538775646370597e-23,True
+inner,PepCluster2 + EM (given K),clusters,peptides,120,0.27095919563697163,0.002759350017035494,0.004227089387799055,True
+inner,PepCluster2 + EM (given K),clusters,allele_count,120,1.0,0.0,0.0,True
+inner,PepCluster2 + EM (given K),mean_cluster_size,peptides,120,0.5659187546344293,1.6331499648026856e-11,5.209541659876921e-11,True
+inner,PepCluster2 + EM (given K),mean_cluster_size,allele_count,120,-0.6241534677897433,2.611600631824607e-14,1.0364147389288205e-13,True
+inner,PepCluster2 + EM (given K),ami,peptides,120,0.030891087733722043,0.7376756961616949,0.7697485525165512,False
+inner,PepCluster2 + EM (given K),ami,allele_count,120,-0.8259587754474002,3.740186503110299e-31,2.6181305521772095e-30,True
+inner,PepCluster2 + EM (given K),adjusted_purity_macro,peptides,120,-0.027168600542787913,0.7683328103477126,0.7984324462170045,False
+inner,PepCluster2 + EM (given K),adjusted_purity_macro,allele_count,120,-0.9086202432625489,1.4405791985201387e-46,1.3445405852854628e-45,True
+inner,PepCluster2 + EM (given K),bcubed_precision_macro,peptides,120,-0.058153444950162225,0.528102326039167,0.5761116284063639,False
+inner,PepCluster2 + EM (given K),bcubed_precision_macro,allele_count,120,-0.9373913267418512,6.917021038830175e-56,9.174154219922128e-55,True
+inner,PepCluster2 + EM (given K),bcubed_recall_macro,peptides,120,-0.233495787026859,0.010269298556652507,0.014457336515510791,True
+inner,PepCluster2 + EM (given K),bcubed_recall_macro,allele_count,120,-0.9487721250127766,6.987038987741225e-61,1.1359573063940573e-59,True
+inner,PepCluster2 + EM (given K),bcubed_f1_macro,peptides,120,-0.07670337645573137,0.4050273293908714,0.4556557455647303,False
+inner,PepCluster2 + EM (given K),bcubed_f1_macro,allele_count,120,-0.9431880884779767,2.656641284611907e-58,4.0574157801345494e-57,True
+inner,"PepCluster2 + merge + EM (given K, threshold-merged)",clusters,peptides,120,0.27095919563697163,0.002759350017035494,0.004227089387799055,True
+inner,"PepCluster2 + merge + EM (given K, threshold-merged)",clusters,allele_count,120,1.0,0.0,0.0,True
+inner,"PepCluster2 + merge + EM (given K, threshold-merged)",mean_cluster_size,peptides,120,0.5659187546344293,1.6331499648026856e-11,5.209541659876921e-11,True
+inner,"PepCluster2 + merge + EM (given K, threshold-merged)",mean_cluster_size,allele_count,120,-0.6241534677897433,2.611600631824607e-14,1.0364147389288205e-13,True
+inner,"PepCluster2 + merge + EM (given K, threshold-merged)",ami,peptides,120,0.05409760069735339,0.5573133888093686,0.6014688393146077,False
+inner,"PepCluster2 + merge + EM (given K, threshold-merged)",ami,allele_count,120,-0.8160138722854232,7.276690164028727e-30,4.762924471000622e-29,True
+inner,"PepCluster2 + merge + EM (given K, threshold-merged)",adjusted_purity_macro,peptides,120,0.002729360944099093,0.9763974248574809,0.9783385728194242,False
+inner,"PepCluster2 + merge + EM (given K, threshold-merged)",adjusted_purity_macro,allele_count,120,-0.8976648953942749,8.269938703651728e-44,6.832867387935198e-43,True
+inner,"PepCluster2 + merge + EM (given K, threshold-merged)",bcubed_precision_macro,peptides,120,-0.03969032517945627,0.6669014043815674,0.7017083670319624,False
+inner,"PepCluster2 + merge + EM (given K, threshold-merged)",bcubed_precision_macro,allele_count,120,-0.9303004866976609,3.1500695433057934e-53,3.608261476877545e-52,True
+inner,"PepCluster2 + merge + EM (given K, threshold-merged)",bcubed_recall_macro,peptides,120,-0.23256169275973096,0.010586251812368908,0.014862035970568049,True
+inner,"PepCluster2 + merge + EM (given K, threshold-merged)",bcubed_recall_macro,allele_count,120,-0.9288468644886018,1.0199449365452938e-52,1.1175048869974524e-51,True
+inner,"PepCluster2 + merge + EM (given K, threshold-merged)",bcubed_f1_macro,peptides,120,-0.06082030144515982,0.5093239812908794,0.5580419273273982,False
+inner,"PepCluster2 + merge + EM (given K, threshold-merged)",bcubed_f1_macro,allele_count,120,-0.940139027258975,5.309251212544988e-57,7.645321746064783e-56,True
+inner,MixMHCp,clusters,peptides,120,0.6694849448482885,6.304360283552992e-17,2.9695304513184185e-16,True
+inner,MixMHCp,clusters,allele_count,120,0.27220114835007375,0.002633116808513616,0.004121400222021312,True
+inner,MixMHCp,mean_cluster_size,peptides,120,0.9471019537931167,4.417115491452914e-60,6.95695689903834e-59,True
+inner,MixMHCp,mean_cluster_size,allele_count,120,0.2163511445710302,0.01762596335160263,0.023944704930479045,True
+inner,MixMHCp,ami,peptides,120,0.07322396212241422,0.42672971400447596,0.4779372796850131,False
+inner,MixMHCp,ami,allele_count,120,-0.8312237241802114,7.192372918979653e-32,5.17850850166535e-31,True
+inner,MixMHCp,adjusted_purity_macro,peptides,120,-0.006760897911146225,0.941577293290762,0.9491099116370881,False
+inner,MixMHCp,adjusted_purity_macro,allele_count,120,-0.9118820296828765,1.8595979638376298e-47,1.768372403347482e-46,True
+inner,MixMHCp,bcubed_precision_macro,peptides,120,-0.04989244026057985,0.5883967065472108,0.6296219535027479,False
+inner,MixMHCp,bcubed_precision_macro,allele_count,120,-0.9403340253601902,4.404689427612318e-57,6.5293043279900245e-56,True
+inner,MixMHCp,bcubed_recall_macro,peptides,120,-0.35662607928743123,6.38715460493758e-05,0.00011967010858321711,True
+inner,MixMHCp,bcubed_recall_macro,allele_count,120,-0.5425024446808917,1.5511446845096968e-10,4.571794859607527e-10,True
+inner,MixMHCp,bcubed_f1_macro,peptides,120,-0.05518101114844616,0.5494349703898971,0.5968000540441986,False
+inner,MixMHCp,bcubed_f1_macro,allele_count,120,-0.935778160631798,2.959068043129206e-55,3.728425734342799e-54,True
+inner,MixMHCp (given K),clusters,peptides,120,0.27095919563697163,0.002759350017035494,0.004227089387799055,True
+inner,MixMHCp (given K),clusters,allele_count,120,1.0,0.0,0.0,True
+inner,MixMHCp (given K),mean_cluster_size,peptides,120,0.6572794244044639,3.535993190654052e-16,1.5911969357943234e-15,True
+inner,MixMHCp (given K),mean_cluster_size,allele_count,120,-0.5341707076289681,3.316545426673058e-10,9.497380085472848e-10,True
+inner,MixMHCp (given K),ami,peptides,120,0.10417408183584323,0.2575044476557174,0.2956315298826459,False
+inner,MixMHCp (given K),ami,allele_count,120,-0.8234415272317126,8.068411726337782e-31,5.5705198768140306e-30,True
+inner,MixMHCp (given K),adjusted_purity_macro,peptides,120,0.0156156948671929,0.8655754684320667,0.884888511338259,False
+inner,MixMHCp (given K),adjusted_purity_macro,allele_count,120,-0.9032134777288537,3.641799847583731e-45,3.220117759968773e-44,True
+inner,MixMHCp (given K),bcubed_precision_macro,peptides,120,-0.02482815617087597,0.7877961434192406,0.8136255251706912,False
+inner,MixMHCp (given K),bcubed_precision_macro,allele_count,120,-0.9299459446954512,4.205177923834495e-53,4.709799274694635e-52,True
+inner,MixMHCp (given K),bcubed_recall_macro,peptides,120,0.013681529414440743,0.882096654459311,0.8981347754494802,False
+inner,MixMHCp (given K),bcubed_recall_macro,allele_count,120,-0.9079466134583508,2.177731071100956e-46,1.995593563336149e-45,True
+inner,MixMHCp (given K),bcubed_f1_macro,peptides,120,-0.014212817231803544,0.8775531611747712,0.8953173952066492,False
+inner,MixMHCp (given K),bcubed_f1_macro,allele_count,120,-0.9210823946402135,3.652663261096947e-50,3.609690752142866e-49,True
+inner,GibbsCluster,clusters,peptides,120,0.42612516714419857,1.219073741427571e-06,2.6830269243646102e-06,True
+inner,GibbsCluster,clusters,allele_count,120,0.033840521278352124,0.7136717331240399,0.74624596160688,False
+inner,GibbsCluster,mean_cluster_size,peptides,120,0.9621795995910044,1.7336483609268528e-68,3.120567049668335e-67,True
+inner,GibbsCluster,mean_cluster_size,allele_count,120,0.2776063877300514,0.00214224890232832,0.0034167514138401054,True
+inner,GibbsCluster,ami,peptides,120,-0.07278990344809819,0.429483258293383,0.47995468332564306,False
+inner,GibbsCluster,ami,allele_count,120,-0.8986930672006824,4.700583056476934e-44,3.9484897674406244e-43,True
+inner,GibbsCluster,adjusted_purity_macro,peptides,120,-0.11711250279985497,0.20271175898107788,0.23649705214459088,False
+inner,GibbsCluster,adjusted_purity_macro,allele_count,120,-0.9388094947506893,1.8661523835357348e-56,2.6126133369500287e-55,True
+inner,GibbsCluster,bcubed_precision_macro,peptides,120,-0.17397766160464725,0.057380486430427154,0.07229941290233821,False
+inner,GibbsCluster,bcubed_precision_macro,allele_count,120,-0.9741573323709779,4.282354239911988e-78,8.992943903815175e-77,True
+inner,GibbsCluster,bcubed_recall_macro,peptides,120,-0.38414539923906643,1.4813093546231291e-05,2.9163277919142854e-05,True
+inner,GibbsCluster,bcubed_recall_macro,allele_count,120,-0.7694270531950927,1.0098837370058337e-24,5.988016511187532e-24,True
+inner,GibbsCluster,bcubed_f1_macro,peptides,120,-0.180926072863098,0.04797915001820469,0.06121896609917763,False
+inner,GibbsCluster,bcubed_f1_macro,allele_count,120,-0.9757527713809209,1.0443473327250545e-79,2.3925047986064886e-78,True
+inner,GibbsCluster (given K),clusters,peptides,120,0.27095919563697163,0.002759350017035494,0.004227089387799055,True
+inner,GibbsCluster (given K),clusters,allele_count,120,1.0,0.0,0.0,True
+inner,GibbsCluster (given K),mean_cluster_size,peptides,120,0.6572794244044639,3.535993190654052e-16,1.5911969357943234e-15,True
+inner,GibbsCluster (given K),mean_cluster_size,allele_count,120,-0.5341707076289681,3.316545426673058e-10,9.497380085472848e-10,True
+inner,GibbsCluster (given K),ami,peptides,120,-0.19547571962617075,0.03238693995131542,0.04228761071363464,True
+inner,GibbsCluster (given K),ami,allele_count,120,-0.9332609124161104,2.6553069960265785e-54,3.1122668046451057e-53,True
+inner,GibbsCluster (given K),adjusted_purity_macro,peptides,120,-0.27278677822594455,0.0025754207986838865,0.004043651347466289,True
+inner,GibbsCluster (given K),adjusted_purity_macro,allele_count,120,-0.9723137139594887,2.3673627505127805e-76,4.589041639455544e-75,True
+inner,GibbsCluster (given K),bcubed_precision_macro,peptides,120,-0.2673905607868479,0.003153006197447194,0.004757829711117921,True
+inner,GibbsCluster (given K),bcubed_precision_macro,allele_count,120,-0.9789436494008065,2.775488081980781e-83,7.362347333254283e-82,True
+inner,GibbsCluster (given K),bcubed_recall_macro,peptides,120,-0.28398201955390323,0.0016706402827290487,0.0027161377499852917,True
+inner,GibbsCluster (given K),bcubed_recall_macro,allele_count,120,-0.9758768610816941,7.74338546065011e-80,1.8584125105560264e-78,True
+inner,GibbsCluster (given K),bcubed_f1_macro,peptides,120,-0.27110610303899296,0.002744138851303889,0.004227089387799055,True
+inner,GibbsCluster (given K),bcubed_f1_macro,allele_count,120,-0.9783054737968294,1.5863906857523772e-82,3.9977045280959903e-81,True
+outer,PepCluster2,clusters,peptides,25,0.9828813415129832,2.1235462194454115e-18,1.0921094842862118e-17,True
+outer,PepCluster2,clusters,allele_count,25,0.863733987172246,2.6860186959147552e-08,6.906905218066514e-08,True
+outer,PepCluster2,mean_cluster_size,peptides,25,0.8530769230769231,6.044888882239667e-08,1.4789436876935883e-07,True
+outer,PepCluster2,mean_cluster_size,allele_count,25,0.6919106469390679,0.00012738399139682757,0.00023261424515942425,True
+outer,PepCluster2,ami,peptides,25,0.5215384615384615,0.007501651897720945,0.01077160272493264,True
+outer,PepCluster2,ami,allele_count,25,0.3396578396013275,0.09668321367881126,0.11713543195702132,False
+outer,PepCluster2,adjusted_purity_macro,peptides,25,-0.7623076923076924,9.474478504307564e-06,1.910054866468405e-05,True
+outer,PepCluster2,adjusted_purity_macro,allele_count,25,-0.9466540266400636,8.446238643567059e-13,2.9768561373131453e-12,True
+outer,PepCluster2,bcubed_precision_macro,peptides,25,-0.7623076923076924,9.474478504307564e-06,1.910054866468405e-05,True
+outer,PepCluster2,bcubed_precision_macro,allele_count,25,-0.9466540266400636,8.446238643567059e-13,2.9768561373131453e-12,True
+outer,PepCluster2,bcubed_recall_macro,peptides,25,-0.666923076923077,0.00027161189098863904,0.00047697697929712223,True
+outer,PepCluster2,bcubed_recall_macro,allele_count,25,-0.5826188301295498,0.002242524116658253,0.0035497441977073996,True
+outer,PepCluster2,bcubed_f1_macro,peptides,25,-0.693076923076923,0.00012273987658660736,0.00022494871927145494,True
+outer,PepCluster2,bcubed_f1_macro,allele_count,25,-0.6464062473752537,0.0004810037179948553,0.0008273920609877375,True
+outer,PepCluster2 + merge,clusters,peptides,25,0.5825317860979033,0.0022467626965648026,0.0035497441977073996,True
+outer,PepCluster2 + merge,clusters,allele_count,25,0.7114830878117118,6.672752314744825e-05,0.00012455804320857009,True
+outer,PepCluster2 + merge,mean_cluster_size,peptides,25,0.7876923076923077,2.96063988335539e-06,6.322722462758969e-06,True
+outer,PepCluster2 + merge,mean_cluster_size,allele_count,25,0.5887131693568464,0.001962234450714999,0.003159636304026708,True
+outer,PepCluster2 + merge,ami,peptides,25,-0.23615384615384616,0.2557538899173098,0.2942921473021099,False
+outer,PepCluster2 + merge,ami,allele_count,25,-0.5094867594019913,0.009283686513654028,0.013180219726427128,True
+outer,PepCluster2 + merge,adjusted_purity_macro,peptides,25,-0.6892307692307692,0.0001386437739777717,0.00025226159597399616,True
+outer,PepCluster2 + merge,adjusted_purity_macro,allele_count,25,-0.9271521411127146,2.758907603021866e-11,8.58326809829025e-11,True
+outer,PepCluster2 + merge,bcubed_precision_macro,peptides,25,-0.7184615384615384,5.2320590537914224e-05,9.876246303786055e-05,True
+outer,PepCluster2 + merge,bcubed_precision_macro,allele_count,25,-0.9466540266400636,8.446238643567059e-13,2.9768561373131453e-12,True
+outer,PepCluster2 + merge,bcubed_recall_macro,peptides,25,-0.49538461538461537,0.011802470242567423,0.016477686986853132,True
+outer,PepCluster2 + merge,bcubed_recall_macro,allele_count,25,-0.6419370652752362,0.0005418095969264312,0.000928816451873882,True
+outer,PepCluster2 + merge,bcubed_f1_macro,peptides,25,-0.4753846153846154,0.016320582719677436,0.02241300733165512,True
+outer,PepCluster2 + merge,bcubed_f1_macro,allele_count,25,-0.6720024721298992,0.00023419885478918865,0.00041416218531140726,True
+outer,PepCluster2 + merge (given K),clusters,peptides,25,0.8552389382306154,5.1544915249384564e-08,1.2672505993019424e-07,True
+outer,PepCluster2 + merge (given K),clusters,allele_count,25,1.0,0.0,0.0,True
+outer,PepCluster2 + merge (given K),mean_cluster_size,peptides,25,0.45999999999999996,0.02068619290858635,0.027654751262407216,True
+outer,PepCluster2 + merge (given K),mean_cluster_size,allele_count,25,0.10969810609133784,0.6016774962084849,0.6384114907138451,False
+outer,PepCluster2 + merge (given K),ami,peptides,25,-0.5038461538461538,0.010231357533068983,0.01444426945845033,True
+outer,PepCluster2 + merge (given K),ami,allele_count,25,-0.7142565574391553,6.063001224241692e-05,0.0001140206200379781,True
+outer,PepCluster2 + merge (given K),adjusted_purity_macro,peptides,25,-0.4653846153846154,0.019061592840754607,0.025825383848764306,True
+outer,PepCluster2 + merge (given K),adjusted_purity_macro,allele_count,25,-0.7670741640757253,7.700109023863414e-06,1.584022427766188e-05,True
+outer,PepCluster2 + merge (given K),bcubed_precision_macro,peptides,25,-0.5853846153846154,0.0021113531540244163,0.0033781650464390664,True
+outer,PepCluster2 + merge (given K),bcubed_precision_macro,allele_count,25,-0.8763659808852434,9.360532778788469e-09,2.47000446099968e-08,True
+outer,PepCluster2 + merge (given K),bcubed_recall_macro,peptides,25,-0.8799999999999999,6.766145823966555e-09,1.8139029230208213e-08,True
+outer,PepCluster2 + merge (given K),bcubed_recall_macro,allele_count,25,-0.8893672379034759,2.7867156224476258e-09,7.71705864677804e-09,True
+outer,PepCluster2 + merge (given K),bcubed_f1_macro,peptides,25,-0.6946153846153846,0.00011684134330531781,0.00021491984316014662,True
+outer,PepCluster2 + merge (given K),bcubed_f1_macro,allele_count,25,-0.9271521411127146,2.758907603021866e-11,8.58326809829025e-11,True
+outer,PepCluster2 + merge + EM,clusters,peptides,25,0.9789549964061207,2.239076625608073e-17,1.0850909801023738e-16,True
+outer,PepCluster2 + merge + EM,clusters,allele_count,25,0.8606794030063992,3.412076737485095e-08,8.729373988286741e-08,True
+outer,PepCluster2 + merge + EM,mean_cluster_size,peptides,25,0.6738461538461539,0.0002217790889652633,0.0003935797916848335,True
+outer,PepCluster2 + merge + EM,mean_cluster_size,allele_count,25,0.46479493840181657,0.019234265545415668,0.025989463364315006,True
+outer,PepCluster2 + merge + EM,ami,peptides,25,-0.33230769230769236,0.10459374936681606,0.12641546686061222,False
+outer,PepCluster2 + merge + EM,ami,allele_count,25,-0.5988704014023406,0.0015615347717008762,0.0025719396239779137,True
+outer,PepCluster2 + merge + EM,adjusted_purity_macro,peptides,25,-0.2915384615384616,0.15736225008219265,0.18530507953603992,False
+outer,PepCluster2 + merge + EM,adjusted_purity_macro,allele_count,25,-0.6403119081479571,0.0005655177279254266,0.0009661726605912373,True
+outer,PepCluster2 + merge + EM,bcubed_precision_macro,peptides,25,-0.3769230769230769,0.06326742530511403,0.07892767909350859,False
+outer,PepCluster2 + merge + EM,bcubed_precision_macro,allele_count,25,-0.7227886323573705,4.4834698777179435e-05,8.494995557781366e-05,True
+outer,PepCluster2 + merge + EM,bcubed_recall_macro,peptides,25,-0.8046153846153845,1.2456660325798915e-06,2.7178167983561267e-06,True
+outer,PepCluster2 + merge + EM,bcubed_recall_macro,allele_count,25,-0.783732024630336,3.585477246450585e-06,7.561006410925084e-06,True
+outer,PepCluster2 + merge + EM,bcubed_f1_macro,peptides,25,-0.5346153846153846,0.005900861073159652,0.008546074657679497,True
+outer,PepCluster2 + merge + EM,bcubed_f1_macro,allele_count,25,-0.8007961744667662,1.5252362005257822e-06,3.313444159762906e-06,True
+outer,PepCluster2 + merge + EM (given K),clusters,peptides,25,0.8552389382306154,5.1544915249384564e-08,1.2672505993019424e-07,True
+outer,PepCluster2 + merge + EM (given K),clusters,allele_count,25,1.0,0.0,0.0,True
+outer,PepCluster2 + merge + EM (given K),mean_cluster_size,peptides,25,0.45999999999999996,0.02068619290858635,0.027654751262407216,True
+outer,PepCluster2 + merge + EM (given K),mean_cluster_size,allele_count,25,0.10969810609133784,0.6016774962084849,0.6384114907138451,False
+outer,PepCluster2 + merge + EM (given K),ami,peptides,25,-0.13538461538461538,0.5187661950161317,0.5671543650501744,False
+outer,PepCluster2 + merge + EM (given K),ami,allele_count,25,-0.4461056314381072,0.02540318849901085,0.03369265000921439,True
+outer,PepCluster2 + merge + EM (given K),adjusted_purity_macro,peptides,25,-0.2784615384615384,0.17770149281341097,0.20779942547090285,False
+outer,PepCluster2 + merge + EM (given K),adjusted_purity_macro,allele_count,25,-0.6163408405205907,0.001035250844804797,0.0017334432750219857,True
+outer,PepCluster2 + merge + EM (given K),bcubed_precision_macro,peptides,25,-0.3192307692307692,0.1198372598471496,0.1441479211526573,False
+outer,PepCluster2 + merge + EM (given K),bcubed_precision_macro,allele_count,25,-0.6545320330116492,0.00038550701983871356,0.0006723028996495213,True
+outer,PepCluster2 + merge + EM (given K),bcubed_recall_macro,peptides,25,-0.6399999999999999,0.0005701693749025585,0.0009708289356448968,True
+outer,PepCluster2 + merge + EM (given K),bcubed_recall_macro,allele_count,25,-0.8174540350213768,6.098738668435777e-07,1.3661174617296143e-06,True
+outer,PepCluster2 + merge + EM (given K),bcubed_f1_macro,peptides,25,-0.41846153846153844,0.037358810982172475,0.04815560290285147,True
+outer,PepCluster2 + merge + EM (given K),bcubed_f1_macro,allele_count,25,-0.7491974356756554,1.6368407885516605e-05,3.209991274046836e-05,True
+outer,PepCluster2 + EM,clusters,peptides,25,0.9801326115733995,1.1613593447705599e-17,5.682768055964681e-17,True
+outer,PepCluster2 + EM,clusters,allele_count,25,0.8580486978436256,4.174198968938962e-08,1.0571840604749933e-07,True
+outer,PepCluster2 + EM,mean_cluster_size,peptides,25,0.5976923076923077,0.001604076235161365,0.002624852021173143,True
+outer,PepCluster2 + EM,mean_cluster_size,allele_count,25,0.3993823640288337,0.04794391712252639,0.06121896609917763,False
+outer,PepCluster2 + EM,ami,peptides,25,-0.4823076923076923,0.014619098711298685,0.0202418289848751,True
+outer,PepCluster2 + EM,ami,allele_count,25,-0.6220288904660676,0.0009008581941052032,0.0015235990933859813,True
+outer,PepCluster2 + EM,adjusted_purity_macro,peptides,25,-0.4976923076923077,0.011355430955701394,0.01589760333798195,True
+outer,PepCluster2 + EM,adjusted_purity_macro,allele_count,25,-0.7877949174485335,2.9458311852561052e-06,6.3178677334854344e-06,True
+outer,PepCluster2 + EM,bcubed_precision_macro,peptides,25,-0.576923076923077,0.0025346957885217284,0.003992145866921722,True
+outer,PepCluster2 + EM,bcubed_precision_macro,allele_count,25,-0.8519886239760572,6.543497289003811e-08,1.5931993399313628e-07,True
+outer,PepCluster2 + EM,bcubed_recall_macro,peptides,25,-0.7592307692307693,1.0804535988650981e-05,2.152366062561302e-05,True
+outer,PepCluster2 + EM,bcubed_recall_macro,allele_count,25,-0.7853571817576148,3.3161084761958304e-06,7.051977518998727e-06,True
+outer,PepCluster2 + EM,bcubed_f1_macro,peptides,25,-0.7407692307692308,2.286930943900592e-05,4.3825596795661536e-05,True
+outer,PepCluster2 + EM,bcubed_f1_macro,allele_count,25,-0.8718967987852259,1.3763967937958552e-08,3.588637423567236e-08,True
+outer,PepCluster2 + EM (given K),clusters,peptides,25,0.8552389382306154,5.1544915249384564e-08,1.2672505993019424e-07,True
+outer,PepCluster2 + EM (given K),clusters,allele_count,25,1.0,0.0,0.0,True
+outer,PepCluster2 + EM (given K),mean_cluster_size,peptides,25,0.45999999999999996,0.02068619290858635,0.027654751262407216,True
+outer,PepCluster2 + EM (given K),mean_cluster_size,allele_count,25,0.10969810609133784,0.6016774962084849,0.6384114907138451,False
+outer,PepCluster2 + EM (given K),ami,peptides,25,-0.26153846153846155,0.2066383432021531,0.24052130478957312,False
+outer,PepCluster2 + EM (given K),ami,allele_count,25,-0.5159873879111077,0.008283231286406649,0.011793075051833194,True
+outer,PepCluster2 + EM (given K),adjusted_purity_macro,peptides,25,-0.4476923076923077,0.02482425890186222,0.03301167938400675,True
+outer,PepCluster2 + EM (given K),adjusted_purity_macro,allele_count,25,-0.7662615855120857,7.979894601256564e-06,1.6349052353793937e-05,True
+outer,PepCluster2 + EM (given K),bcubed_precision_macro,peptides,25,-0.5169230769230769,0.008146925263943533,0.011631870631806063,True
+outer,PepCluster2 + EM (given K),bcubed_precision_macro,allele_count,25,-0.8194854814304755,5.419618137948172e-07,1.224882305616986e-06,True
+outer,PepCluster2 + EM (given K),bcubed_recall_macro,peptides,25,-0.5969230769230769,0.0016323865683266158,0.0026625334318337033,True
+outer,PepCluster2 + EM (given K),bcubed_recall_macro,allele_count,25,-0.8125785636395396,8.049625422871267e-07,1.7951377049235037e-06,True
+outer,PepCluster2 + EM (given K),bcubed_f1_macro,peptides,25,-0.553076923076923,0.004136262434112801,0.006131400784684858,True
+outer,PepCluster2 + EM (given K),bcubed_f1_macro,allele_count,25,-0.8446754169033014,1.0971656628725797e-07,2.6207179814586736e-07,True
+outer,"PepCluster2 + merge + EM (given K, threshold-merged)",clusters,peptides,25,0.8552389382306154,5.1544915249384564e-08,1.2672505993019424e-07,True
+outer,"PepCluster2 + merge + EM (given K, threshold-merged)",clusters,allele_count,25,1.0,0.0,0.0,True
+outer,"PepCluster2 + merge + EM (given K, threshold-merged)",mean_cluster_size,peptides,25,0.45999999999999996,0.02068619290858635,0.027654751262407216,True
+outer,"PepCluster2 + merge + EM (given K, threshold-merged)",mean_cluster_size,allele_count,25,0.10969810609133784,0.6016774962084849,0.6384114907138451,False
+outer,"PepCluster2 + merge + EM (given K, threshold-merged)",ami,peptides,25,-0.23846153846153845,0.2510011134189242,0.2894841216547776,False
+outer,"PepCluster2 + merge + EM (given K, threshold-merged)",ami,allele_count,25,-0.5533660018385265,0.0041126565055148835,0.00611439197280089,True
+outer,"PepCluster2 + merge + EM (given K, threshold-merged)",adjusted_purity_macro,peptides,25,-0.3661538461538461,0.07183749350420922,0.08917757814315627,False
+outer,"PepCluster2 + merge + EM (given K, threshold-merged)",adjusted_purity_macro,allele_count,25,-0.6971924076027249,0.0001075171223022642,0.00019849314886571855,True
+outer,"PepCluster2 + merge + EM (given K, threshold-merged)",bcubed_precision_macro,peptides,25,-0.43769230769230766,0.02865760791027138,0.03751541399162799,True
+outer,"PepCluster2 + merge + EM (given K, threshold-merged)",bcubed_precision_macro,allele_count,25,-0.7674804533575451,7.5635154503895306e-06,1.5622999127034112e-05,True
+outer,"PepCluster2 + merge + EM (given K, threshold-merged)",bcubed_recall_macro,peptides,25,-0.6846153846153846,0.00016009114712979127,0.00029023718760221154,True
+outer,"PepCluster2 + merge + EM (given K, threshold-merged)",bcubed_recall_macro,allele_count,25,-0.8475194418760397,9.002499690383654e-08,2.1709377243795989e-07,True
+outer,"PepCluster2 + merge + EM (given K, threshold-merged)",bcubed_f1_macro,peptides,25,-0.5315384615384615,0.006248983406787283,0.009024319876850402,True
+outer,"PepCluster2 + merge + EM (given K, threshold-merged)",bcubed_f1_macro,allele_count,25,-0.8373622098305455,1.7930640301632255e-07,4.203275680010538e-07,True
+outer,MixMHCp,clusters,peptides,25,0.7747757749175995,5.450931180017188e-06,1.1305635040035649e-05,True
+outer,MixMHCp,clusters,allele_count,25,0.7338851432043904,2.9778071046872522e-05,5.6634520028768874e-05,True
+outer,MixMHCp,mean_cluster_size,peptides,25,0.9484615384615385,5.733043815027239e-13,2.0787439444415312e-12,True
+outer,MixMHCp,mean_cluster_size,allele_count,25,0.7971395709303883,1.8441350142396883e-06,3.989030245394004e-06,True
+outer,MixMHCp,ami,peptides,25,-0.45076923076923076,0.023731952637414816,0.03164260351655308,True
+outer,MixMHCp,ami,allele_count,25,-0.6695647364389805,0.000251550818264278,0.0004432923510671193,True
+outer,MixMHCp,adjusted_purity_macro,peptides,25,-0.5607692307692308,0.003545757774304545,0.005318636661456818,True
+outer,MixMHCp,adjusted_purity_macro,allele_count,25,-0.7573232213120509,1.1710051960228085e-05,2.3144573286097865e-05,True
+outer,MixMHCp,bcubed_precision_macro,peptides,25,-0.6499999999999999,0.00043649761327614454,0.0007534068393533454,True
+outer,MixMHCp,bcubed_precision_macro,allele_count,25,-0.8353307634214465,2.046492468122058e-07,4.775149092284802e-07,True
+outer,MixMHCp,bcubed_recall_macro,peptides,25,-0.36,0.0771175664335246,0.09502995961490561,False
+outer,MixMHCp,bcubed_recall_macro,allele_count,25,-0.5623043660385614,0.003436905355901659,0.00517074716231175,True
+outer,MixMHCp,bcubed_f1_macro,peptides,25,-0.6661538461538461,0.00027770990911767964,0.00048599234095593935,True
+outer,MixMHCp,bcubed_f1_macro,allele_count,25,-0.8601144096124527,3.564275074319592e-08,9.072700189177143e-08,True
+outer,MixMHCp (given K),clusters,peptides,25,0.8552389382306154,5.1544915249384564e-08,1.2672505993019424e-07,True
+outer,MixMHCp (given K),clusters,allele_count,25,1.0,0.0,0.0,True
+outer,MixMHCp (given K),mean_cluster_size,peptides,25,0.653076923076923,0.00040128161079623604,0.0006950032022037903,True
+outer,MixMHCp (given K),mean_cluster_size,allele_count,25,0.34697104667408335,0.08926418157848304,0.1089325605703522,False
+outer,MixMHCp (given K),ami,peptides,25,-0.2276923076923077,0.27367701498103636,0.3120660985304125,False
+outer,MixMHCp (given K),ami,allele_count,25,-0.5176125450383866,0.008047689136681562,0.011522827627521328,True
+outer,MixMHCp (given K),adjusted_purity_macro,peptides,25,-0.4707692307692308,0.017542529366882283,0.023895769732185598,True
+outer,MixMHCp (given K),adjusted_purity_macro,allele_count,25,-0.7751999497121207,5.3461342770332554e-06,1.113409783316017e-05,True
+outer,MixMHCp (given K),bcubed_precision_macro,peptides,25,-0.5507692307692308,0.004328847742847896,0.006398062353065512,True
+outer,MixMHCp (given K),bcubed_precision_macro,allele_count,25,-0.8332993170123477,2.3316325255751025e-07,5.390563270136934e-07,True
+outer,MixMHCp (given K),bcubed_recall_macro,peptides,25,-0.48307692307692307,0.014439400973032788,0.020048093912971143,True
+outer,MixMHCp (given K),bcubed_recall_macro,allele_count,25,-0.7796691318121381,4.3461573754314405e-06,9.126930488406026e-06,True
+outer,MixMHCp (given K),bcubed_f1_macro,peptides,25,-0.5353846153846153,0.00581642313938255,0.008448061274492234,True
+outer,MixMHCp (given K),bcubed_f1_macro,allele_count,25,-0.8207043492759348,5.045464020388761e-07,1.1454566965206918e-06,True
+outer,GibbsCluster,clusters,peptides,25,0.2968003404160951,0.1496621418907924,0.1779002818701872,False
+outer,GibbsCluster,clusters,allele_count,25,0.3128743034680603,0.12780668827215252,0.1530037313281826,False
+outer,GibbsCluster,mean_cluster_size,peptides,25,0.9546153846153845,1.3693264288999668e-13,5.074562648276348e-13,True
+outer,GibbsCluster,mean_cluster_size,allele_count,25,0.8397999455214642,1.5263798450379438e-07,3.611715689667247e-07,True
+outer,GibbsCluster,ami,peptides,25,-0.6838461538461539,0.00016393483341953748,0.0002961403442417451,True
+outer,GibbsCluster,ami,allele_count,25,-0.8186729028668361,5.68267540562146e-07,1.2786019662648285e-06,True
+outer,GibbsCluster,adjusted_purity_macro,peptides,25,-0.7838461538461537,3.56594268217995e-06,7.551408032851659e-06,True
+outer,GibbsCluster,adjusted_purity_macro,allele_count,25,-0.8775848487307027,8.404607544154021e-09,2.2294327380282244e-08,True
+outer,GibbsCluster,bcubed_precision_macro,peptides,25,-0.8092307692307691,9.69527378096671e-07,2.1431657831610626e-06,True
+outer,GibbsCluster,bcubed_precision_macro,allele_count,25,-0.9344653481854704,8.47562665836947e-12,2.7919711345217076e-11,True
+outer,GibbsCluster,bcubed_recall_macro,peptides,25,-0.6176923076923077,0.001001847182993298,0.0016831032674287404,True
+outer,GibbsCluster,bcubed_recall_macro,allele_count,25,-0.7378213357847018,2.5631410370296842e-05,4.893269252511216e-05,True
+outer,GibbsCluster,bcubed_f1_macro,peptides,25,-0.8046153846153845,1.2456660325798915e-06,2.7178167983561267e-06,True
+outer,GibbsCluster,bcubed_f1_macro,allele_count,25,-0.9344653481854704,8.47562665836947e-12,2.7919711345217076e-11,True
+outer,GibbsCluster (given K),clusters,peptides,25,0.8552389382306154,5.1544915249384564e-08,1.2672505993019424e-07,True
+outer,GibbsCluster (given K),clusters,allele_count,25,1.0,0.0,0.0,True
+outer,GibbsCluster (given K),mean_cluster_size,peptides,25,0.653076923076923,0.00040128161079623604,0.0006950032022037903,True
+outer,GibbsCluster (given K),mean_cluster_size,allele_count,25,0.34697104667408335,0.08926418157848304,0.1089325605703522,False
+outer,GibbsCluster (given K),ami,peptides,25,-0.606923076923077,0.001295829148196553,0.0021554385831388206,True
+outer,GibbsCluster (given K),ami,allele_count,25,-0.8337056062941676,2.2719060736902363e-07,5.276685074377324e-07,True
+outer,GibbsCluster (given K),adjusted_purity_macro,peptides,25,-0.7407692307692308,2.286930943900592e-05,4.3825596795661536e-05,True
+outer,GibbsCluster (given K),adjusted_purity_macro,allele_count,25,-0.9039936520489877,5.874688774145178e-10,1.6541023140609887e-09,True
+outer,GibbsCluster (given K),bcubed_precision_macro,peptides,25,-0.7615384615384616,9.792568235371881e-06,1.966316490289812e-05,True
+outer,GibbsCluster (given K),bcubed_precision_macro,allele_count,25,-0.9283710089581739,2.2861483512543702e-11,7.201367306451266e-11,True
+outer,GibbsCluster (given K),bcubed_recall_macro,peptides,25,-0.7576923076923077,1.1529764999561723e-05,2.2877958896768146e-05,True
+outer,GibbsCluster (given K),bcubed_recall_macro,allele_count,25,-0.9161823305035808,1.3106601585762926e-10,3.8857218818967735e-10,True
+outer,GibbsCluster (given K),bcubed_f1_macro,peptides,25,-0.763076923076923,9.16560361677088e-06,1.8702284303046655e-05,True
+outer,GibbsCluster (given K),bcubed_f1_macro,allele_count,25,-0.9283710089581739,2.2861483512543702e-11,7.201367306451266e-11,True
+test,PepCluster2,clusters,peptides,48,0.9057249194420431,9.157103458874186e-19,4.757917673476897e-18,True
+test,PepCluster2,clusters,allele_count,48,0.43688953376107703,0.0019045869989072518,0.00307664053669633,True
+test,PepCluster2,mean_cluster_size,peptides,48,0.9466427848717296,2.9512010936890586e-24,1.7295411060689365e-23,True
+test,PepCluster2,mean_cluster_size,allele_count,48,-0.12707396157195563,0.38941208845705905,0.4390686634952075,False
+test,PepCluster2,ami,peptides,48,0.16544536744776558,0.2611019838040825,0.29908045417558543,False
+test,PepCluster2,ami,allele_count,48,-0.45633332621082057,0.0011144664073067714,0.0018599042029225589,True
+test,PepCluster2,adjusted_purity_macro,peptides,48,-0.20789230883364243,0.1562203097328637,0.18439118525846204,False
+test,PepCluster2,adjusted_purity_macro,allele_count,48,-0.9619057699788842,1.4986475243727171e-27,9.211199418095725e-27,True
+test,PepCluster2,bcubed_precision_macro,peptides,48,-0.18352059952129116,0.21181538760617794,0.24597915980072277,False
+test,PepCluster2,bcubed_precision_macro,allele_count,48,-0.9736708688642431,3.4725875731548205e-31,2.4650480800986333e-30,True
+test,PepCluster2,bcubed_recall_macro,peptides,48,-0.795093091330338,1.4875276554613797e-11,4.868272326964516e-11,True
+test,PepCluster2,bcubed_recall_macro,allele_count,48,0.09286802592378242,0.5301300388709014,0.5770745995484542,False
+test,PepCluster2,bcubed_f1_macro,peptides,48,-0.8011724486643766,7.985324398011762e-12,2.6653003288728002e-11,True
+test,PepCluster2,bcubed_f1_macro,allele_count,48,-0.05610209190703572,0.7048812761662338,0.7385866178540162,False
+test,PepCluster2 + merge,clusters,peptides,48,-0.02956507683479565,0.8418895967260932,0.8677144309814949,False
+test,PepCluster2 + merge,clusters,allele_count,48,0.8463278886669908,3.5804341466256627e-14,1.3881067768456414e-13,True
+test,PepCluster2 + merge,mean_cluster_size,peptides,48,0.9210769160830491,1.8177103385524494e-20,9.746021389685473e-20,True
+test,PepCluster2 + merge,mean_cluster_size,allele_count,48,-0.20926624961828272,0.15344095071107,0.18153577267225182,False
+test,PepCluster2 + merge,ami,peptides,48,0.43793084795556847,0.001852160969196433,0.003001572760369782,True
+test,PepCluster2 + merge,ami,allele_count,48,-0.721102519181792,7.4299359677658085e-09,1.981316258070882e-08,True
+test,PepCluster2 + merge,adjusted_purity_macro,peptides,48,-0.27720783843692215,0.056456402694040154,0.07131335077141913,False
+test,PepCluster2 + merge,adjusted_purity_macro,allele_count,48,-0.9066751668781713,7.330133837037921e-19,3.8483202644449086e-18,True
+test,PepCluster2 + merge,bcubed_precision_macro,peptides,48,-0.26700320291192875,0.06657177424747855,0.08284487461908442,False
+test,PepCluster2 + merge,bcubed_precision_macro,allele_count,48,-0.9236691986014677,8.674318647519657e-21,4.804238020164733e-20,True
+test,PepCluster2 + merge,bcubed_recall_macro,peptides,48,0.5314009669664124,0.00010177322921475311,0.00018857980707439549,True
+test,PepCluster2 + merge,bcubed_recall_macro,allele_count,48,-0.6856982864249248,7.53878058239281e-08,1.8267045257336423e-07,True
+test,PepCluster2 + merge,bcubed_f1_macro,peptides,48,0.45019812257603925,0.001324277743791053,0.002195513101548325,True
+test,PepCluster2 + merge,bcubed_f1_macro,allele_count,48,-0.7725748268052374,1.2575748257003195e-10,3.7504006636269885e-10,True
+test,PepCluster2 + merge (given K),clusters,peptides,48,0.10292296772630968,0.4863493104530873,0.536367729690057,False
+test,PepCluster2 + merge (given K),clusters,allele_count,48,0.9999999999999999,0.0,0.0,True
+test,PepCluster2 + merge (given K),mean_cluster_size,peptides,48,0.724854802131713,5.693098321568267e-09,1.5426459968120465e-08,True
+test,PepCluster2 + merge (given K),mean_cluster_size,allele_count,48,-0.577306866138516,1.7412922145120397e-05,3.36249531078187e-05,True
+test,PepCluster2 + merge (given K),ami,peptides,48,0.2284101398360228,0.11841057432837643,0.14277255852033904,False
+test,PepCluster2 + merge (given K),ami,allele_count,48,-0.8428930798654152,5.725436631543581e-14,2.1856529784859164e-13,True
+test,PepCluster2 + merge (given K),adjusted_purity_macro,peptides,48,0.2843185153186995,0.050168879698039896,0.06385130143386895,False
+test,PepCluster2 + merge (given K),adjusted_purity_macro,allele_count,48,-0.8799858221845329,1.7743128076948051e-16,8.129578682528926e-16,True
+test,PepCluster2 + merge (given K),bcubed_precision_macro,peptides,48,0.2153829455487972,0.1415075884885754,0.16860478628426004,False
+test,PepCluster2 + merge (given K),bcubed_precision_macro,allele_count,48,-0.9221985612407977,1.3239584608583657e-20,7.175000691103401e-20,True
+test,PepCluster2 + merge (given K),bcubed_recall_macro,peptides,48,-0.592140260330602,9.28241157696206e-06,1.8864255785439024e-05,True
+test,PepCluster2 + merge (given K),bcubed_recall_macro,allele_count,48,-0.6434310793182649,8.114734527137886e-07,1.8016855513997771e-06,True
+test,PepCluster2 + merge (given K),bcubed_f1_macro,peptides,48,0.08755360160539563,0.5540261850284317,0.599204285953497,False
+test,PepCluster2 + merge (given K),bcubed_f1_macro,allele_count,48,-0.9601627923662385,4.115823025638571e-27,2.4992467529178795e-26,True
+test,PepCluster2 + merge + EM,clusters,peptides,48,0.7656732749675711,2.305800990538185e-10,6.717478030238411e-10,True
+test,PepCluster2 + merge + EM,clusters,allele_count,48,0.44378324598369245,0.0015806644478169598,0.0025949670413672565,True
+test,PepCluster2 + merge + EM,mean_cluster_size,peptides,48,0.7794273309968004,6.743596847423337e-11,2.0598623097584013e-10,True
+test,PepCluster2 + merge + EM,mean_cluster_size,allele_count,48,-0.2726744603586148,0.060785712095871795,0.07620895247840644,False
+test,PepCluster2 + merge + EM,ami,peptides,48,0.42235249478709447,0.0027869454377176567,0.00425642575942333,True
+test,PepCluster2 + merge + EM,ami,allele_count,48,-0.7529663286629725,6.682563652472459e-10,1.8711178226922883e-09,True
+test,PepCluster2 + merge + EM,adjusted_purity_macro,peptides,48,0.39765510561756257,0.005128431399334653,0.007535654301063164,True
+test,PepCluster2 + merge + EM,adjusted_purity_macro,allele_count,48,-0.8031314030769336,6.505074996942499e-12,2.1857051989726795e-11,True
+test,PepCluster2 + merge + EM,bcubed_precision_macro,peptides,48,0.3434294093969858,0.016856762550189443,0.023023870800258753,True
+test,PepCluster2 + merge + EM,bcubed_precision_macro,allele_count,48,-0.8476318002497958,2.9870305455052335e-14,1.1761432772926856e-13,True
+test,PepCluster2 + merge + EM,bcubed_recall_macro,peptides,48,-0.015741193097064312,0.9154316464138884,0.9283250498845066,False
+test,PepCluster2 + merge + EM,bcubed_recall_macro,allele_count,48,-0.9006292132843065,2.9051130789604837e-18,1.4789666583798826e-17,True
+test,PepCluster2 + merge + EM,bcubed_f1_macro,peptides,48,0.2901264727717543,0.04546527420999038,0.058306611200598345,False
+test,PepCluster2 + merge + EM,bcubed_f1_macro,allele_count,48,-0.87154327437328,7.710750605345206e-16,3.3215541069179348e-15,True
+test,PepCluster2 + merge + EM (given K),clusters,peptides,48,0.10292296772630968,0.4863493104530873,0.536367729690057,False
+test,PepCluster2 + merge + EM (given K),clusters,allele_count,48,0.9999999999999999,0.0,0.0,True
+test,PepCluster2 + merge + EM (given K),mean_cluster_size,peptides,48,0.724854802131713,5.693098321568267e-09,1.5426459968120465e-08,True
+test,PepCluster2 + merge + EM (given K),mean_cluster_size,allele_count,48,-0.577306866138516,1.7412922145120397e-05,3.36249531078187e-05,True
+test,PepCluster2 + merge + EM (given K),ami,peptides,48,0.5159854537265287,0.00017422304003354575,0.00031137734814506047,True
+test,PepCluster2 + merge + EM (given K),ami,allele_count,48,-0.6800336091838262,1.0602674982813628e-07,2.5446419958752704e-07,True
+test,PepCluster2 + merge + EM (given K),adjusted_purity_macro,peptides,48,0.464636596244381,0.000877907386340538,0.0014897822313657617,True
+test,PepCluster2 + merge + EM (given K),adjusted_purity_macro,allele_count,48,-0.7563433477874736,5.068336289623223e-10,1.4350794887472496e-09,True
+test,PepCluster2 + merge + EM (given K),bcubed_precision_macro,peptides,48,0.4010747441179593,0.004725776398144874,0.006964302060424025,True
+test,PepCluster2 + merge + EM (given K),bcubed_precision_macro,allele_count,48,-0.815332246365454,1.7194837242142364e-12,5.855539168945778e-12,True
+test,PepCluster2 + merge + EM (given K),bcubed_recall_macro,peptides,48,-0.10047223594022772,0.4968428288726838,0.5455529101347116,False
+test,PepCluster2 + merge + EM (given K),bcubed_recall_macro,allele_count,48,-0.8174020322804708,1.3588049200886422e-12,4.690669039210107e-12,True
+test,PepCluster2 + merge + EM (given K),bcubed_f1_macro,peptides,48,0.34505780868288904,0.016310272614323496,0.02241300733165512,True
+test,PepCluster2 + merge + EM (given K),bcubed_f1_macro,allele_count,48,-0.8413135064039551,7.078462434538547e-14,2.6623470649309165e-13,True
+test,PepCluster2 + EM,clusters,peptides,48,0.8343358760624546,1.7589807972284977e-13,6.424103781182339e-13,True
+test,PepCluster2 + EM,clusters,allele_count,48,0.4466905223770889,0.0014594513658470578,0.0024116835684816957,True
+test,PepCluster2 + EM,mean_cluster_size,peptides,48,0.7827715367336705,4.935174599748595e-11,1.525968097100179e-10,True
+test,PepCluster2 + EM,mean_cluster_size,allele_count,48,-0.32168830563393486,0.02577357038685147,0.03409417185032321,True
+test,PepCluster2 + EM,ami,peptides,48,0.3164522612271894,0.028429389552547524,0.03731357378771863,True
+test,PepCluster2 + EM,ami,allele_count,48,-0.7581952615009099,4.3470276640594847e-10,1.2377977077321923e-09,True
+test,PepCluster2 + EM,adjusted_purity_macro,peptides,48,0.3077674650357057,0.03333527835049962,0.04322009950827861,True
+test,PepCluster2 + EM,adjusted_purity_macro,allele_count,48,-0.8429475479158104,5.683471718024188e-14,2.1856529784859164e-13,True
+test,PepCluster2 + EM,bcubed_precision_macro,peptides,48,0.25918688633959336,0.07525572069342877,0.0929629490918826,False
+test,PepCluster2 + EM,bcubed_precision_macro,allele_count,48,-0.8743756129938294,4.766077570555312e-16,2.107107978561296e-15,True
+test,PepCluster2 + EM,bcubed_recall_macro,peptides,48,-0.2495250505765677,0.08719894239202948,0.1069300899405909,False
+test,PepCluster2 + EM,bcubed_recall_macro,allele_count,48,-0.7826514161283459,4.9913014930695416e-11,1.5339121661628347e-10,True
+test,PepCluster2 + EM,bcubed_f1_macro,peptides,48,0.14916137458873355,0.31160767954268803,0.35292195615621297,False
+test,PepCluster2 + EM,bcubed_f1_macro,allele_count,48,-0.8961083651015063,7.68870583028642e-18,3.8751077384643555e-17,True
+test,PepCluster2 + EM (given K),clusters,peptides,48,0.10292296772630968,0.4863493104530873,0.536367729690057,False
+test,PepCluster2 + EM (given K),clusters,allele_count,48,0.9999999999999999,0.0,0.0,True
+test,PepCluster2 + EM (given K),mean_cluster_size,peptides,48,0.724854802131713,5.693098321568267e-09,1.5426459968120465e-08,True
+test,PepCluster2 + EM (given K),mean_cluster_size,allele_count,48,-0.577306866138516,1.7412922145120397e-05,3.36249531078187e-05,True
+test,PepCluster2 + EM (given K),ami,peptides,48,0.40959670038085266,0.0038403700057409993,0.0057400873969814135,True
+test,PepCluster2 + EM (given K),ami,allele_count,48,-0.7418003783319606,1.617110334149579e-09,4.502892864151314e-09,True
+test,PepCluster2 + EM (given K),adjusted_purity_macro,peptides,48,0.30727894524993465,0.033630836944521,0.043461389282150216,True
+test,PepCluster2 + EM (given K),adjusted_purity_macro,allele_count,48,-0.837990955329849,1.097749450844772e-13,4.098264616487149e-13,True
+test,PepCluster2 + EM (given K),bcubed_precision_macro,peptides,48,0.2437713730997097,0.09498416411522827,0.11535426196162661,False
+test,PepCluster2 + EM (given K),bcubed_precision_macro,allele_count,48,-0.8810207151420415,1.47074003803846e-16,6.800486047443889e-16,True
+test,PepCluster2 + EM (given K),bcubed_recall_macro,peptides,48,0.08299408360486665,0.5749256806838582,0.6178305822274297,False
+test,PepCluster2 + EM (given K),bcubed_recall_macro,allele_count,48,-0.8865219882319545,5.263468079235413e-17,2.5026301055987243e-16,True
+test,PepCluster2 + EM (given K),bcubed_f1_macro,peptides,48,0.21972534364453905,0.13346413901735546,0.15939792906338185,False
+test,PepCluster2 + EM (given K),bcubed_f1_macro,allele_count,48,-0.895400280446369,8.918603116592985e-18,4.406839187022416e-17,True
+test,"PepCluster2 + merge + EM (given K, threshold-merged)",clusters,peptides,48,0.10292296772630968,0.4863493104530873,0.536367729690057,False
+test,"PepCluster2 + merge + EM (given K, threshold-merged)",clusters,allele_count,48,0.9999999999999999,0.0,0.0,True
+test,"PepCluster2 + merge + EM (given K, threshold-merged)",mean_cluster_size,peptides,48,0.724854802131713,5.693098321568267e-09,1.5426459968120465e-08,True
+test,"PepCluster2 + merge + EM (given K, threshold-merged)",mean_cluster_size,allele_count,48,-0.577306866138516,1.7412922145120397e-05,3.36249531078187e-05,True
+test,"PepCluster2 + merge + EM (given K, threshold-merged)",ami,peptides,48,0.38218531240148207,0.007347607879236854,0.01058055534610107,True
+test,"PepCluster2 + merge + EM (given K, threshold-merged)",ami,allele_count,48,-0.769415679882317,1.6640890416224523e-10,4.876167889405325e-10,True
+test,"PepCluster2 + merge + EM (given K, threshold-merged)",adjusted_purity_macro,peptides,48,0.32084893929912806,0.02618478816012195,0.03445726692611348,True
+test,"PepCluster2 + merge + EM (given K, threshold-merged)",adjusted_purity_macro,allele_count,48,-0.8238837302774973,6.374882343618947e-13,2.294957643702821e-12,True
+test,"PepCluster2 + merge + EM (given K, threshold-merged)",bcubed_precision_macro,peptides,48,0.27145416096006414,0.06199540200382082,0.0775327111908826,False
+test,"PepCluster2 + merge + EM (given K, threshold-merged)",bcubed_precision_macro,allele_count,48,-0.8705628494661668,9.08392579478798e-16,3.847309748380791e-15,True
+test,"PepCluster2 + merge + EM (given K, threshold-merged)",bcubed_recall_macro,peptides,48,0.04820061886273485,0.7449311790992815,0.775713459227351,False
+test,"PepCluster2 + merge + EM (given K, threshold-merged)",bcubed_recall_macro,allele_count,48,-0.923505794450282,9.095372154325426e-21,4.9826821367174074e-20,True
+test,"PepCluster2 + merge + EM (given K, threshold-merged)",bcubed_f1_macro,peptides,48,0.24746241148109033,0.08993047194921143,0.10948057454686609,False
+test,"PepCluster2 + merge + EM (given K, threshold-merged)",bcubed_f1_macro,allele_count,48,-0.8903347517596172,2.5020133630013873e-17,1.2009664142406658e-16,True
+test,MixMHCp,clusters,peptides,48,0.6783863678026464,1.1691667661409275e-07,2.779528538372771e-07,True
+test,MixMHCp,clusters,allele_count,48,-0.29782762017377146,0.0397889578750424,0.05115723155362595,False
+test,MixMHCp,mean_cluster_size,peptides,48,0.8124626837133054,2.3716898003472457e-12,8.022360130033636e-12,True
+test,MixMHCp,mean_cluster_size,allele_count,48,0.34837765032757323,0.015242626334650577,0.02104735252784628,True
+test,MixMHCp,ami,peptides,48,0.43375128978841687,0.0020706419412021217,0.0033235781476620044,True
+test,MixMHCp,ami,allele_count,48,-0.6724080821285009,1.658567794006666e-07,3.9061596643895303e-07,True
+test,MixMHCp,adjusted_purity_macro,peptides,48,0.39238994792647547,0.005807004275302422,0.008448061274492234,True
+test,MixMHCp,adjusted_purity_macro,allele_count,48,-0.7109714618082885,1.4931788798107368e-08,3.8592931047415966e-08,True
+test,MixMHCp,bcubed_precision_macro,peptides,48,0.2756879991034125,0.05787927262577686,0.07274601846232305,False
+test,MixMHCp,bcubed_precision_macro,allele_count,48,-0.8598871115887116,4.986688089356059e-15,2.0600744237995524e-14,True
+test,MixMHCp,bcubed_recall_macro,peptides,48,-0.4202898556916171,0.002937700290741872,0.004459641405222601,True
+test,MixMHCp,bcubed_recall_macro,allele_count,48,-0.25343983848877394,0.08219307238694427,0.1010373377634632,False
+test,MixMHCp,bcubed_f1_macro,peptides,48,0.2593497262681837,0.07506611026418578,0.09295655914778779,False
+test,MixMHCp,bcubed_f1_macro,allele_count,48,-0.870944125818933,8.524374347502025e-16,3.6409192128313734e-15,True
+test,MixMHCp (given K),clusters,peptides,48,0.10292296772630968,0.4863493104530873,0.536367729690057,False
+test,MixMHCp (given K),clusters,allele_count,48,0.9999999999999999,0.0,0.0,True
+test,MixMHCp (given K),mean_cluster_size,peptides,48,0.7748466602089416,1.0253041885280308e-10,3.094331203701362e-10,True
+test,MixMHCp (given K),mean_cluster_size,allele_count,48,-0.5171196704518418,0.00016761271320466788,0.00030062920802545413,True
+test,MixMHCp (given K),ami,peptides,48,0.4619225974345423,0.000949737415824763,0.0016008951758383963,True
+test,MixMHCp (given K),ami,allele_count,48,-0.7744812085690688,1.0597102966985563e-10,3.179130890095669e-10,True
+test,MixMHCp (given K),adjusted_purity_macro,peptides,48,0.39738370573657866,0.005161635293603406,0.007562395895279408,True
+test,MixMHCp (given K),adjusted_purity_macro,allele_count,48,-0.8207790514049719,9.194991367869658e-13,3.2182469787543804e-12,True
+test,MixMHCp (given K),bcubed_precision_macro,peptides,48,0.3209574992515216,0.0261312963495155,0.03445726692611348,True
+test,MixMHCp (given K),bcubed_precision_macro,allele_count,48,-0.8687109357527306,1.2335477073825265e-15,5.138083012568541e-15,True
+test,MixMHCp (given K),bcubed_recall_macro,peptides,48,0.3701351576857984,0.009612636347628553,0.01360890089664267,True
+test,MixMHCp (given K),bcubed_recall_macro,allele_count,48,-0.8428386118150201,5.767695359893391e-14,2.1856529784859164e-13,True
+test,MixMHCp (given K),bcubed_f1_macro,peptides,48,0.3436465293017729,0.016783011375672688,0.0229854286232039,True
+test,MixMHCp (given K),bcubed_f1_macro,allele_count,48,-0.8579262617744849,6.714823460630939e-15,2.751439857039019e-14,True
+test,GibbsCluster,clusters,peptides,48,0.16298965546332483,0.2683453391850118,0.3066803876400135,False
+test,GibbsCluster,clusters,allele_count,48,-0.6637534444432475,2.7135075436541106e-07,6.244784484025898e-07,True
+test,GibbsCluster,mean_cluster_size,peptides,48,0.8731476971012982,5.879690318713741e-16,2.5768381918536742e-15,True
+test,GibbsCluster,mean_cluster_size,allele_count,48,0.42131036980671965,0.0028622366218972275,0.00435820923696738,True
+test,GibbsCluster,ami,peptides,48,0.08581664236709888,0.5619453687840463,0.6051719356135883,False
+test,GibbsCluster,ami,allele_count,48,-0.7230089009456233,6.4933487845044175e-09,1.7500790306899606e-08,True
+test,GibbsCluster,adjusted_purity_macro,peptides,48,0.012267274620470808,0.934048014778317,0.9434072133231898,False
+test,GibbsCluster,adjusted_purity_macro,allele_count,48,-0.8729594436835547,6.070883659360742e-16,2.6376942795843225e-15,True
+test,GibbsCluster,bcubed_precision_macro,peptides,48,-0.027954187741338343,0.8504032620877614,0.8729190307377429,False
+test,GibbsCluster,bcubed_precision_macro,allele_count,48,-0.9689321484798624,1.485201492154335e-29,9.59668656468955e-29,True
+test,GibbsCluster,bcubed_recall_macro,peptides,48,-0.28193019636604144,0.052214104061220686,0.06628692303993759,False
+test,GibbsCluster,bcubed_recall_macro,allele_count,48,-0.009749781020737274,0.9475614033768858,0.953235423756388,False
+test,GibbsCluster,bcubed_f1_macro,peptides,48,-0.015849753049457856,0.9148505550901282,0.9283250498845066,False
+test,GibbsCluster,bcubed_f1_macro,allele_count,48,-0.9713287426972504,2.4045155976418103e-30,1.6158344816152966e-29,True
+test,GibbsCluster (given K),clusters,peptides,48,0.10292296772630968,0.4863493104530873,0.536367729690057,False
+test,GibbsCluster (given K),clusters,allele_count,48,0.9999999999999999,0.0,0.0,True
+test,GibbsCluster (given K),mean_cluster_size,peptides,48,0.7748466602089416,1.0253041885280308e-10,3.094331203701362e-10,True
+test,GibbsCluster (given K),mean_cluster_size,allele_count,48,-0.5171196704518418,0.00016761271320466788,0.00030062920802545413,True
+test,GibbsCluster (given K),ami,peptides,48,0.01481843350171916,0.9203726571229647,0.9314614843172172,False
+test,GibbsCluster (given K),ami,allele_count,48,-0.870018168962215,9.94413786526397e-16,4.1765379034108675e-15,True
+test,GibbsCluster (given K),adjusted_purity_macro,peptides,48,-0.06519025141232494,0.659781614471633,0.6956693173508431,False
+test,GibbsCluster (given K),adjusted_purity_macro,allele_count,48,-0.9438223772476844,9.35980499166841e-24,5.360615586137363e-23,True
+test,GibbsCluster (given K),bcubed_precision_macro,peptides,48,-0.07278944807987325,0.6229597669489092,0.6592120370881082,False
+test,GibbsCluster (given K),bcubed_precision_macro,allele_count,48,-0.971818955150807,1.6256977921364392e-30,1.1072320097794126e-29,True
+test,GibbsCluster (given K),bcubed_recall_macro,peptides,48,-0.10063507586881804,0.4961419832657261,0.5455529101347116,False
+test,GibbsCluster (given K),bcubed_recall_macro,allele_count,48,-0.9637576836923202,4.858821209482352e-28,3.0610573619738816e-27,True
+test,GibbsCluster (given K),bcubed_f1_macro,peptides,48,-0.08179992412853763,0.580458306231937,0.6224489071082898,False
+test,GibbsCluster (given K),bcubed_f1_macro,allele_count,48,-0.9706751260925082,4.010063074999742e-30,2.659304986578776e-29,True

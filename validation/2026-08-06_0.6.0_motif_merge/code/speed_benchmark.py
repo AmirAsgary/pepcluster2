@@ -13,12 +13,27 @@ at `-k 16` and its CPU cost is reported as wall x 16. Both numbers are recorded;
 `cpu_seconds` is the fair cross-tool comparison because it is the resource
 actually consumed, and `wall_seconds` is what a user waits.
 
-Five arms:
-  pc2_cluster    similarity clustering only, no motif layer
-  pc2_motif      clustering + merge + EM, the automatic count
-  pc2_motif_k    the same with --motif-count set to the pool's allele count
-  mixmhcp        as documented, scanning 1-6 motifs
-  gibbscluster   as documented, scanning 1-6 groups, five seeds
+Nine arms. The seven reported PepCluster2 modes, named and flagged exactly as in
+`run_variant.py`, so an arm here and an arm in the accuracy figures are the same
+thing:
+
+  similarity     clustering only, no motif layer
+  merge          + merge, no EM
+  merge_k        + merge continued to exactly K
+  merge_em       + merge + EM, the automatic count
+  merge_em_k     + merge to K + EM
+  em_only        + EM seeded from the raw clusters
+  em_only_k      + EM seeded from K of the raw clusters
+
+plus the two comparators, each as documented:
+
+  mixmhcp        scanning 1-6 motifs
+  gibbscluster   scanning 1-6 groups, five seeds
+
+Each (arm, pool) is timed `--repeats` times. One repeat is not enough: the cheap
+PepCluster2 arms differ by less than the run-to-run spread, and an earlier
+single-repeat version of this table put a given-K arm below clustering alone on
+the median pool. `speed_figures.py` reduces the repeats to their median.
 """
 
 from __future__ import annotations
@@ -70,6 +85,15 @@ def main() -> None:
     parser.add_argument("--tmp-root", type=Path, required=True)
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--n-pools", type=int, default=8)
+    # The previous table was one run per pool. On sub-second PepCluster2 timings
+    # that is dominated by run-to-run variation: it made a requested count look
+    # cheaper than clustering alone at the median pool, which is impossible,
+    # because given-K does all the clustering work and then more.
+    parser.add_argument("--repeats", type=int, default=3)
+    parser.add_argument("--arms", default="all",
+                        choices=("all", "fast", "gibbscluster"),
+                        help="fast = PepCluster2 and MixMHCp; gibbscluster "
+                             "dominates the cost and can be run separately")
     args = parser.parse_args()
     args.binary = args.binary.resolve()
     args.mixmhcp = args.mixmhcp.resolve()
@@ -90,25 +114,22 @@ def main() -> None:
 
     from run_mixmhcp import read_assignments as mix_read
     from run_gibbscluster import read_assignments as gibbs_read
+    from run_variant import VARIANTS, LABELS, variant_flags
+
+    do_fast = args.arms in ("all", "fast")
+    do_gibbs = args.arms in ("all", "gibbscluster")
+    # The same flag builder the accuracy benchmark uses, so a mode cannot be
+    # timed under different settings than it was scored under.
+    pc2_arms = [v for v in VARIANTS if v != "merge_em_k_merged"]
 
     rows = []
     for record in picks.itertuples():
         labels = pd.read_csv(args.pools / f"{record.pool}.labels.tsv", sep="\t")
         fasta = args.pools / f"{record.pool}.fasta"
 
-        for arm, extra in (("pc2_cluster", []),
-                           ("pc2_motif", ["--merge-motifs",
-                                          "--motif-prior-concentration",
-                                          str(selected["merge_concentration"]),
-                                          "--motif-em-prior-concentration",
-                                          str(selected["em_concentration"])]),
-                           ("pc2_motif_k", ["--merge-motifs",
-                                            "--motif-prior-concentration",
-                                            str(selected["merge_concentration"]),
-                                            "--motif-em-prior-concentration",
-                                            str(selected["em_concentration"]),
-                                            "--motif-count",
-                                            str(int(record.allele_count))])):
+        for repeat in range(args.repeats if do_fast else 0):
+          for arm in pc2_arms:
+            extra = variant_flags(arm, selected, record.allele_count)
             with tempfile.TemporaryDirectory(dir=args.tmp_root) as tmp:
                 out = Path(tmp) / "out"
                 started = time.time()
@@ -117,39 +138,43 @@ def main() -> None:
                                 "--tmp-dir", str(Path(tmp) / "tmp"), *extra],
                                capture_output=True, text=True, check=True)
                 wall = time.time() - started
-                if arm == "pc2_cluster":
+                if arm == "similarity":
                     a = pd.read_csv(out / "node_clusters.tsv", sep="\t")
-                    s = score(labels, a[["sequence", "cluster_id"]], "cluster_id")
+                    s_ = score(labels, a[["sequence", "cluster_id"]], "cluster_id")
                 else:
                     a = pd.read_csv(out / "motif_clusters.tsv", sep="\t")
-                    s = score(labels, a[["sequence", "motif_id"]], "motif_id")
+                    s_ = score(labels, a[["sequence", "motif_id"]], "motif_id")
             rows.append(dict(pool=record.pool, peptides=record.peptides,
-                             alleles=record.allele_count, arm=arm, threads=1,
+                             alleles=record.allele_count, arm=arm,
+                             label=LABELS[arm], repeat=repeat, threads=1,
                              wall_seconds=wall, cpu_seconds=wall,
-                             ami=s["ami"], bcubed_f1_macro=s["bcubed_f1_macro"],
-                             clusters=s["clusters"]))
-            print(f"{record.pool:10s} {record.peptides:6d} {arm:14s} "
-                  f"{wall:8.2f}s  F1 {s['bcubed_f1_macro']:.3f}", flush=True)
+                             ami=s_["ami"], bcubed_f1_macro=s_["bcubed_f1_macro"],
+                             clusters=s_["clusters"]))
+            print(f"{record.pool:10s} {record.peptides:6d} r{repeat} {arm:18s} "
+                  f"{wall:8.2f}s  F1 {s_['bcubed_f1_macro']:.3f}", flush=True)
 
-        with tempfile.TemporaryDirectory(dir=args.tmp_root) as tmp:
-            out = Path(tmp) / "out"
-            started = time.time()
-            subprocess.run([str(args.mixmhcp), "-i", str(fasta), "-o", str(out),
-                            "-m", "6", "-m_min", "1", "-l", "0"],
-                           capture_output=True, text=True)
-            wall = time.time() - started
-            a = mix_read(out)
-        if a is not None:
-            s = score(labels, a.drop_duplicates("peptide"), "cluster")
-            rows.append(dict(pool=record.pool, peptides=record.peptides,
-                             alleles=record.allele_count, arm="mixmhcp", threads=1,
-                             wall_seconds=wall, cpu_seconds=wall, ami=s["ami"],
-                             bcubed_f1_macro=s["bcubed_f1_macro"],
-                             clusters=s["clusters"]))
-            print(f"{record.pool:10s} {record.peptides:6d} {'mixmhcp':14s} "
-                  f"{wall:8.2f}s  F1 {s['bcubed_f1_macro']:.3f}", flush=True)
+        for repeat in range(args.repeats if do_fast else 0):
+          with tempfile.TemporaryDirectory(dir=args.tmp_root) as tmp:
+              out = Path(tmp) / "out"
+              started = time.time()
+              subprocess.run([str(args.mixmhcp), "-i", str(fasta), "-o", str(out),
+                              "-m", "6", "-m_min", "1", "-l", "0"],
+                             capture_output=True, text=True)
+              wall = time.time() - started
+              a = mix_read(out)
+          if a is not None:
+              s = score(labels, a.drop_duplicates("peptide"), "cluster")
+              rows.append(dict(pool=record.pool, peptides=record.peptides,
+                               alleles=record.allele_count, arm="mixmhcp",
+                               label="MixMHCp", repeat=repeat, threads=1,
+                               wall_seconds=wall, cpu_seconds=wall, ami=s["ami"],
+                               bcubed_f1_macro=s["bcubed_f1_macro"],
+                               clusters=s["clusters"]))
+              print(f"{record.pool:10s} {record.peptides:6d} {'mixmhcp':14s} "
+                    f"{wall:8.2f}s  F1 {s['bcubed_f1_macro']:.3f}", flush=True)
 
-        with tempfile.TemporaryDirectory(dir=args.tmp_root) as tmp:
+        for repeat in range(args.repeats if do_gibbs else 0):
+          with tempfile.TemporaryDirectory(dir=args.tmp_root) as tmp:
             work = Path(tmp)
             peptides = work / "peptides.txt"
             peptides.write_text("\n".join(labels.peptide.astype(str)) + "\n")
@@ -169,6 +194,7 @@ def main() -> None:
             s = M.evaluate(merged.allele.to_numpy(), merged.cluster.to_numpy())
             rows.append(dict(pool=record.pool, peptides=record.peptides,
                              alleles=record.allele_count, arm="gibbscluster",
+                             label="GibbsCluster", repeat=repeat,
                              threads=GIBBS_THREADS, wall_seconds=wall,
                              cpu_seconds=wall * GIBBS_THREADS, ami=s["ami"],
                              bcubed_f1_macro=s["bcubed_f1_macro"],

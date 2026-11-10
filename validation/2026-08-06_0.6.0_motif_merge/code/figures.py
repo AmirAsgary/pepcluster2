@@ -3,14 +3,27 @@
 
 Builds one per-pool table holding every tool at every pool, then draws:
 
-  fig1_protocol            how the nested selection was run and what it chose
   fig2_granularity         cluster count and mean cluster size against pool size
                            and against allele count
   fig3_performance_alleles five metrics against the number of alleles
   fig4_performance_size    five metrics against the number of peptides
+  fig5_all_splits          every metric on the independent test split
 
-Colour is fixed by tool family throughout: black for PepCluster2, red for
-MixMHCp, blue for GibbsCluster. Solid is each tool as documented; dashed is the
+Seven PepCluster2 modes are carried through every figure, so the reader can see
+what each stage of the pipeline buys:
+
+  PepCluster2                          similarity clustering alone
+  PepCluster2 + merge                  agglomerative merge of the clusters
+  PepCluster2 + merge (given K)        merge continued down to exactly K groups
+  PepCluster2 + merge + EM             EM seeded from the merged groups
+  PepCluster2 + merge + EM (given K)   EM seeded from K merged groups
+  PepCluster2 + EM                     EM seeded from the raw clusters
+  PepCluster2 + EM (given K)           EM seeded from K of the raw clusters
+
+Colour encodes the pipeline, line style encodes whether the allele count was
+supplied. Black is clustering alone; grey is the merge stage; purple and violet
+are the four modes that run EM. MixMHCp is red and GibbsCluster is blue
+throughout. Solid is each tool as a user would actually run it; dashed is the
 variant handed the true allele count, which no user could supply in practice.
 
 Correlations use Spearman's rho. The quantities are counts spanning more than an
@@ -34,63 +47,94 @@ METRICS = [("ami", "AMI"),
            ("bcubed_recall_macro", "BCubed recall"),
            ("bcubed_f1_macro", "BCubed F1")]
 
-# black = ours, red = MixMHCp, blue = GibbsCluster.
+BLACK, GREY, PURPLE, VIOLET = "#000000", "#808080", "#6A1B9A", "#C77DFF"
+RED, BLUE = "#D62728", "#1F77B4"
+
+
+def dash(phase):
+    """A 5-2 dash with a per-series phase offset.
+
+    Every given-K arm returns exactly K clusters, so in the granularity panels
+    all five dashed lines sit on the same curve. Offsetting the phase makes them
+    interleave instead of hiding one another.
+    """
+    return (phase, (5, 2))
+
+# variant file stem -> display name. The order here is the order everywhere.
+MODES = [
+    ("similarity", "PepCluster2"),
+    ("merge",      "PepCluster2 + merge"),
+    ("merge_k",    "PepCluster2 + merge (given K)"),
+    ("merge_em",   "PepCluster2 + merge + EM"),
+    ("merge_em_k", "PepCluster2 + merge + EM (given K)"),
+    ("em_only",    "PepCluster2 + EM"),
+    ("em_only_k",  "PepCluster2 + EM (given K)"),
+]
+# Reported in the tables, kept out of the figures: a second merge-seeded given-K
+# route that seeds from groups merged at the evidence threshold rather than from
+# groups merged down to exactly K. The nested pair merge_k -> merge_em_k is the
+# one carried in the figures, because it isolates EM against an identical merge.
+SUPPLEMENTARY = [("merge_em_k_merged",
+                  "PepCluster2 + merge + EM (given K, threshold-merged)")]
+
+# Comparators, renamed from "forced k" so the whole figure uses one phrase.
+COMPARATORS = {"MixMHCp (default)": "MixMHCp",
+               "MixMHCp (forced k)": "MixMHCp (given K)",
+               "GibbsCluster (default)": "GibbsCluster",
+               "GibbsCluster (forced k)": "GibbsCluster (given K)"}
+
 STYLE = {
-    "PepCluster2 + motif":     dict(color="#000000", ls="-",  marker="o", lw=2.0, zorder=6),
-    "PepCluster2 + motif (given k)": dict(color="#000000", ls=(0, (4, 1.5)),
-                                          marker="D", lw=1.6, alpha=0.85, zorder=5),
-    "PepCluster2 + EM only":   dict(color="#555555", ls="-.", marker="v", lw=1.6,
-                                    zorder=4),
-    "PepCluster2 (similarity)": dict(color="#000000", ls=":",  marker="s", lw=1.4, zorder=4),
-    "MixMHCp (default)":       dict(color="#d62728", ls="-",  marker="o", lw=1.6, zorder=3),
-    "MixMHCp (forced k)":      dict(color="#d62728", ls=(0, (5, 2)), marker="^", lw=1.6, alpha=0.85, zorder=3),
-    "GibbsCluster (default)":  dict(color="#1f77b4", ls="-",  marker="o", lw=1.6, zorder=2),
-    "GibbsCluster (forced k)": dict(color="#1f77b4", ls=(2.5, (5, 2)), marker="v", lw=1.6, alpha=0.85, zorder=2),
+    "PepCluster2":                        dict(color=BLACK,  ls="-",  marker="o", lw=2.2, zorder=11),
+    "PepCluster2 + merge":                dict(color=GREY,   ls="-",  marker="s", lw=2.0, zorder=10),
+    "PepCluster2 + merge (given K)":      dict(color=GREY,   ls=dash(0.0), marker="s", lw=2.0, zorder=9),
+    "PepCluster2 + merge + EM":           dict(color=PURPLE, ls="-",  marker="o", lw=2.0, zorder=8),
+    "PepCluster2 + merge + EM (given K)": dict(color=PURPLE, ls=dash(1.4), marker="o", lw=2.0, zorder=7),
+    "PepCluster2 + EM":                   dict(color=VIOLET, ls="-",  marker="D", lw=2.0, zorder=6),
+    "PepCluster2 + EM (given K)":         dict(color=VIOLET, ls=dash(2.8), marker="D", lw=2.0, zorder=5),
+    "MixMHCp":                            dict(color=RED,    ls="-",  marker="^", lw=1.8, zorder=4),
+    "MixMHCp (given K)":                  dict(color=RED,    ls=dash(4.2), marker="^", lw=1.8, zorder=3),
+    "GibbsCluster":                       dict(color=BLUE,   ls="-",  marker="v", lw=1.8, zorder=2),
+    "GibbsCluster (given K)":             dict(color=BLUE,   ls=dash(5.6), marker="v", lw=1.8, zorder=1),
 }
-ORDER = list(STYLE)
+ORDER = [label for _, label in MODES] + list(COMPARATORS.values())
+TABLE_ORDER = ([label for _, label in MODES] +
+               [label for _, label in SUPPLEMENTARY] + list(COMPARATORS.values()))
 SPLITS = ["inner", "outer", "test"]
 SPLIT_LABEL = {"inner": "tuning folds", "outer": "held-out alleles",
                "test": "independent test"}
 
+KEEP = ["tool", "split", "pool", "allele_count"] + [m for m, _ in METRICS] + \
+       ["singleton_fraction_of_clusters", "clusters"]
 
-VARIANT_LABEL = {"em_only": "PepCluster2 + EM only",
-                 "forced_k": "PepCluster2 + motif (given k)"}
 
+def build_table(bench: Path, study: Path, results: Path) -> pd.DataFrame:
+    """Every tool on every pool, with the pool's own properties attached.
 
-def build_table(bench: Path, study: Path, grid: Path, selected: Path,
-                variants=()) -> pd.DataFrame:
-    """Every tool on every pool, with the pool's own properties attached."""
-    per_pool = pd.read_csv(bench / "results/immuneapp/tables/per_pool.csv")
-    per_pool = per_pool[per_pool.tool != "PepCluster2 alignment"].copy()
-    per_pool["tool"] = per_pool.tool.replace(
-        {"PepCluster2 k-mer": "PepCluster2 (similarity)"})
-
-    # our motif layer at the configuration nested selection chose
-    choice = pd.read_csv(selected).iloc[0]
-    shards = pd.concat([pd.read_csv(f) for f in sorted(grid.glob("motif_shard_*.csv"))],
-                       ignore_index=True)
-    shards = shards[shards.status == "ok"].copy()
-    shards["em_concentration"] = shards.em_concentration.fillna(-1.0)
-    mask = ((shards.merge_concentration == choice.merge_concentration) &
-            (shards.merge_threshold == choice.merge_threshold) &
-            (shards.em.astype(bool) == bool(choice.em)) &
-            (shards.em_concentration == choice.em_concentration))
-    ours = shards[mask].drop_duplicates("pool").copy()
-    ours["tool"] = "PepCluster2 + motif"
-    keep = ["tool", "split", "pool", "allele_count"] + [m for m, _ in METRICS] + \
-           ["singleton_fraction_of_clusters", "clusters"]
-    parts = [per_pool[keep], ours[keep]]
-    for path in variants:
-        path = Path(path)
+    The PepCluster2 arms all come from one variant sweep, so the only thing that
+    differs between them is the motif stage under test. The comparators come from
+    the benchmark run. The `PepCluster2 k-mer` row of the benchmark table is the
+    same numbers as the `similarity` variant and is dropped to avoid a duplicate.
+    """
+    parts = []
+    for stem, label in MODES + SUPPLEMENTARY:
+        path = results / f"variant_{stem}.csv"
         if not path.exists():
-            continue
-        name = path.stem.replace("variant_", "")
-        extra = pd.read_csv(path)
-        extra = extra[extra.status == "ok"].copy()
-        extra["tool"] = VARIANT_LABEL.get(name, f"PepCluster2 ({name})")
-        parts.append(extra[keep])
-    frame = pd.concat(parts, ignore_index=True)
+            raise SystemExit(f"missing variant file: {path}")
+        frame = pd.read_csv(path)
+        frame = frame.loc[:, ~frame.columns.duplicated()]
+        bad = (frame.status != "ok").sum()
+        if bad:
+            print(f"warning: {stem} has {bad} non-ok pools, dropped")
+        frame = frame[frame.status == "ok"].copy()
+        frame["tool"] = label
+        parts.append(frame[KEEP])
 
+    per_pool = pd.read_csv(bench / "results/immuneapp/tables/per_pool.csv")
+    per_pool = per_pool[per_pool.tool.isin(COMPARATORS)].copy()
+    per_pool["tool"] = per_pool.tool.map(COMPARATORS)
+    parts.append(per_pool[KEEP])
+
+    frame = pd.concat(parts, ignore_index=True)
     manifest = pd.read_csv(study / "runs/mhc_bench_sep_kmer_anchor/pool_manifest.csv")
     frame = frame.merge(manifest[["pool", "peptides"]], on="pool", how="left")
     frame["mean_cluster_size"] = frame.peptides / frame.clusters
@@ -106,7 +150,7 @@ def correlations(frame: pd.DataFrame, out: Path) -> pd.DataFrame:
     rows = []
     responses = ["clusters", "mean_cluster_size"] + [m for m, _ in METRICS]
     for split in SPLITS:
-        for tool in ORDER:
+        for tool in TABLE_ORDER:
             sub = frame[(frame.split == split) & (frame.tool == tool)]
             if len(sub) < 8:
                 continue
@@ -168,8 +212,8 @@ def _panel(axis, frame, response, xkey, bins, logx, logy=False):
         style = dict(STYLE[tool])
         marker = style.pop("marker")
         axis.errorbar(grouped["x"], grouped["y"], yerr=grouped["err"].fillna(0),
-                      marker=marker,
-                      markersize=4, capsize=2, label=tool, **style)
+                      marker=marker, markersize=6, capsize=2.5, label=tool,
+                      **style)
         collected.append(grouped.reset_index(drop=True).assign(
             tool=tool, response=response, predictor=xkey))
     if logx:
@@ -183,26 +227,42 @@ def _panel(axis, frame, response, xkey, bins, logx, logy=False):
             else pd.DataFrame())
 
 
+def _outside_legend(figure, axis):
+    """One legend for the whole figure, to the right of the axes.
+
+    Placed outside so no series is ever hidden behind the key, and ordered by
+    ORDER rather than by draw order so the pipeline reads top to bottom.
+    """
+    handles, labels = axis.get_legend_handles_labels()
+    index = {label: i for i, label in enumerate(labels)}
+    picked = [(handles[index[t]], t) for t in ORDER if t in index]
+    figure.legend([h for h, _ in picked], [t for _, t in picked],
+                  loc="outside right center", frameon=False,
+                  fontsize=plt.rcParams["font.size"] - 1)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--bench", type=Path, required=True)
     parser.add_argument("--study", type=Path, required=True)
-    parser.add_argument("--grid", type=Path, required=True)
-    parser.add_argument("--selected", type=Path, required=True)
-    parser.add_argument("--variant", type=Path, nargs="*", default=(),
-                        help="variant_<name>.csv files, each added as an arm")
+    parser.add_argument("--results", type=Path, required=True,
+                        help="directory holding variant_<mode>.csv")
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
 
     import matplotlib
     matplotlib.use("Agg")
+    global plt
     import matplotlib.pyplot as plt
-    plt.rcParams.update({"font.size": 9, "axes.spines.top": False,
-                         "axes.spines.right": False, "figure.dpi": 150})
+    # Every size is the old value plus four points.
+    plt.rcParams.update({"font.size": 13, "axes.titlesize": 15,
+                         "axes.labelsize": 13, "xtick.labelsize": 12,
+                         "ytick.labelsize": 12, "figure.titlesize": 16,
+                         "axes.spines.top": False, "axes.spines.right": False,
+                         "figure.dpi": 150})
 
-    frame = build_table(args.bench, args.study, args.grid, args.selected,
-                        args.variant)
+    frame = build_table(args.bench, args.study, args.results)
     frame.to_csv(args.out / "per_pool_all_tools.csv", index=False)
     print(f"per-pool table: {len(frame)} rows, {frame.tool.nunique()} tools, "
           f"{frame.pool.nunique()} pools")
@@ -210,7 +270,7 @@ def main() -> None:
     # Headline tables, generated here so they cannot drift from the figures.
     def block(subset):
         rows = []
-        for tool in ORDER:
+        for tool in TABLE_ORDER:
             s = subset[subset.tool == tool]
             if s.empty:
                 continue
@@ -248,12 +308,11 @@ def main() -> None:
         clusters=("clusters", "mean")).reset_index()
     by_band.to_csv(args.out / "benchmark_by_allele_band.csv", index=False)
 
-    test = frame[frame.split == "test"]
     size_bins = [0, 1500, 2200, 3200, 5000, 12000]
     allele_bins = [3, 5, 7, 9, 12, 16, 20]
 
     # ---- fig 2: granularity -------------------------------------------
-    figure, axes = plt.subplots(2, 2, figsize=(11, 7.5), constrained_layout=True)
+    figure, axes = plt.subplots(2, 2, figsize=(15, 10.5), constrained_layout=True)
     panel_names = {("clusters", "peptides"): "fig2a_clusters_vs_pool_size",
                    ("clusters", "allele_count"): "fig2b_clusters_vs_allele_count",
                    ("mean_cluster_size", "peptides"):
@@ -275,7 +334,7 @@ def main() -> None:
                     index=False)
         axes[row][1].set_xlabel("Alleles in pool")
         axes[row][1].set_ylabel(ylabel)
-    axes[0][0].legend(fontsize=7, loc="upper left")
+    _outside_legend(figure, axes[0][0])
     figure.suptitle("Granularity of the returned partition (independent test pools)")
     for suffix in ("png", "pdf"):
         figure.savefig(args.out / f"fig2_granularity.{suffix}", bbox_inches="tight")
@@ -287,7 +346,8 @@ def main() -> None:
              "Alleles in pool", False),
             ("fig4_performance_size", "peptides", size_bins,
              "Peptides in pool", True)):
-        figure, axes = plt.subplots(1, 5, figsize=(19, 3.6), constrained_layout=True)
+        figure, axes = plt.subplots(1, 5, figsize=(24, 5.2),
+                                    constrained_layout=True)
         for letter, (axis, (metric, title)) in zip("abcde", zip(axes, METRICS)):
             data = _panel(axis, test, metric, xkey, bins, logx)
             number = name.split("_")[0]
@@ -298,44 +358,46 @@ def main() -> None:
             axis.set_title(title)
             axis.set_ylim(-0.02, 1.0)
         axes[0].set_ylabel("Score")
-        axes[0].legend(fontsize=7, loc="upper right")
+        _outside_legend(figure, axes[0])
         figure.suptitle(f"Performance against {xlabel.lower()} "
                         "(independent test pools, mean ± s.e.m.)")
         for suffix in ("png", "pdf"):
             figure.savefig(args.out / f"{name}.{suffix}", bbox_inches="tight")
         plt.close(figure)
 
-    # ---- fig 5: every metric on every split ---------------------------
+    # ---- fig 5: every metric on the independent test split ------------
     # Independent test split only: the tuning folds informed the choice of
     # configuration, so showing them beside the test set invites reading a number
-    # that is not held out.
-    figure, axes = plt.subplots(1, 5, figsize=(17, 3.8), constrained_layout=True)
-    width = 0.8 / len(ORDER)
+    # that is not held out. Stacked rows share one set of x labels, which is the
+    # only layout in which eleven full tool names stay legible without a legend.
+    figure, axes = plt.subplots(5, 1, figsize=(15, 19), sharex=True,
+                                constrained_layout=True)
+    positions = np.arange(len(ORDER))
     for letter, (axis, (metric, title)) in zip("abcde", zip(axes, METRICS)):
-        panel_rows = []
-        for i, tool in enumerate(ORDER):
-            offset = (i - (len(ORDER) - 1) / 2) * width
-            means, errs = [], []
-            for split in ["test"]:
-                sub = frame[(frame.tool == tool) & (frame.split == split)][metric]
-                means.append(sub.mean())
-                errs.append(sub.std(ddof=1) / max(np.sqrt(len(sub)), 1))
-            panel_rows += [dict(tool=tool, split=s, mean=m, sem=e)
-                           for s, m, e in zip(["test"], means, errs)]
+        panel_rows, means, errs, colors, hatches = [], [], [], [], []
+        for tool in ORDER:
+            sub = frame[(frame.tool == tool) & (frame.split == "test")][metric]
+            mean = sub.mean()
+            err = sub.std(ddof=1) / max(np.sqrt(len(sub)), 1)
+            means.append(mean)
+            errs.append(err)
             style = STYLE[tool]
-            axis.bar(np.arange(1) + offset, means, width, yerr=errs,
-                     capsize=2, color=style["color"], label=tool,
-                     alpha=1.0 if style["ls"] == "-" else 0.45,
-                     hatch="" if style["ls"] == "-" else "///",
-                     edgecolor="white", linewidth=0.5)
+            colors.append(style["color"])
+            hatches.append("" if style["ls"] == "-" else "///")
+            panel_rows.append(dict(tool=tool, split="test", mean=mean, sem=err,
+                                   pools=len(sub)))
+        bars = axis.bar(positions, means, 0.72, yerr=errs, capsize=3,
+                        color=colors, edgecolor="white", linewidth=0.8)
+        for bar, hatch in zip(bars, hatches):
+            bar.set_hatch(hatch)
         pd.DataFrame(panel_rows).to_csv(
             args.out / f"fig5{letter}_{metric}_test.csv", index=False)
-        axis.set_xticks([])
-        axis.set_title(title)
+        axis.set_ylabel(title)
         axis.set_ylim(0, 1.0)
         axis.grid(axis="y", alpha=0.25, lw=0.5)
-    axes[0].set_ylabel("Score")
-    axes[0].legend(fontsize=6.5, loc="upper right")
+    axes[-1].set_xticks(positions)
+    axes[-1].set_xticklabels(ORDER, rotation=45, ha="right",
+                             rotation_mode="anchor")
     figure.suptitle("All metrics, independent test pools (mean ± s.e.m.); "
                     "hatched = variant given the true allele count")
     for suffix in ("png", "pdf"):

@@ -7,17 +7,55 @@ Development and calibration record for the optional motif layer, Section 15 of
 
 The similarity clustering fragments each binding motif into roughly 175 clusters
 per pool. Those clusters are enriched for their allele but far too small: BCubed
-recall 0.06. Merging their amino-acid profiles and refining the result with EM
-raises recall to 0.72 at about 7 motifs, and beats MixMHCp on every metric and in
-every complexity band.
+recall 0.06. Refining them into a mixture of position weight matrices by EM
+raises recall to 0.65-0.72 at 7-11 motifs, and beats MixMHCp on AMI, F1, purity
+and precision in every complexity band. MixMHCp's default arm keeps the highest
+recall of any tool here (0.83), which is what returning four coarse clusters
+buys; its F1 is 0.39 against 0.57-0.60.
 
-Two findings qualify that. First, **EM does nearly all of the work**: the
-Bayesian merge stage is worth about +0.02 AMI once EM runs, while the EM
-smoothing concentration alone moves AMI by 0.34 across its swept range. Second,
-**the PepCluster2 seed contributes about +0.017 AMI**, so the pipeline's
+Three findings qualify that.
+
+First, **EM does nearly all of the work.** The EM smoothing concentration alone
+moves AMI by 0.34 across its swept range, and the clean isolation of the stage -
+`+ merge (given K)` against `+ merge + EM (given K)`, identical merge, identical
+K - is AMI 0.4306 -> 0.5935 and F1 0.4302 -> 0.5659.
+
+Second, **the Bayesian merge stage is a granularity control, not a quality
+improvement.** Paired on the 48 test pools with EM running either way, it costs
+0.011 AMI and 0.012 F1 (neither significant) while trading 0.052 of precision for
+0.062 of recall (both p < 0.0001). An inner-fold reading put it at +0.02 AMI;
+that did not replicate and reversed sign on the test pools. What it is for is the
+case where K is unknown: it is what stops EM from having to pick a count out of
+175 components. Once K is supplied, seeding EM straight from the raw clusters is
+the best arm in the study (AMI 0.6201, F1 0.5998).
+
+Third, **the PepCluster2 seed contributes about +0.017 AMI**, so the pipeline's
 advantage is its mixture model, not its initialisation.
 
-## What "PepCluster2 + motif" is
+## The seven reported modes
+
+Every figure, table and CSV in this study uses these names. They are the
+reachable combinations of the two optional stages, with and without a supplied
+motif count K:
+
+| Name | Merge | EM | K supplied | Flags on top of the clustering defaults |
+|---|---|---|---|---|
+| PepCluster2 | no | no | no | *(none - the motif layer is off)* |
+| PepCluster2 + merge | yes | no | no | `--merge-motifs --no-motif-em` |
+| PepCluster2 + merge (given K) | to exactly K | no | yes | `--merge-motifs --no-motif-em --motif-count K --motif-count-from merge-to-k` |
+| PepCluster2 + merge + EM | yes | yes | no | `--merge-motifs` |
+| PepCluster2 + merge + EM (given K) | to exactly K | yes | yes | `--merge-motifs --motif-count K --motif-count-from merge-to-k` |
+| PepCluster2 + EM | no | yes | no | `--merge-motifs --no-motif-merge` |
+| PepCluster2 + EM (given K) | no | yes | yes | `--merge-motifs --no-motif-merge --motif-count K` |
+
+An eighth arm, **PepCluster2 + merge + EM (given K, threshold-merged)**, is
+carried in the tables but kept out of the figures. It seeds EM from K groups
+chosen farthest-apart among the groups merged at the evidence threshold,
+rather than from groups merged all the way down to K. The nested pair
+`+ merge (given K)` -> `+ merge + EM (given K)` is the one plotted, because
+it isolates EM against an otherwise identical merge.
+
+## What "PepCluster2 + merge + EM" is
 
 The full pipeline, three stages, run in one command
 (`pepcluster2 --merge-motifs ...`):
@@ -33,12 +71,13 @@ The full pipeline, three stages, run in one command
    than at random**. Components that lose all their weight disappear. Produces
    ~7 motifs.
 
-**No k is supplied at any point.** The number of motifs is a consequence of the
+**No K is supplied in this mode.** The number of motifs is a consequence of the
 merge threshold and of EM emptying components; nothing in the pipeline is told
-how many alleles a pool contains. The only arms in this study that receive k are
-the `forced k` variants of MixMHCp and GibbsCluster, which exist precisely to
-show how much of those tools' results come from their model rather than their
-model selection.
+how many alleles a pool contains. The four `given K` arms, and the `given K`
+variants of MixMHCp and GibbsCluster, exist precisely to show how much of each
+tool's result comes from its model rather than from its model selection. In
+practice a sample's alleles are usually known from typing, so `given K` is the
+arm a real user would run; both readings are kept side by side throughout.
 
 "Motif layer" means stages 2 and 3 together. It is reported as a second,
 separate partition: it does not satisfy the representative-to-member invariant
@@ -105,13 +144,45 @@ chooses the same configuration.
 Selected: `--motif-prior-concentration 10 --motif-merge-threshold 25
 --motif-em-prior-concentration 3`.
 
-| | AMI | BCubed F1 | Purity | Recall | Clusters |
+| | AMI | BCubed F1 | Purity | Recall | Motifs |
 |---|---:|---:|---:|---:|---:|
-| Similarity clustering alone | 0.3333 | 0.1098 | 0.4974 | 0.062 | 174.9 |
-| + merge, no EM | 0.4295 | 0.4275 | — | — | 10.8 |
-| **+ merge + EM** | **0.5964** | **0.5680** | 0.4617 | 0.7163 | 7.4 |
-| MixMHCp (default) | 0.3918 | 0.3918 | 0.2215 | 0.828 | 4.1 |
-| MixMHCp (forced k) | 0.4915 | 0.4728 | 0.4178 | 0.484 | 12.4 |
+| PepCluster2 | 0.3333 | 0.1098 | 0.4974 | 0.0624 | 174.9 |
+| PepCluster2 + merge | 0.3873 | 0.3514 | 0.4248 | 0.3261 | 112.4 |
+| PepCluster2 + merge (given K) | 0.4306 | 0.4302 | 0.3105 | 0.5692 | 11.4 |
+| **PepCluster2 + merge + EM** | **0.5964** | **0.5680** | 0.4617 | 0.7163 | 7.4 |
+| PepCluster2 + merge + EM (given K) | 0.5935 | 0.5659 | 0.4500 | 0.7307 | 11.4 |
+| PepCluster2 + EM | 0.6056 | 0.5785 | 0.5177 | 0.6519 | 10.0 |
+| PepCluster2 + EM (given K) | **0.6201** | **0.5998** | 0.5106 | 0.6897 | 11.4 |
+| *+ merge + EM (given K, threshold-merged)* | *0.5990* | *0.5693* | *0.4516* | *0.7198* | *11.4* |
+| MixMHCp (default) | 0.3918 | 0.3918 | 0.2215 | 0.8282 | 4.1 |
+| MixMHCp (given K) | 0.4915 | 0.4728 | 0.4178 | 0.4843 | 12.4 |
+| GibbsCluster (default) | 0.1799 | 0.2656 | 0.1000 | 0.6046 | 2.9 |
+| GibbsCluster (given K) | 0.2522 | 0.2628 | 0.1861 | 0.2576 | 12.4 |
+
+All eight PepCluster2 rows come from one sweep over the same 48 test pools at
+the selected merge and EM parameters, so the only thing that differs between
+them is the stage under test (`results/variant_<mode>.csv`,
+`code/run_variant.py`).
+
+Three things the full set makes visible that the headline row alone did not.
+
+**The `+ merge (given K)` -> `+ merge + EM (given K)` pair isolates EM.** Same
+merge, same K, EM off then on: AMI 0.4306 -> 0.5935, F1 0.4302 -> 0.5659. That is
+EM's own contribution with the motif count and the merge held fixed, which the
+earlier `+ merge` vs `+ merge + EM` comparison could not give, because the motif
+count moved too.
+
+**Merge-seeding does not help once K is known.** Both merge-seeded given-K routes
+(0.5935 merge-to-K, 0.5990 threshold-merged) sit below seeding EM from the raw
+clusters at 0.6201. The merge stage earns its place only when K is unknown, where
+it is what stops EM from having to choose a count from 175 components.
+
+**The `+ merge` row differs from the 0.4295 reported in earlier drafts.** That
+figure came from the merge-only arm's *own* selected configuration (threshold 0);
+this table holds the merge parameters at the headline selection (concentration
+10, threshold 25) for every arm, which is the only way a figure that varies one
+stage at a time can be read. At those parameters the merge alone leaves 112
+groups, not 10.8, and scores 0.3873.
 
 By pool complexity, selected configuration on test:
 
@@ -282,22 +353,43 @@ all 386 is **106 s** (max 2219 s). All 386 completed; none timed out.
 
 Test split, 48 pools:
 
-| Tool | AMI | Purity | Recall | F1 | Clusters |
+| Tool | AMI | Purity | Recall | F1 | Motifs |
 |---|---:|---:|---:|---:|---:|
 | GibbsCluster (default) | 0.1799 | 0.1000 | 0.6046 | 0.2656 | 2.9 |
-| GibbsCluster (forced k) | 0.2522 | 0.1861 | 0.2576 | 0.2628 | 12.4 |
+| GibbsCluster (given K) | 0.2522 | 0.1861 | 0.2576 | 0.2628 | 12.4 |
 | MixMHCp (default) | 0.3918 | 0.2215 | 0.8282 | 0.3918 | 4.1 |
-| MixMHCp (forced k) | 0.4915 | 0.4178 | 0.4843 | 0.4728 | 12.4 |
-| PepCluster2, similarity only | 0.3333 | 0.4974 | 0.0624 | 0.1098 | 174.9 |
-| **PepCluster2 + motif layer** | **0.5964** | 0.4617 | 0.7163 | **0.5680** | 7.4 |
+| MixMHCp (given K) | 0.4915 | 0.4178 | 0.4843 | 0.4728 | 12.4 |
+| PepCluster2 | 0.3333 | 0.4974 | 0.0624 | 0.1098 | 174.9 |
+| **PepCluster2 + merge + EM** | **0.5964** | 0.4617 | 0.7163 | **0.5680** | 7.4 |
+| **PepCluster2 + EM (given K)** | **0.6201** | 0.5106 | 0.6897 | **0.5998** | 11.4 |
 
-AMI by complexity:
+The comparators' `given K` arms return 12.4 clusters where ours return exactly
+11.4, the mean allele count. The difference is exactly one cluster in every one
+of the 48 pools: both tools get K motif components plus one further bucket -
+MixMHCp's own `Trash` column, and for GibbsCluster the peptides its trash cluster
+removed, collected into one "unassigned" cluster so that the denominator stays
+the same across tools. That is deliberate, and it is their output, not an
+artefact of the harness.
 
-| Alleles | Gibbs def | Gibbs forced k | MixMHCp def | MixMHCp forced k | PC2 sim | PC2 + motif |
-|---|---:|---:|---:|---:|---:|---:|
-| 2-6 | 0.348 | 0.378 | 0.573 | 0.712 | 0.337 | 0.735 |
-| 7-12 | 0.185 | 0.249 | 0.441 | 0.535 | 0.348 | 0.632 |
-| 13-30 | 0.080 | 0.183 | 0.253 | 0.335 | 0.321 | 0.492 |
+AMI by complexity, all eleven plotted arms:
+
+| Arm | 2-6 alleles (12 pools) | 7-12 (15 pools) | 13-30 (21 pools) |
+|---|---:|---:|---:|
+| PepCluster2 | 0.337 | 0.348 | 0.321 |
+| PepCluster2 + merge | 0.460 | 0.398 | 0.338 |
+| PepCluster2 + merge (given K) | 0.541 | 0.449 | 0.354 |
+| PepCluster2 + merge + EM | 0.735 | 0.632 | 0.492 |
+| PepCluster2 + merge + EM (given K) | 0.717 | 0.628 | 0.498 |
+| PepCluster2 + EM | 0.718 | **0.645** | 0.513 |
+| PepCluster2 + EM (given K) | **0.742** | 0.641 | **0.535** |
+| MixMHCp | 0.573 | 0.441 | 0.253 |
+| MixMHCp (given K) | 0.712 | 0.535 | 0.335 |
+| GibbsCluster | 0.348 | 0.185 | 0.080 |
+| GibbsCluster (given K) | 0.378 | 0.249 | 0.183 |
+
+Every PepCluster2 arm that runs EM beats every comparator arm in every band, and
+the margin widens with complexity: +0.030 over MixMHCp (given K) at 2-6 alleles,
++0.200 at 13-30.
 
 GibbsCluster trails MixMHCp throughout and degrades faster with allele count.
 Against the *similarity* clustering alone it wins below 7 alleles and loses above,
@@ -307,7 +399,7 @@ the same crossover MixMHCp shows but at a lower level.
 8-mer, and its trash cluster removes outliers, so mean coverage is 0.849 (minimum
 0.554). Every run is therefore scored twice: over the full pool with unassigned
 peptides collected into one cluster, and over assigned peptides only. The two
-barely differ - assigned-only AMI is 0.186 (default) and 0.266 (forced k) against
+barely differ - assigned-only AMI is 0.186 (default) and 0.266 (given K) against
 0.180 and 0.252 - so coverage is *not* what places it behind MixMHCp.
 
 **Trash threshold, settled.** The `-j 2` used here is more aggressive than the
@@ -316,7 +408,7 @@ tool's own default of 0. Paired over all 96 test runs:
 | Setting | AMI at -j 2 | AMI at -j 0 | Coverage -j 2 | Coverage -j 0 |
 |---|---:|---:|---:|---:|
 | default | 0.1799 | 0.1568 | 0.771 | 0.855 |
-| forced k | 0.2522 | 0.2521 | 0.912 | 0.925 |
+| given K | 0.2522 | 0.2521 | 0.912 | 0.925 |
 
 Wilcoxon p = 0.068, and the tool's own default is if anything *worse*. The choice
 does not affect any conclusion, and `--trash-threshold` is now a flag rather than
@@ -325,24 +417,30 @@ a hard-coded constant.
 ## How granularity responds to the pool
 
 Spearman rho between the number of clusters returned and the pool's properties,
-on the test pools; the whole family of 252 tests is Benjamini-Hochberg corrected
+on the test pools; the whole family of 504 tests is Benjamini-Hochberg corrected
 together (`figures/correlations_spearman.csv`).
 
 | Tool | vs peptides | vs alleles |
 |---|---:|---:|
-| PepCluster2 + motif | 0.766 *** | **0.444 **** |
-| PepCluster2 (similarity) | 0.906 *** | 0.437 ** |
-| MixMHCp (default) | 0.678 *** | -0.298 (ns) |
-| GibbsCluster (default) | 0.163 (ns) | **-0.664 **** |
-| MixMHCp / GibbsCluster (forced k) | 0.103 (ns) | 1.000 *** |
+| PepCluster2 | +0.906 **** | +0.437 ** |
+| PepCluster2 + merge | -0.030 (ns) | **+0.846 **** |
+| PepCluster2 + merge + EM | +0.766 **** | +0.444 ** |
+| PepCluster2 + EM | +0.834 **** | +0.447 ** |
+| MixMHCp | +0.678 **** | -0.298 (ns) |
+| GibbsCluster | +0.163 (ns) | **-0.664 **** |
+| every `given K` arm | +0.103 (ns) | +1.000 **** |
 
-The forced-k rows returning exactly 1.000 against allele count is the sanity
+The `given K` rows returning exactly 1.000 against allele count is the sanity
 check that the harness does what it claims.
 
-The informative row is the last unforced one. **GibbsCluster's own model
-selection returns *fewer* motifs as a pool gains alleles**, strongly and
-significantly so, and MixMHCp's is flat. Only the motif layer's component count
-rises with the number of alleles present without being told it. That is a
+The informative rows are the unforced ones. **GibbsCluster's own model selection
+returns *fewer* motifs as a pool gains alleles**, strongly and significantly so,
+and MixMHCp's is flat. Only PepCluster2's component count rises with the number
+of alleles present without being told it - and the merge stage on its own tracks
+the allele count more tightly (rho +0.846) than the full pipeline does (+0.444),
+while being almost blind to pool size (-0.030, ns). The merge decides *how many*
+groups there are from evidence; EM then trades some of that for profile
+quality. That is a
 statement about model selection, not about partition quality, and it is the
 mechanism behind the collapse of both external tools in the 13-30 band.
 
@@ -361,14 +459,35 @@ In `figures/`:
   and against allele count
 - `fig3_performance_alleles`, `fig4_performance_size` - AMI, purity, precision,
   recall and F1 against allele count and pool size
-- `fig5_all_splits` - every metric on every split
+- `fig5_all_splits` - every metric on the independent test split, as bars
+- `fig6_speed_vs_pool_size`, `fig7_speed_vs_performance` - cost, and cost
+  against accuracy
 - `per_pool_all_tools.csv` - the per-pool table behind all of it
 - `table1_benchmark_test.csv`, `table2_test_by_allele_band.csv`,
   `table3_all_splits.csv`, `correlations_spearman.csv`,
   `stage_contribution_all_metrics.csv`, `stage_deltas_all_metrics.csv`
 
-Colour is fixed throughout: black PepCluster2, red MixMHCp, blue GibbsCluster;
-solid as documented, dashed given the true allele count.
+Figures 2 to 7 carry the same eleven arms: the seven PepCluster2 modes listed at
+the top of this report, plus MixMHCp and GibbsCluster with and without a supplied
+K. Every per-panel CSV beside a figure holds exactly the plotted points, so a
+figure and its numbers cannot drift apart.
+
+**Colour encodes the pipeline, line style encodes whether K was supplied.**
+
+| | Colour | Solid | Dashed |
+|---|---|---|---|
+| clustering alone | black | PepCluster2 | *(no K variant exists)* |
+| + merge | grey | PepCluster2 + merge | + merge (given K) |
+| + merge + EM | purple | PepCluster2 + merge + EM | + merge + EM (given K) |
+| + EM | violet | PepCluster2 + EM | + EM (given K) |
+| MixMHCp | red | default | given K |
+| GibbsCluster | blue | default | given K |
+
+Every `given K` arm returns exactly K clusters, so in the granularity panels all
+five dashed lines lie on one curve; each is drawn at a different dash phase so
+they interleave rather than hide one another. Legends sit outside the axes.
+Figure 5 has no legend: its eleven bars are labelled on the x axis, and its five
+metrics are stacked as rows so that one set of labels serves all of them.
 
 ## Why the motif count saturates near ten
 
@@ -466,9 +585,11 @@ Against the automatic count, over 48 test pools: AMI 0.5964 -> 0.6201
 twelve alleles.
 
 This is not an oracle setting in practice. A sample's alleles are normally known
-from HLA typing, so supplying the count is ordinary use - unlike the `forced k`
-arms of MixMHCp and GibbsCluster in the benchmark, which are reported separately
-precisely because the benchmark treats the allele count as unknown.
+from HLA typing, so supplying the count is ordinary use. The `given K` arms are
+still reported separately from the automatic ones - for every tool, ours
+included - because the benchmark's premise is that the count is unknown, and
+mixing the two readings would let a tool be credited with a model selection it
+never performed.
 
 ## Cost
 
@@ -489,17 +610,18 @@ waits.
 
 | Arm | Median CPU s | Relative | Mean F1 | Mean AMI |
 |---|---:|---:|---:|---:|
-| PepCluster2, clustering only | 0.88 | 0.57x | 0.099 | 0.316 |
+| PepCluster2 | 0.88 | 0.57x | 0.099 | 0.316 |
 | **PepCluster2 + merge + EM** | **1.55** | **1.00x** | **0.519** | **0.560** |
-| PepCluster2 + merge + EM, given k | 0.85 | 0.55x | 0.570 | 0.599 |
+| PepCluster2 + merge + EM (given K) | 0.85 | 0.55x | 0.570 | 0.599 |
 | MixMHCp | 7.87 | 5.06x | 0.335 | 0.332 |
 | GibbsCluster | 459.52 | 296x | 0.229 | 0.173 |
 
 The motif layer roughly doubles the cost of clustering alone and takes F1 from
 0.099 to 0.519. Against the external tools the pipeline is 5x cheaper than
-MixMHCp and 296x cheaper than GibbsCluster while scoring above both. Supplying k
-is *cheaper* than the automatic count - it skips the agglomeration entirely, and
-EM converges faster from diverse seeds than from merged groups.
+MixMHCp and 296x cheaper than GibbsCluster while scoring above both. Supplying K
+appears *cheaper* than the automatic count - it skips the agglomeration entirely,
+and EM converges faster from diverse seeds than from merged groups - but at one
+repeat per pool that ordering is not established; see the note below.
 
 These F1 and AMI means are over the nine timing pools only, so they differ from
 the 48-pool benchmark figures elsewhere in this report; they are here to place
@@ -512,6 +634,16 @@ MixMHCp curve is not monotone because it selects its own motif count, and how
 many it settles on changes its runtime.
 
 `figures/fig6_speed_vs_pool_size` and `fig7_speed_vs_performance`.
+
+**This table and figures 6-7 are from the three-arm timing run and are being
+re-measured.** The re-run (`code/speed_v2.sbatch`) times all seven PepCluster2
+modes over three repeats per pool rather than one, because at a single repeat the
+arms are separated by less than the run-to-run spread: the `given K` row above is
+*faster* than clustering alone in only some pools, and the median pool happened to
+be one of them. The MixMHCp dip near 5,000 peptides has the same status - it is
+partly allele-count driven and partly unexplained at n = 1. Until that job lands,
+read the ordering of the cheap arms as unresolved; the 5x and 296x gaps to the
+external tools are far larger than the noise and are not in question.
 
 ## Representative selection, and two speed fixes
 
@@ -708,10 +840,32 @@ Largest pool (24,888 peptides): 54.5 s single-threaded, 562 MB temporary spill,
 
 ```bash
 V=validation/2026-08-06_0.6.0_motif_merge
+B=validation/2026-07-30_0.5.0-dev_search_redesign
+
 sbatch $V/code/motif_grid.sbatch          # 11,580 runs, ~6 min on 8x64 cores
 python3 $V/code/analyse_motif.py --grid $V/grid --out $V/results
 python3 $V/code/decompose.py  ...         # see --help
 python3 $V/code/controls.py               # initialisation control
+
+# the eight motif-layer arms, one SLURM task each, ~2 min per arm
+sbatch $V/code/variants.sbatch            # -> results/variant_<mode>.csv
+
+# figures 2-5 and every table beside them
+python3 $V/code/figures.py \
+    --bench $B/benchmark --study $B \
+    --results $V/results --out $V/figures
+
+# figures 6-7, after the timing job. Two array tasks, because GibbsCluster
+# dominates the wall clock: task 0 writes speed_benchmark_fast.csv, task 1
+# writes speed_benchmark_gibbscluster.csv.
+sbatch $V/code/speed_v2.sbatch
+python3 -c "import pandas,sys; pandas.concat(
+    [pandas.read_csv(f) for f in sys.argv[1:]]
+  ).to_csv('$V/results/speed_benchmark.csv', index=False)" \
+    $V/results/speed_benchmark_fast.csv \
+    $V/results/speed_benchmark_gibbscluster.csv
+python3 $V/code/speed_figures.py \
+    --speed $V/results/speed_benchmark.csv --out $V/figures
 ```
 
 `runs/assign/` holds per-peptide similarity assignments for the Python analyses;

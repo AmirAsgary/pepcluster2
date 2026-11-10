@@ -1,22 +1,33 @@
 #!/usr/bin/env python3
-"""One motif-layer variant over every benchmark pool.
+"""One motif-layer mode over every benchmark pool.
 
-Three supported variants, all sharing the base clustering and the EM
-concentration that nested selection chose on the inner folds:
+Eight arms, all sharing the base clustering and the merge and EM parameters that
+nested selection chose on the inner folds, so the only thing that differs between
+them is the stage under test:
 
-  merge_em   agglomerative merge, then EM seeded from the merged groups. The
-             headline configuration.
-  em_only    no merge; EM gets one component per similarity cluster and finds its
-             own count. Statistically indistinguishable from merge_em on AMI and
-             F1, but finer: higher precision, lower recall.
-  forced_k   EM seeded from the K similarity clusters farthest apart in profile
-             space, then exactly K motifs are returned.
+  similarity   clustering only; the motif layer is off.
+  merge        agglomerative merge of the clusters, no EM.
+  merge_k      the merge continued until exactly K groups remain, no EM. With
+               `merge_em_k` this is the clean isolation of EM: identical merge,
+               identical count, EM off then on.
+  merge_em     merge, then EM seeded from the merged groups. The headline
+               configuration, and the only one that chooses its own count.
+  merge_em_k   merge to exactly K, then EM from those K groups.
+  em_only      no merge; EM gets one component per similarity cluster and finds
+               its own count.
+  em_only_k    no merge; EM seeded from the K similarity clusters farthest apart
+               in profile space, then exactly K motifs are returned. The best
+               arm in the study.
+  merge_em_k_merged
+               a second merge-seeded given-K route: merge at the evidence
+               threshold, then take K seeds farthest apart among the merged
+               groups. Reported in the tables, kept out of the figures, because
+               merge_k -> merge_em_k is the nested pair that isolates EM.
 
-`forced_k` is reported as a separate arm rather than folded into the headline,
-because the benchmark's premise is that the allele count is unknown - the same
-reason MixMHCp and GibbsCluster carry separate `forced k` arms. In practice a
-sample's alleles are usually known from typing, so it is the arm a real user
-would run; both readings are kept side by side.
+The `given K` arms are reported separately from the automatic ones, for every
+tool including ours, because the benchmark's premise is that the allele count is
+unknown. In practice a sample's alleles are usually known from typing, so they
+are the arms a real user would run; both readings are kept side by side.
 """
 
 from __future__ import annotations
@@ -46,19 +57,55 @@ BASE = ["--mode", "separate_kmer_anchor",
         "--clustering-method", "graph", "--no-prefilter", "--compact-output"]
 
 
-VARIANTS = ("merge_em", "em_only", "forced_k")
+# The seven reported modes, plus merge_em_k_merged, which seeds a requested
+# count from groups merged at the evidence threshold rather than from groups
+# merged down to exactly K. Both are merge-seeded given-K; the nested pair
+# merge_k -> merge_em_k is the one carried in the figures, because it isolates
+# the EM stage against an otherwise identical merge.
+VARIANTS = ("similarity", "merge", "merge_k", "merge_em", "merge_em_k",
+            "em_only", "em_only_k", "merge_em_k_merged")
+
+# Display names, used by every figure, CSV and table downstream.
+LABELS = {
+    "similarity":        "PepCluster2",
+    "merge":             "PepCluster2 + merge",
+    "merge_k":           "PepCluster2 + merge (given K)",
+    "merge_em":          "PepCluster2 + merge + EM",
+    "merge_em_k":        "PepCluster2 + merge + EM (given K)",
+    "em_only":           "PepCluster2 + EM",
+    "em_only_k":         "PepCluster2 + EM (given K)",
+    "merge_em_k_merged": "PepCluster2 + merge + EM (given K, threshold-merged)",
+}
 
 
 def variant_flags(variant: str, selected: dict, allele_count: int) -> list[str]:
+    """Flags for one mode. `similarity` returns none: the motif layer is off."""
+    if variant == "similarity":
+        return []
     flags = ["--merge-motifs",
              "--motif-em-prior-concentration", str(selected["em_concentration"])]
-    if variant == "forced_k":
-        return flags + ["--motif-count", str(int(allele_count))]
-    if variant == "em_only":
-        return flags + ["--no-motif-merge"]
-    return flags + ["--motif-prior-concentration",
+    merge_params = ["--motif-prior-concentration",
                     str(selected["merge_concentration"]),
                     "--motif-merge-threshold", str(selected["merge_threshold"])]
+    k = str(int(allele_count))
+    if variant == "em_only":
+        return flags + ["--no-motif-merge"]
+    if variant == "em_only_k":
+        return flags + ["--motif-count", k, "--motif-count-from", "clusters"]
+    if variant == "merge":
+        return flags + merge_params + ["--no-motif-em"]
+    if variant == "merge_k":
+        # Stopping the agglomeration at K assigns every peptide, so this is the
+        # one requested-count mode that needs no EM.
+        return flags + merge_params + [
+            "--no-motif-em", "--motif-count", k, "--motif-count-from", "merge-to-k"]
+    if variant == "merge_em_k":
+        return flags + merge_params + [
+            "--motif-count", k, "--motif-count-from", "merge-to-k"]
+    if variant == "merge_em_k_merged":
+        return flags + merge_params + [
+            "--motif-count", k, "--motif-count-from", "merged"]
+    return flags + merge_params
 
 
 def run_one(job, binary, pools, tmp_root, selected):
@@ -74,7 +121,11 @@ def run_one(job, binary, pools, tmp_root, selected):
         if proc.returncode:
             return {**job, "status": "failed",
                     "error": (proc.stderr or proc.stdout)[-300:].replace("\n", " ")}
-        motifs = pd.read_csv(output / "motif_clusters.tsv", sep="\t")
+        if job["variant"] == "similarity":
+            motifs = pd.read_csv(output / "node_clusters.tsv", sep="\t")
+            motifs = motifs.rename(columns={"cluster_id": "motif_id"})
+        else:
+            motifs = pd.read_csv(output / "motif_clusters.tsv", sep="\t")
         stats = json.loads((output / "run_stats.json").read_text())
     merged = labels.merge(motifs[["sequence", "motif_id"]],
                           left_on="peptide", right_on="sequence", how="inner")
@@ -106,7 +157,7 @@ def main() -> None:
     manifest = pd.read_csv(args.manifest).sort_values("peptides", ascending=False)
     jobs = [{"pool": r.pool, "split": r.split, "outer_fold": r.outer_fold,
              "allele_count": r.allele_count, "peptides": r.peptides,
-             "variant": args.variant}
+             "variant": args.variant, "label": LABELS[args.variant]}
             for r in manifest.itertuples()]
 
     import numpy as np
