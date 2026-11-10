@@ -192,6 +192,43 @@ impl Prior {
     }
 }
 
+/// Where the K seeds come from when `target_count` is set.
+///
+/// The three differ in whether the agglomerative merge contributes, and how.
+/// `Clusters` reproduces every result published before this option existed.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CountSeeding {
+    /// K similarity clusters farthest apart in profile space; the merge is
+    /// bypassed entirely.
+    Clusters,
+    /// Merge to the evidence threshold first, then take the K merged groups
+    /// farthest apart. Falls back to topping up from the unmerged clusters when
+    /// the merge leaves fewer than K groups.
+    Merged,
+    /// Merge by the same Bayes-factor order but stop when exactly K groups
+    /// remain, ignoring the threshold. Every cluster is assigned, so this is a
+    /// complete partition on its own and does not require EM.
+    MergeToK,
+}
+
+impl CountSeeding {
+    pub fn parse(value: &str) -> Result<Self, String> {
+        match value {
+            "clusters" => Ok(Self::Clusters),
+            "merged" => Ok(Self::Merged),
+            "merge-to-k" => Ok(Self::MergeToK),
+            other => Err(format!("invalid --motif-count-from: {other}")),
+        }
+    }
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Clusters => "clusters",
+            Self::Merged => "merged",
+            Self::MergeToK => "merge-to-k",
+        }
+    }
+}
+
 /// Tunable parameters of the motif stage.
 #[derive(Clone, Copy, Debug)]
 pub struct MotifParams {
@@ -203,6 +240,8 @@ pub struct MotifParams {
     /// EM may still empty a component afterwards, so the final motif count can be
     /// lower.
     pub target_count: Option<usize>,
+    /// Which seeds a requested count is built from.
+    pub count_seeding: CountSeeding,
     /// Run the agglomerative merge. With it disabled, EM is seeded with one
     /// component per similarity cluster and finds its own count by emptying the
     /// ones the data does not support. Ignored when `target_count` is set, which
@@ -731,8 +770,57 @@ pub fn build_motifs(
     }
     let (seed_counts, seed_mixing, merged_count, mut motif_of) = match params.target_count
     {
+        // Stop the agglomeration at exactly K groups. Every cluster lands in a
+        // group, so this is a complete partition and needs no EM to be usable.
+        Some(want) if params.count_seeding == CountSeeding::MergeToK => {
+            let want = want.max(1).min(cluster_count.max(1));
+            let (group_of_cluster, merged) = agglomerate(
+                &mut profiles,
+                &merge_prior,
+                params.merge_threshold,
+                Some(want),
+            );
+            let assignment: Vec<u32> = clustering
+                .cluster_of
+                .iter()
+                .map(|&cluster| group_of_cluster[cluster as usize])
+                .collect();
+            let counts = group_profiles(nodes, &frames, &assignment, merged);
+            let mut mixing = vec![0.0f64; merged];
+            for (index, node) in nodes.iter().enumerate() {
+                mixing[assignment[index] as usize] += node.frequency as f64;
+            }
+            (counts, mixing, merged, assignment)
+        }
         Some(want) => {
             let want = want.max(1).min(cluster_count.max(1));
+            // `Merged` collapses the clusters by the evidence threshold first and
+            // then selects among the groups; `Clusters` selects among the
+            // similarity clusters directly. Both then pick seeds the same way.
+            let (mut profiles, sizes, origin) =
+                if params.count_seeding == CountSeeding::Merged {
+                    let (group_of_cluster, merged) = agglomerate(
+                        &mut profiles.clone(),
+                        &merge_prior,
+                        params.merge_threshold,
+                        None,
+                    );
+                    let assignment: Vec<u32> = clustering
+                        .cluster_of
+                        .iter()
+                        .map(|&cluster| group_of_cluster[cluster as usize])
+                        .collect();
+                    let counts = group_profiles(nodes, &frames, &assignment, merged);
+                    let mut group_sizes = vec![0u64; merged];
+                    for &group in &assignment {
+                        group_sizes[group as usize] += 1;
+                    }
+                    (counts, group_sizes, Some(assignment))
+                } else {
+                    (profiles.clone(), sizes.clone(), None)
+                };
+            let cluster_count = profiles.len();
+            let want = want.min(cluster_count.max(1));
             let mut order: Vec<usize> = (0..cluster_count).collect();
             // Largest first; ties by cluster index so the choice is reproducible.
             order.sort_by(|&a, &b| sizes[b].cmp(&sizes[a]).then(a.cmp(&b)));
@@ -798,11 +886,16 @@ pub fn build_motifs(
             for (rank, &cluster) in chosen.iter().enumerate() {
                 rank_of[cluster] = rank as u32;
             }
-            let provisional = clustering
-                .cluster_of
-                .iter()
-                .map(|&c| rank_of[c as usize])
-                .collect();
+            let provisional: Vec<u32> = match &origin {
+                // Seeds are merged groups, so a node's provisional component is
+                // read through the group it was merged into.
+                Some(assignment) => assignment.iter().map(|&g| rank_of[g as usize]).collect(),
+                None => clustering
+                    .cluster_of
+                    .iter()
+                    .map(|&c| rank_of[c as usize])
+                    .collect(),
+            };
             (counts, mixing, want, provisional)
         }
         None if !params.merge => {

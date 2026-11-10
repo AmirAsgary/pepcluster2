@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- `--motif-count-from {clusters,merged,merge-to-k}` selects where the K seeds
+  come from when `--motif-count` is given. `clusters` is the default and
+  reproduces every published result byte-for-byte. `merged` merges to the
+  evidence threshold first and then takes the K merged groups farthest apart.
+  `merge-to-k` merges in the same Bayes-factor order but stops at exactly K
+  groups.
+
+  `merge-to-k` assigns every peptide without EM, so it is the one count seeding
+  that may be combined with `--no-motif-em`; this is the new "merge (given K)"
+  mode. Previously `--motif-count` silently bypassed the merge entirely, so
+  `--merge-motifs --motif-count K` and `--no-motif-merge --motif-count K` gave
+  identical output.
+
 ## 0.10.0
 
 ### Changed

@@ -1,6 +1,6 @@
 use crate::graph::RepresentativeOrder;
 use crate::index::TerminalSeed;
-use crate::motif::MotifParams;
+use crate::motif::{CountSeeding, MotifParams};
 use crate::scoring::{ScoringMode, SimdMode};
 use std::env;
 use std::path::PathBuf;
@@ -298,6 +298,18 @@ MOTIF LAYER (optional, off by default):
                                 this. Equivalent to a prior over partitions
                                 proportional to exp(-t * clusters), so larger
                                 values keep more motifs [default: 25]
+      --motif-count-from NAME   Where the K seeds come from, with --motif-count:
+                                clusters   K similarity clusters farthest apart,
+                                           bypassing the merge (reproduces every
+                                           published result)
+                                merged     merge to the evidence threshold, then
+                                           take the K merged groups farthest apart
+                                merge-to-k merge by the same Bayes-factor order but
+                                           stop at exactly K groups. A complete
+                                           partition on its own, so it is the one
+                                           setting that may be combined with
+                                           --no-motif-em
+                                [default: clusters]
       --no-motif-em             DIAGNOSTIC ONLY. Skip EM and keep the merged
                                 partition. Not a supported variant: merging alone
                                 reaches AMI 0.43 against 0.60 with EM. Retained so
@@ -433,6 +445,7 @@ pub fn parse() -> Result<Option<Config>, String> {
     let mut motif_em_max_iterations = 200usize;
     let mut motif_em_tolerance = 1e-6f64;
     let mut motif_count: Option<usize> = None;
+    let mut motif_count_from = CountSeeding::Clusters;
 
     let mut i = 0;
     while i < args.len() {
@@ -624,6 +637,10 @@ pub fn parse() -> Result<Option<Config>, String> {
             }
             "--merge-motifs" => merge_motifs = true,
             "--no-motif-em" => motif_em = false,
+            "--motif-count-from" => {
+                motif_count_from =
+                    CountSeeding::parse(&next_value(&args, &mut i, "--motif-count-from")?)?
+            }
             "--no-motif-merge" => motif_merge = false,
             "--motif-prior-concentration" => {
                 motif_prior_concentration = parse_number(
@@ -834,10 +851,15 @@ pub fn parse() -> Result<Option<Config>, String> {
     if !motif_merge && !motif_em {
         return Err("--no-motif-merge with --no-motif-em would do nothing".into());
     }
-    if motif_count.is_some() && !motif_em {
+    if motif_count.is_some() && !motif_em && motif_count_from != CountSeeding::MergeToK {
         // The requested count seeds components from the largest clusters only;
         // without EM nothing would place the remaining peptides.
-        return Err("--motif-count requires the EM stage; remove --no-motif-em".into());
+        return Err(
+            "--motif-count requires the EM stage unless --motif-count-from merge-to-k \
+             is used, which stops the agglomeration at K and so assigns every peptide \
+             without EM"
+                .into(),
+        );
     }
     if !merge_motifs {
         // Fail loudly rather than silently ignoring motif settings: a sweep that
@@ -942,6 +964,7 @@ pub fn parse() -> Result<Option<Config>, String> {
         motif: MotifParams {
             merge: motif_merge,
             target_count: motif_count,
+            count_seeding: motif_count_from,
             prior_concentration: motif_prior_concentration,
             merge_threshold: motif_merge_threshold,
             em: motif_em,
