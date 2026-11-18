@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.10.1
 
 ### Added
 
@@ -16,6 +16,36 @@
   mode. Previously `--motif-count` silently bypassed the merge entirely, so
   `--merge-motifs --motif-count K` and `--no-motif-merge --motif-count K` gave
   identical output.
+
+### Fixed
+
+- The speed benchmark harness kept the GibbsCluster result block outside its
+  repeat loop. In a run that skipped GibbsCluster it recorded the preceding
+  MixMHCp result as a GibbsCluster row at wall time x 16, and in a run that did
+  execute it only the last of the requested repeats was written. Validation
+  only; no library or CLI behaviour changes.
+
+### Documentation
+
+- The motif layer is now reported as seven named modes - PepCluster2, + merge,
+  + merge (given K), + merge + EM, + merge + EM (given K), + EM, + EM (given K)
+  - across every benchmark figure, table and CSV, replacing three arms whose
+  names did not say what they did. Isolating EM against an identical merge and
+  an identical count gives AMI 0.4306 -> 0.5935 and F1 0.4302 -> 0.5659.
+
+- Cost figures re-measured with three repeats per pool. At one repeat the
+  sub-second arms were not separated - a cold start doubled the smallest pool -
+  which had put a given-count arm below clustering alone, an impossible
+  ordering. Paired over nine pools every arm is now above clustering alone at
+  p = 0.0039, and the README cost table is corrected: the given-count arm is
+  9x cheaper than MixMHCp and ~600x cheaper than GibbsCluster at 1.02x the cost
+  of clustering alone, replacing the earlier 5x / 296x figures.
+
+- The benchmark report's summary claimed the merge stage was worth +0.02 AMI
+  and a win over MixMHCp on every metric. The body of the same report already
+  corrected the first to -0.011 and not significant; the second is false on
+  recall, where MixMHCp's default arm reaches 0.83 to our 0.72 by returning four
+  coarse clusters, at F1 0.39 against 0.57. Both rewritten.
 
 ## 0.10.0
 
