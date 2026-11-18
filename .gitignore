@@ -30,6 +30,15 @@
 # scripts beside them.
 /validation/**/grid/
 /validation/**/raw/gibbs_shards/
+/validation/**/results/shards/
 
 # SLURM logs written to the repo root by sbatch --output=logs/...
 /logs/
+
+# Generated benchmark pools: build_pools.py rebuilds them bit-identically from
+# the source table and the seeds recorded in pool_manifest.csv.
+/validation/**/pools/
+
+# Third-party source datasets. Not ours to redistribute; each study's
+# data/README.md says where its table came from.
+/validation/**/data/*.parquet

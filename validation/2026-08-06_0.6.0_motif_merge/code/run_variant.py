@@ -108,7 +108,7 @@ def variant_flags(variant: str, selected: dict, allele_count: int) -> list[str]:
     return flags + merge_params
 
 
-def run_one(job, binary, pools, tmp_root, selected):
+def run_one(job, binary, pools, tmp_root, selected, extra_flags=()):
     fasta = pools / f"{job['pool']}.fasta"
     labels = pd.read_csv(pools / f"{job['pool']}.labels.tsv", sep="\t")
     started = time.time()
@@ -116,6 +116,7 @@ def run_one(job, binary, pools, tmp_root, selected):
         output = Path(tmp) / "out"
         command = [str(binary), "--input", str(fasta), "--output-dir", str(output),
                    *BASE, "--threads", "1", "--tmp-dir", str(Path(tmp) / "tmp"),
+                   *extra_flags,
                    *variant_flags(job["variant"], selected, job["allele_count"])]
         proc = subprocess.run(command, capture_output=True, text=True)
         if proc.returncode:
@@ -149,12 +150,26 @@ def main() -> None:
     parser.add_argument("--tmp-root", type=Path, required=True)
     parser.add_argument("--variant", choices=VARIANTS, required=True)
     parser.add_argument("--workers", type=int, default=40)
+    parser.add_argument("--max-memory-gb", type=float, default=None,
+                        help="raise the 8 GiB default, which aborts large pools")
+    parser.add_argument("--shard", type=int, default=0)
+    parser.add_argument("--shards", type=int, default=1,
+                        help="split the pools over this many jobs; shard i takes "
+                             "every i-th pool of the size-sorted list, so each "
+                             "job gets a comparable mix of large and small")
     args = parser.parse_args()
+    extra = ([] if args.max_memory_gb is None
+             else ["--max-memory-gb", str(args.max_memory_gb)])
     args.tmp_root.mkdir(parents=True, exist_ok=True)
     args.out.parent.mkdir(parents=True, exist_ok=True)
 
     selected = pd.read_csv(args.selected).iloc[0].to_dict()
     manifest = pd.read_csv(args.manifest).sort_values("peptides", ascending=False)
+    if args.shards > 1:
+        # Round-robin over the size-sorted list rather than contiguous blocks:
+        # a contiguous split would hand one job every large pool and leave
+        # another with nothing but small ones.
+        manifest = manifest.iloc[args.shard::args.shards]
     jobs = [{"pool": r.pool, "split": r.split, "outer_fold": r.outer_fold,
              "allele_count": r.allele_count, "peptides": r.peptides,
              "variant": args.variant, "label": LABELS[args.variant]}
@@ -172,16 +187,20 @@ def main() -> None:
         with concurrent.futures.ThreadPoolExecutor(max_workers=args.workers) as pool:
             futures = [pool.submit(run_one, j, args.binary.resolve(),
                                    args.pools.resolve(), args.tmp_root.resolve(),
-                                   selected) for j in jobs]
+                                   selected, tuple(extra)) for j in jobs]
             for future in concurrent.futures.as_completed(futures):
                 row = future.result()
                 with lock:
                     writer.writerow({k: row.get(k, "") for k in fields})
                     done[0] += 1
-                    if done[0] % 40 == 0:
-                        handle.flush()
+                    # Flush every row: a pool of 80k peptides can run for
+                    # minutes, and a job that dies late should still leave
+                    # everything it finished on disk.
+                    handle.flush()
+                    if done[0] % 10 == 0:
                         print(f"  {done[0]}/{len(jobs)}", flush=True)
-    print(f"wrote {done[0]} rows to {args.out}")
+    print(f"wrote {done[0]} rows to {args.out}"
+          + (f" (shard {args.shard} of {args.shards})" if args.shards > 1 else ""))
 
 
 if __name__ == "__main__":

@@ -112,12 +112,23 @@ def main() -> None:
     parser.add_argument("--settings", nargs="+", default=["default", "oracle_k"])
     parser.add_argument("--cores", type=int, default=32)
     parser.add_argument("--tmp-root", type=Path, required=True)
+    parser.add_argument("--shard", type=int, default=0)
+    parser.add_argument("--shards", type=int, default=1,
+                        help="split the runs over this many jobs; shard i takes "
+                             "every i-th job of the size-sorted list, so each "
+                             "job gets a comparable mix of large and small")
     args = parser.parse_args()
 
     args.tmp_root.mkdir(parents=True, exist_ok=True)
     args.out.parent.mkdir(parents=True, exist_ok=True)
     jobs = build_jobs(args.manifest, tuple(args.splits), tuple(args.settings))
-    print(f"{len(jobs)} MixMHCp runs on {args.cores} cores", flush=True)
+    if args.shards > 1:
+        # build_jobs already sorts by pool size, so a round-robin slice gives
+        # every shard the same mix of large and small pools.
+        jobs = jobs[args.shard::args.shards]
+    print(f"{len(jobs)} MixMHCp runs on {args.cores} cores"
+          + (f" (shard {args.shard} of {args.shards})" if args.shards > 1 else ""),
+          flush=True)
 
     handle = args.out.open("w", newline="")
     writer = None
